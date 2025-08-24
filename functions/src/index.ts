@@ -1,20 +1,58 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const auth = admin.auth();
+
+// Type definitions
+interface UnlockRequestData {
+  serviceRequestId: string;
+}
+
+interface SubmitQuoteData {
+  serviceRequestId: string;
+  amount: number;
+  breakdown: string;
+  estimatedStartDate: string;
+  estimatedCompletionDate: string;
+  notes: string;
+}
+
+interface AcceptQuoteData {
+  quoteId: string;
+  customerAddress: string;
+  customerPhone: string;
+}
+
+interface RechargeWalletData {
+  amount: number;
+  paymentMethod: string;
+}
+
+interface CompleteServiceData {
+  serviceRequestId: string;
+  rating: number;
+  review: string;
+}
+
+interface SendNotificationData {
+  userId: string;
+  title: string;
+  message: string;
+  data?: any;
+}
 
 // Unlock service request for tradie
-export const unlockServiceRequest = functions.https.onCall(async (data, context) => {
+export const unlockServiceRequest = functions.https.onCall(async (request) => {
   // Check if user is authenticated
-  if (!context.auth) {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { serviceRequestId } = data;
-  const tradieId = context.auth.uid;
+  const { serviceRequestId } = request.data as UnlockRequestData;
+  const tradieId = request.auth.uid;
 
   try {
     // Get tradie's wallet balance
@@ -24,7 +62,7 @@ export const unlockServiceRequest = functions.https.onCall(async (data, context)
     }
 
     const tradieData = tradieDoc.data();
-    if (tradieData?.userType !== 'tradie') {
+    if (!tradieData || tradieData.userType !== 'tradie') {
       throw new functions.https.HttpsError('permission-denied', 'Only tradies can unlock requests');
     }
 
@@ -40,7 +78,7 @@ export const unlockServiceRequest = functions.https.onCall(async (data, context)
     }
 
     const serviceRequestData = serviceRequestDoc.data();
-    if (serviceRequestData?.status !== 'active') {
+    if (!serviceRequestData || serviceRequestData.status !== 'active') {
       throw new functions.https.HttpsError('failed-precondition', 'Service request is not active');
     }
 
@@ -80,13 +118,13 @@ export const unlockServiceRequest = functions.https.onCall(async (data, context)
 });
 
 // Submit quote for service request
-export const submitQuote = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const submitQuote = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { serviceRequestId, amount, breakdown, estimatedStartDate, estimatedCompletionDate, notes } = data;
-  const tradieId = context.auth.uid;
+  const { serviceRequestId, amount, breakdown, estimatedStartDate, estimatedCompletionDate, notes } = request.data as SubmitQuoteData;
+  const tradieId = request.auth.uid;
 
   try {
     // Verify tradie has unlocked this request
@@ -144,13 +182,13 @@ export const submitQuote = functions.https.onCall(async (data, context) => {
 });
 
 // Accept quote by customer
-export const acceptQuote = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const acceptQuote = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { quoteId, customerAddress, customerPhone } = data;
-  const customerId = context.auth.uid;
+  const { quoteId, customerAddress, customerPhone } = request.data as AcceptQuoteData;
+  const customerId = request.auth.uid;
 
   try {
     // Get quote
@@ -160,12 +198,15 @@ export const acceptQuote = functions.https.onCall(async (data, context) => {
     }
 
     const quoteData = quoteDoc.data();
+    if (!quoteData) {
+      throw new functions.https.HttpsError('not-found', 'Quote data not found');
+    }
     
     // Verify customer owns the service request
     const serviceRequestDoc = await db.collection('serviceRequests').doc(quoteData.serviceRequestId).get();
     const serviceRequestData = serviceRequestDoc.data();
     
-    if (serviceRequestData.customerId !== customerId) {
+    if (!serviceRequestData || serviceRequestData.customerId !== customerId) {
       throw new functions.https.HttpsError('permission-denied', 'Not authorized to accept this quote');
     }
 
@@ -207,13 +248,13 @@ export const acceptQuote = functions.https.onCall(async (data, context) => {
 });
 
 // Recharge wallet
-export const rechargeWallet = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const rechargeWallet = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { amount, paymentMethod } = data;
-  const userId = context.auth.uid;
+  const { amount, paymentMethod } = request.data as RechargeWalletData;
+  const userId = request.auth.uid;
 
   try {
     // TODO: Integrate with actual payment processor (Stripe, PayPal, etc.)
@@ -246,20 +287,20 @@ export const rechargeWallet = functions.https.onCall(async (data, context) => {
 });
 
 // Complete service request
-export const completeServiceRequest = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const completeServiceRequest = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { serviceRequestId, rating, review } = data;
-  const customerId = context.auth.uid;
+  const { serviceRequestId, rating, review } = request.data as CompleteServiceData;
+  const customerId = request.auth.uid;
 
   try {
     // Verify customer owns the service request
     const serviceRequestDoc = await db.collection('serviceRequests').doc(serviceRequestId).get();
     const serviceRequestData = serviceRequestDoc.data();
     
-    if (serviceRequestData.customerId !== customerId) {
+    if (!serviceRequestData || serviceRequestData.customerId !== customerId) {
       throw new functions.https.HttpsError('permission-denied', 'Not authorized to complete this request');
     }
 
@@ -284,14 +325,16 @@ export const completeServiceRequest = functions.https.onCall(async (data, contex
       // Calculate new rating
       const tradieDoc = await tradieRef.get();
       const tradieData = tradieDoc.data();
-      const currentRating = tradieData.rating || 0;
-      const totalJobs = tradieData.totalJobs || 0;
-      const newRating = ((currentRating * totalJobs) + rating) / (totalJobs + 1);
+      if (tradieData) {
+        const currentRating = tradieData.rating || 0;
+        const totalJobs = tradieData.totalJobs || 0;
+        const newRating = ((currentRating * totalJobs) + rating) / (totalJobs + 1);
 
-      await tradieRef.update({
-        rating: newRating,
-        totalJobs: totalJobs + 1
-      });
+        await tradieRef.update({
+          rating: newRating,
+          totalJobs: totalJobs + 1
+        });
+      }
     }
 
     return {
@@ -305,12 +348,12 @@ export const completeServiceRequest = functions.https.onCall(async (data, contex
 });
 
 // Send push notification
-export const sendPushNotification = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const sendPushNotification = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  const { userId, title, message, data: notificationData } = data;
+  const { userId, title, message, data: notificationData } = request.data as SendNotificationData;
 
   try {
     // Get user's FCM token

@@ -29,86 +29,58 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
+  // Listen to service requests - DISABLED due to Firestore permissions
+  useEffect(() => {
+    if (!user || user.userType !== 'customer') {
+      setServiceRequests([]);
+      return;
+    }
+
+    // TODO: Enable when Firestore rules are configured
+    console.log('Service requests query disabled - Firestore permissions needed');
+    setServiceRequests([]);
+    
+    // const requestsQuery = query(
+    //   collection(db, 'serviceRequests'),
+    //   where('customerId', '==', user.id),
+    //   orderBy('createdAt', 'desc')
+    // );
+    // 
+    // const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+    //   const requests = snapshot.docs.map(doc => ({
+    //     id: doc.id,
+    //     ...doc.data()
+    //   })) as ServiceRequest[];
+    //   setServiceRequests(requests);
+    // });
+    //
+    // return unsubscribe;
+  }, [user]);
+
+  // Listen to quotes - DISABLED due to Firestore permissions
   useEffect(() => {
     if (!user) {
-      setServiceRequests([]);
       setQuotes([]);
+      return;
+    }
+
+    // TODO: Enable when Firestore rules are configured
+    console.log('Quotes query disabled - Firestore permissions needed');
+    setQuotes([]);
+  }, [user, serviceRequests]);
+
+  // Listen to messages - DISABLED due to Firestore permissions
+  useEffect(() => {
+    if (!user) {
       setMessages([]);
       setUnreadMessageCount(0);
       return;
     }
 
-    let unsubscribeRequests: (() => void) | undefined;
-    let unsubscribeQuotes: (() => void) | undefined;
-    let unsubscribeMessages: (() => void) | undefined;
-
-    if (user.userType === 'customer') {
-      // Listen to customer's service requests
-      const requestsQuery = query(
-        collection(db, 'serviceRequests'),
-        where('customerId', '==', user.id),
-        orderBy('createdAt', 'desc')
-      );
-      unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ServiceRequest[];
-        setServiceRequests(requests);
-      });
-
-      // Listen to quotes for customer's requests
-      const quotesQuery = query(
-        collection(db, 'quotes'),
-        where('serviceRequestId', 'in', serviceRequests.map(req => req.id)),
-        orderBy('createdAt', 'desc')
-      );
-      unsubscribeQuotes = onSnapshot(quotesQuery, (snapshot) => {
-        const quotesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Quote[];
-        setQuotes(quotesData);
-      });
-    } else if (user.userType === 'tradie') {
-      // Listen to tradie's quotes
-      const quotesQuery = query(
-        collection(db, 'quotes'),
-        where('tradieId', '==', user.id),
-        orderBy('createdAt', 'desc')
-      );
-      unsubscribeQuotes = onSnapshot(quotesQuery, (snapshot) => {
-        const quotesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Quote[];
-        setQuotes(quotesData);
-      });
-    }
-
-    // Listen to messages for all users
-    const messagesQuery = query(
-      collection(db, 'messages'),
-      where('receiverId', '==', user.id),
-      orderBy('timestamp', 'desc')
-    );
-    unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-      const messagesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Message[];
-      setMessages(messagesData);
-      
-      // Calculate unread message count
-      const unreadCount = messagesData.filter(msg => !msg.isRead).length;
-      setUnreadMessageCount(unreadCount);
-    });
-
-    return () => {
-      if (unsubscribeRequests) unsubscribeRequests();
-      if (unsubscribeQuotes) unsubscribeQuotes();
-      if (unsubscribeMessages) unsubscribeMessages();
-    };
+    // TODO: Enable when Firestore rules are configured
+    console.log('Messages query disabled - Firestore permissions needed');
+    setMessages([]);
+    setUnreadMessageCount(0);
   }, [user]);
 
   const refreshData = () => {

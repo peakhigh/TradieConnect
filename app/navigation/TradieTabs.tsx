@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import TradieDashboard from '../screens/tradie/TradieDashboard';
 import ServiceRequestExplorer from '../screens/tradie/ServiceRequestExplorer';
 import TradieHistoryScreen from '../screens/tradie/TradieHistoryScreen';
+import TradieProfileScreen from '../screens/tradie/TradieProfileScreen';
 import { Text } from 'react-native';
 
 const Tab = createBottomTabNavigator();
@@ -57,6 +58,17 @@ export default function TradieTabs() {
             <Text style={{ color, fontSize: size }}>📋</Text>
           ),
           headerTitle: 'Job History',
+        }}
+      />
+      
+      <Tab.Screen
+        name="Profile"
+        component={TradieProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ color, fontSize: size }}>👤</Text>
+          ),
+          headerTitle: 'Profile',
         }}
       />
     </Tab.Navigator>

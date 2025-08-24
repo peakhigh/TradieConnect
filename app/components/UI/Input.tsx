@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, TextInputProps, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TextInputProps, StyleSheet, Platform } from 'react-native';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -81,10 +81,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
+    fontSize: Platform.OS === 'web' ? 16 : 13,
+    fontWeight: '500',
+    color: '#4b5563',
+    marginBottom: 6,
+    fontFamily: 'sans-serif',
+    letterSpacing: 0,
   },
   required: {
     color: '#ef4444',
@@ -93,19 +95,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   input: {
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    fontSize: 16,
+    fontSize: Platform.OS === 'web' ? 18 : 15,
     backgroundColor: '#ffffff',
     color: '#1f2937',
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: '#d1d5db',
+    minHeight: Platform.OS === 'web' ? 60 : 52,
+    fontFamily: 'sans-serif',
   },
   inputWithLeftIcon: {
     paddingLeft: 48,

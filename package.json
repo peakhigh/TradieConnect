@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "cp .env.local .env && expo start",
+    "android": "cp .env.local .env && expo start --android",
+    "ios": "cp .env.local .env && expo start --ios",
+    "web": "cp .env.local .env && expo start --web",
+    "start:prod": "expo start",
+    "android:prod": "expo start --android",
+    "ios:prod": "expo start --ios",
+    "web:prod": "expo start --web"
   },
   "dependencies": {
     "@firebase/app": "^0.14.1",
@@ -33,6 +37,7 @@
     "expo-router": "^5.1.4",
     "expo-status-bar": "~2.2.3",
     "firebase": "^12.1.0",
+    "lucide-react-native": "^0.541.0",
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -41,6 +46,7 @@
     "react-native-safe-area-context": "^5.6.1",
     "react-native-screens": "^4.15.2",
     "react-native-svg": "^15.12.1",
+    "react-native-ui-datepicker": "^3.1.2",
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {

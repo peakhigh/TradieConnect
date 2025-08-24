@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ButtonProps {
@@ -12,6 +12,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
+  leftIcon?: React.ReactNode;
 }
 
 export const SimpleButton: React.FC<ButtonProps> = ({
@@ -24,6 +25,7 @@ export const SimpleButton: React.FC<ButtonProps> = ({
   style,
   textStyle,
   fullWidth = false,
+  leftIcon,
 }) => {
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
@@ -134,9 +136,12 @@ export const SimpleButton: React.FC<ButtonProps> = ({
         {loading ? (
           <ActivityIndicator color="#ffffff" size="small" />
         ) : (
-          <Text style={[getTextStyle(), textStyle]}>
-            {title}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {leftIcon}
+            <Text style={[getTextStyle(), textStyle]}>
+              {title}
+            </Text>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -155,9 +160,12 @@ export const SimpleButton: React.FC<ButtonProps> = ({
           size="small" 
         />
       ) : (
-        <Text style={[getTextStyle(), textStyle]}>
-          {title}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {leftIcon}
+          <Text style={[getTextStyle(), textStyle]}>
+            {title}
+          </Text>
+        </View>
       )}
     </TouchableOpacity>
   );

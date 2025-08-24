@@ -1,61 +1,73 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
+import { Container } from '../../components/UI/Container';
+import { theme } from '../../theme/theme';
+import { Sparkles, MessageCircle, Plus } from 'lucide-react-native';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function CustomerDashboard() {
-  const { user } = useAuth();
+  const { user, successMessage, clearSuccessMessage } = useAuth();
   const { serviceRequests, quotes, unreadMessageCount } = useUser();
+
+  useEffect(() => {
+    if (successMessage) {
+      Alert.alert('Success', successMessage);
+      clearSuccessMessage();
+    }
+  }, [successMessage, clearSuccessMessage]);
 
   const activeRequests = serviceRequests.filter(req => req.status === 'active');
   const completedRequests = serviceRequests.filter(req => req.status === 'completed');
 
   const handleViewInterests = (requestId: string) => {
-    // TODO: Navigate to interests view
     Alert.alert('Info', 'View interests functionality coming soon');
   };
 
   const handleChatWithTradie = (tradieId: string) => {
-    // TODO: Navigate to chat
     Alert.alert('Info', 'Chat functionality coming soon');
   };
 
   const handleAcceptQuote = (quoteId: string) => {
-    // TODO: Navigate to quote acceptance
     Alert.alert('Info', 'Quote acceptance functionality coming soon');
   };
 
   const handleViewMessages = () => {
-    // TODO: Navigate to messages
     Alert.alert('Info', 'Messages functionality coming soon');
   };
 
+  const navigation = useNavigation();
+
   const handlePostRequest = () => {
-    // TODO: Navigate to post request
-    Alert.alert('Info', 'Post request functionality coming soon');
+    navigation.navigate('PostRequest' as never);
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <Container style={styles.container}>
+      <ScrollView>
+        <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>
-            Welcome back, {user?.firstName}!
-          </Text>
-          <Text style={styles.subtitle}>
-            Here's what's happening with your service requests
-          </Text>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.title}>
+                <Sparkles size={24} color={theme.colors.primary} /> Welcome back, {user?.firstName}!
+              </Text>
+              <Text style={styles.subtitle}>
+                Here's what's happening with your service requests
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <Button
-            title="Post New Service Request"
-            onPress={handlePostRequest}
-            size="large"
-          />
+          <TouchableOpacity onPress={handlePostRequest} style={styles.linkButton}>
+            <Plus size={20} color={theme.colors.primary} />
+            <Text style={styles.linkButtonText}>New Service Request</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Messages Notification */}
@@ -99,18 +111,18 @@ export default function CustomerDashboard() {
                 </Text>
                 
                 <View style={styles.buttonRow}>
-                  <Button
-                    title="View Interests"
+                  <TouchableOpacity 
                     onPress={() => handleViewInterests(request.id)}
-                    variant="outline"
-                    size="small"
-                  />
-                  <Button
-                    title="View Messages"
+                    style={styles.cardLinkButton}
+                  >
+                    <Text style={styles.cardLinkButtonText}>Interests</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
                     onPress={handleViewMessages}
-                    variant="outline"
-                    size="small"
-                  />
+                    style={styles.cardLinkButton}
+                  >
+                    <Text style={styles.cardLinkButtonText}>Messages</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -177,34 +189,57 @@ export default function CustomerDashboard() {
             ))}
           </View>
         )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.colors.background,
   },
   content: {
-    padding: 24,
+    padding: theme.spacing.xxl,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: theme.spacing.xxl,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    ...theme.shadows.sm,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.xxl : theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: Platform.OS === 'web' ? theme.fontSize.md : theme.fontSize.sm,
+    color: theme.colors.text.secondary,
   },
   quickActions: {
-    marginBottom: 24,
+    marginBottom: theme.spacing.xxl,
+    alignItems: 'flex-end',
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  linkButtonText: {
+    fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.md,
+    color: theme.colors.primary,
+    fontWeight: theme.fontWeight.semibold,
+    marginLeft: theme.spacing.sm,
   },
   messageNotification: {
     backgroundColor: '#dbeafe',
@@ -227,7 +262,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: Platform.OS === 'web' ? 20 : 18,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 16,
@@ -253,19 +288,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   requestTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
   },
   requestDescription: {
-    color: '#6b7280',
-    marginBottom: 8,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.md : theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
   },
   requestMeta: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 12,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.md,
   },
   quoteCard: {
     backgroundColor: '#ffffff',
@@ -314,6 +350,16 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: theme.spacing.md,
+  },
+  cardLinkButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  cardLinkButtonText: {
+    color: theme.colors.primary,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
+    fontWeight: theme.fontWeight.medium,
+    textDecorationLine: 'underline',
   },
 });

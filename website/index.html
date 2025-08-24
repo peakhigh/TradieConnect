@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradieConnect - Connect with Trusted Tradies</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Header Component
+        const Header = () => {
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+            return (
+                <header className="bg-white shadow-lg fixed w-full top-0 z-50">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center py-4">
+                            <div className="flex items-center">
+                                <i className="fas fa-tools text-blue-600 text-2xl mr-2"></i>
+                                <h1 className="text-2xl font-bold text-gray-900">TradieConnect</h1>
+                            </div>
+                            
+                            {/* Desktop Navigation */}
+                            <nav className="hidden md:flex space-x-8">
+                                <a href="#features" className="text-gray-700 hover:text-blue-600">Features</a>
+                                <a href="#how-it-works" className="text-gray-700 hover:text-blue-600">How It Works</a>
+                                <a href="#pricing" className="text-gray-700 hover:text-blue-600">Pricing</a>
+                                <a href="#contact" className="text-gray-700 hover:text-blue-600">Contact</a>
+                            </nav>
+
+                            {/* Login Buttons */}
+                            <div className="hidden md:flex space-x-4">
+                                <button 
+                                    onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                >
+                                    Customer Login
+                                </button>
+                                <button 
+                                    onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                                >
+                                    Tradie Login
+                                </button>
+                            </div>
+
+                            {/* Mobile Menu Button */}
+                            <button 
+                                className="md:hidden"
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            >
+                                <i className="fas fa-bars text-2xl"></i>
+                            </button>
+                        </div>
+
+                        {/* Mobile Menu */}
+                        {isMenuOpen && (
+                            <div className="md:hidden py-4 border-t">
+                                <nav className="flex flex-col space-y-4">
+                                    <a href="#features" className="text-gray-700">Features</a>
+                                    <a href="#how-it-works" className="text-gray-700">How It Works</a>
+                                    <a href="#pricing" className="text-gray-700">Pricing</a>
+                                    <a href="#contact" className="text-gray-700">Contact</a>
+                                    <div className="flex flex-col space-y-2 pt-4">
+                                        <button 
+                                            onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+                                        >
+                                            Customer Login
+                                        </button>
+                                        <button 
+                                            onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                            className="bg-green-600 text-white px-4 py-2 rounded-lg"
+                                        >
+                                            Tradie Login
+                                        </button>
+                                    </div>
+                                </nav>
+                            </div>
+                        )}
+                    </div>
+                </header>
+            );
+        };
+
+        // Hero Section
+        const Hero = () => (
+            <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white pt-20">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+                    <div className="text-center">
+                        <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                            Connect with Trusted Tradies
+                        </h1>
+                        <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
+                            Get quality work done by verified professionals. Post your job, receive quotes, and hire with confidence.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button 
+                                onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100"
+                            >
+                                <i className="fas fa-home mr-2"></i>
+                                I Need a Tradie
+                            </button>
+                            <button 
+                                onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                className="bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-green-700"
+                            >
+                                <i className="fas fa-tools mr-2"></i>
+                                I'm a Tradie
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        // Features Section
+        const Features = () => (
+            <section id="features" className="py-20 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                            Why Choose TradieConnect?
+                        </h2>
+                        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                            We make it easy to find quality tradies and get your jobs done right.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-shield-alt text-4xl text-blue-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Verified Tradies</h3>
+                            <p className="text-gray-600">All tradies are licensed, insured, and background checked for your peace of mind.</p>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-dollar-sign text-4xl text-green-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Competitive Pricing</h3>
+                            <p className="text-gray-600">Get multiple quotes and choose the best value for your project.</p>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-clock text-4xl text-purple-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Quick Response</h3>
+                            <p className="text-gray-600">Receive quotes within hours, not days. Get your job started faster.</p>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-comments text-4xl text-orange-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Direct Communication</h3>
+                            <p className="text-gray-600">Chat directly with tradies to discuss your project details.</p>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-star text-4xl text-yellow-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Quality Guaranteed</h3>
+                            <p className="text-gray-600">Read reviews and ratings from real customers before you hire.</p>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-mobile-alt text-4xl text-red-600 mb-4"></i>
+                            <h3 className="text-xl font-semibold mb-4">Mobile Friendly</h3>
+                            <p className="text-gray-600">Manage your projects on the go with our mobile-optimized platform.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        // How It Works Section
+        const HowItWorks = () => (
+            <section id="how-it-works" className="py-20">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                            How It Works
+                        </h2>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-16">
+                        {/* For Customers */}
+                        <div>
+                            <h3 className="text-2xl font-bold text-blue-600 mb-8 text-center">
+                                <i className="fas fa-home mr-2"></i>
+                                For Customers
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="flex items-start">
+                                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">1</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Post Your Job</h4>
+                                        <p className="text-gray-600">Describe what you need done, add photos, and set your budget.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">2</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Receive Quotes</h4>
+                                        <p className="text-gray-600">Get competitive quotes from qualified tradies in your area.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">3</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Choose & Hire</h4>
+                                        <p className="text-gray-600">Compare quotes, read reviews, and hire the best tradie for your job.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">4</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Get It Done</h4>
+                                        <p className="text-gray-600">Relax while your chosen tradie completes the work to your satisfaction.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* For Tradies */}
+                        <div>
+                            <h3 className="text-2xl font-bold text-green-600 mb-8 text-center">
+                                <i className="fas fa-tools mr-2"></i>
+                                For Tradies
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="flex items-start">
+                                    <div className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">1</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Browse Jobs</h4>
+                                        <p className="text-gray-600">Find jobs that match your skills and location preferences.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">2</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Unlock Details</h4>
+                                        <p className="text-gray-600">Pay just $0.50 to unlock full job details and customer contact info.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">3</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Submit Quote</h4>
+                                        <p className="text-gray-600">Provide detailed quotes with pricing and timeline information.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <div className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 mt-1">4</div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Get Hired</h4>
+                                        <p className="text-gray-600">Win jobs, build your reputation, and grow your business.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        // Pricing Section
+        const Pricing = () => (
+            <section id="pricing" className="py-20 bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                            Simple, Transparent Pricing
+                        </h2>
+                        <p className="text-xl text-gray-600">
+                            No hidden fees. Pay only when you find value.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <i className="fas fa-home text-4xl text-blue-600 mb-4"></i>
+                            <h3 className="text-2xl font-bold mb-4">For Customers</h3>
+                            <div className="text-4xl font-bold text-blue-600 mb-4">FREE</div>
+                            <ul className="text-left space-y-3 mb-8">
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Post unlimited jobs</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Receive multiple quotes</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Direct communication with tradies</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Review and rating system</li>
+                            </ul>
+                            <button 
+                                onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
+                            >
+                                Get Started Free
+                            </button>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center border-2 border-green-600">
+                            <i className="fas fa-tools text-4xl text-green-600 mb-4"></i>
+                            <h3 className="text-2xl font-bold mb-4">For Tradies</h3>
+                            <div className="text-4xl font-bold text-green-600 mb-4">$0.50</div>
+                            <p className="text-gray-600 mb-4">per job unlock</p>
+                            <ul className="text-left space-y-3 mb-8">
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Browse jobs for free</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>$10 signup bonus</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Minimum $5 wallet recharge</li>
+                                <li><i className="fas fa-check text-green-600 mr-2"></i>Build your reputation</li>
+                            </ul>
+                            <button 
+                                onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700"
+                            >
+                                Start Earning Today
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        // Footer
+        const Footer = () => (
+            <footer id="contact" className="bg-gray-900 text-white py-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid md:grid-cols-4 gap-8">
+                        <div>
+                            <div className="flex items-center mb-4">
+                                <i className="fas fa-tools text-2xl mr-2"></i>
+                                <h3 className="text-xl font-bold">TradieConnect</h3>
+                            </div>
+                            <p className="text-gray-400">
+                                Connecting customers with trusted tradies across Australia.
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 className="font-semibold mb-4">For Customers</h4>
+                            <ul className="space-y-2 text-gray-400">
+                                <li><a href="#" className="hover:text-white">Post a Job</a></li>
+                                <li><a href="#" className="hover:text-white">Browse Tradies</a></li>
+                                <li><a href="#" className="hover:text-white">How It Works</a></li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 className="font-semibold mb-4">For Tradies</h4>
+                            <ul className="space-y-2 text-gray-400">
+                                <li><a href="#" className="hover:text-white">Find Jobs</a></li>
+                                <li><a href="#" className="hover:text-white">Pricing</a></li>
+                                <li><a href="#" className="hover:text-white">Success Stories</a></li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 className="font-semibold mb-4">Support</h4>
+                            <ul className="space-y-2 text-gray-400">
+                                <li><a href="#" className="hover:text-white">Help Center</a></li>
+                                <li><a href="#" className="hover:text-white">Contact Us</a></li>
+                                <li><a href="#" className="hover:text-white">Terms of Service</a></li>
+                                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                        <p>&copy; 2024 TradieConnect. All rights reserved.</p>
+                    </div>
+                </div>
+            </footer>
+        );
+
+        // Main App Component
+        const App = () => (
+            <div className="min-h-screen">
+                <Header />
+                <Hero />
+                <Features />
+                <HowItWorks />
+                <Pricing />
+                <Footer />
+            </div>
+        );
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

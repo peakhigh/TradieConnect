@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import LoginScreen from '../screens/auth/LoginScreen';
+import MobileLoginScreen from '../screens/auth/MobileLoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import CustomerTabs from './CustomerTabs';
 import TradieTabs from './TradieTabs';
@@ -19,16 +20,44 @@ export const AppNavigator: React.FC = () => {
     return <LoadingScreen />;
   }
 
+  const linking = Platform.OS === 'web' ? {
+    prefixes: ['http://localhost:8081', 'https://tradieconnect.app'],
+    config: {
+      screens: {
+        UserTypeSelection: '/',
+        Login: '/login',
+        Signup: '/signup',
+        CustomerTabs: {
+          screens: {
+            Dashboard: '/dashboard',
+            PostRequest: '/post-request',
+            History: '/history',
+            Profile: '/profile',
+          },
+        },
+        TradieTabs: {
+          screens: {
+            Dashboard: '/tradie/dashboard',
+            Explorer: '/tradie/explorer',
+            History: '/tradie/history',
+            Profile: '/tradie/profile',
+          },
+        },
+        AdminDashboard: '/admin',
+      },
+    },
+  } : undefined;
+
   if (!user) {
     return (
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
           }}
         >
           <Stack.Screen name="UserTypeSelection" component={UserTypeSelectionScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Login" component={MobileLoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
         </Stack.Navigator>
       </NavigationContainer>
@@ -36,7 +65,7 @@ export const AppNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

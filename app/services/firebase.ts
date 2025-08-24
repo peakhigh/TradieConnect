@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
+import { getAuth, PhoneAuthProvider, signInWithCredential, RecaptchaVerifier } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
+import { Platform } from 'react-native';
 
 // Your Firebase configuration
 // Replace these with your actual Firebase project configuration
@@ -26,6 +27,44 @@ export const functions = getFunctions(app);
 
 // Phone auth provider
 export const phoneProvider = new PhoneAuthProvider(auth);
+
+// reCAPTCHA verifier for web
+let recaptchaVerifier: RecaptchaVerifier | null = null;
+
+export const getRecaptchaVerifier = () => {
+  if (Platform.OS === 'web' && !recaptchaVerifier) {
+    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        console.log('reCAPTCHA solved');
+      },
+      'expired-callback': () => {
+        console.log('reCAPTCHA expired');
+      }
+    });
+  }
+  return recaptchaVerifier;
+};
+
+// Platform-specific phone verification
+export const verifyPhoneNumber = async (phoneNumber: string) => {
+  try {
+    if (Platform.OS === 'web') {
+      const appVerifier = getRecaptchaVerifier();
+      if (!appVerifier) throw new Error('reCAPTCHA not initialized');
+      
+      const confirmationResult = await phoneProvider.verifyPhoneNumber(phoneNumber, appVerifier);
+      return confirmationResult.verificationId;
+    } else {
+      // For mobile platforms, you'd use Firebase Auth's phone verification
+      // This is a placeholder - implement mobile-specific logic
+      throw new Error('Mobile phone auth not implemented yet');
+    }
+  } catch (error) {
+    console.error('Error verifying phone number:', error);
+    throw error;
+  }
+};
 
 // Helper function to sign in with phone credential
 export const signInWithPhoneCredential = async (verificationId: string, code: string) => {

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
+import { Container } from '../../components/UI/Container';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { ServiceRequest } from '../../types';
+import { theme } from '../../theme/theme';
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
 type SortBy = 'date' | 'urgency' | 'tradeType';
@@ -68,8 +70,9 @@ export default function CustomerHistoryScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <Container style={styles.container}>
+      <ScrollView>
+        <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
@@ -261,18 +264,18 @@ export default function CustomerHistoryScreen() {
             </View>
           </View>
         )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb', // Tailwind gray-50
   },
   content: {
-    padding: 16, // Tailwind p-6
+    padding: theme.spacing.xxl,
   },
   header: {
     marginBottom: 16, // Tailwind mb-6

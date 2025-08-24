@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, Alert, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Alert, ScrollView, StyleSheet, Platform } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { useAuth } from '../../context/AuthContext';
-import { phoneProvider, signInWithPhoneCredential } from '../../services/firebase';
+import { verifyPhoneNumber, signInWithPhoneCredential } from '../../services/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { Customer, Tradie } from '../../types';
@@ -32,16 +32,10 @@ export default function LoginScreen({ userType, onNavigateToSignup }: LoginScree
       // Format phone number for Firebase (add +1 for US, adjust for your country)
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber}`;
       
-      const confirmation = await phoneProvider.verifyPhoneNumber(formattedPhone);
-      // Type assertion to access verificationId
-      const conf = confirmation as any;
-      if (conf && conf.verificationId) {
-        setVerificationId(conf.verificationId);
-        setIsOtpSent(true);
-        Alert.alert('Success', 'OTP sent successfully!');
-      } else {
-        throw new Error('Invalid confirmation result from Firebase');
-      }
+      const verificationId = await verifyPhoneNumber(formattedPhone);
+      setVerificationId(verificationId);
+      setIsOtpSent(true);
+      Alert.alert('Success', 'OTP sent successfully!');
     } catch (error: any) {
       console.error('Error sending OTP:', error);
       Alert.alert('Error', error.message || 'Failed to send OTP. Please try again.');
@@ -118,6 +112,11 @@ export default function LoginScreen({ userType, onNavigateToSignup }: LoginScree
 
   return (
     <ScrollView style={styles.container}>
+      {Platform.OS === 'web' && (
+        <View style={{ height: 0, overflow: 'hidden' }}>
+          <div id="recaptcha-container"></div>
+        </View>
+      )}
       <View style={styles.content}>
         <Text style={styles.title}>
           Welcome Back

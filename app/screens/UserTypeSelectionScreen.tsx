@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SimpleButton } from '../components/UI/SimpleButton';
+import { Container } from '../components/UI/Container';
 import { useNavigation } from '@react-navigation/native';
+import { theme } from '../theme/theme';
+import { Home, Wrench } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -11,17 +14,22 @@ export default function UserTypeSelectionScreen() {
 
   const handleUserTypeSelection = (userType: 'customer' | 'tradie') => {
     // Navigate to login/signup with user type
-    navigation.navigate('Auth', { userType });
+    navigation.navigate('Login', { userType });
   };
 
   return (
     <LinearGradient
-      colors={['#667eea', '#764ba2']}
+      colors={[theme.colors.primary, theme.colors.primaryDark]}
       style={styles.container}
     >
-      <View style={styles.content}>
+      <Container>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to TradieApp</Text>
+          <Text style={styles.title}>Welcome to TradieConnect</Text>
           <Text style={styles.subtitle}>
             Choose how you'd like to use our platform
           </Text>
@@ -30,7 +38,7 @@ export default function UserTypeSelectionScreen() {
         <View style={styles.cardContainer}>
           <View style={styles.card}>
             <View style={styles.iconContainer}>
-              <Text style={styles.icon}>🏠</Text>
+              <Home size={48} color={theme.colors.primary} />
             </View>
             <Text style={styles.cardTitle}>I'm a Customer</Text>
             <Text style={styles.cardDescription}>
@@ -48,7 +56,7 @@ export default function UserTypeSelectionScreen() {
 
           <View style={styles.card}>
             <View style={styles.iconContainer}>
-              <Text style={styles.icon}>🔧</Text>
+              <Wrench size={48} color={theme.colors.secondary} />
             </View>
             <Text style={styles.cardTitle}>I'm a Tradie</Text>
             <Text style={styles.cardDescription}>
@@ -65,12 +73,14 @@ export default function UserTypeSelectionScreen() {
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Join thousands of customers and tradies using our platform
-          </Text>
-        </View>
-      </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Join thousands of customers and tradies using our platform
+            </Text>
+          </View>
+          </View>
+        </ScrollView>
+      </Container>
     </LinearGradient>
   );
 }
@@ -79,26 +89,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    minHeight: height,
+  },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.xxl,
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   header: {
     alignItems: 'center',
     marginBottom: 48,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontSize: theme.fontSize.xxxl,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.inverse,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.inverse,
     textAlign: 'center',
     opacity: 0.9,
     lineHeight: 24,
@@ -107,16 +121,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: 24,
+    minHeight: 400,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xxl,
+    ...theme.shadows.lg,
   },
   iconContainer: {
     alignItems: 'center',
@@ -126,29 +137,30 @@ const styles = StyleSheet.create({
     fontSize: 48,
   },
   cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   cardDescription: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: theme.spacing.xxl,
   },
   button: {
     marginTop: 8,
   },
   footer: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 40,
+    paddingBottom: 20,
   },
   footerText: {
-    fontSize: 14,
-    color: '#ffffff',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.inverse,
     textAlign: 'center',
     opacity: 0.8,
   },

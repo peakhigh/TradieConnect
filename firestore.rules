@@ -3,96 +3,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Users can read and write their own profile
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Admins can read all user profiles
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+      allow read, write, create: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Service requests - customers can read/write their own, tradies can read unlocked ones
-    match /serviceRequests/{requestId} {
-      // Customers can read/write their own requests
-      allow read, write: if request.auth != null && 
-        resource.data.customerId == request.auth.uid;
-      
-      // Tradies can read basic info of active requests
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'tradie' &&
-        resource.data.status == 'active';
-      
-      // Admins can read all requests
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Quotes - tradies can read/write their own, customers can read quotes for their requests
-    match /quotes/{quoteId} {
-      // Tradies can read/write their own quotes
-      allow read, write: if request.auth != null && 
-        resource.data.tradieId == request.auth.uid;
-      
-      // Customers can read quotes for their service requests
-      allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/serviceRequests/$(resource.data.serviceRequestId)) &&
-        get(/databases/$(database)/documents/serviceRequests/$(resource.data.serviceRequestId)).data.customerId == request.auth.uid;
-      
-      // Admins can read all quotes
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Unlock transactions - tradies can read their own
-    match /unlockTransactions/{transactionId} {
-      allow read, write: if request.auth != null && 
-        resource.data.tradieId == request.auth.uid;
-      
-      // Admins can read all transactions
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Wallet transactions - users can read their own
-    match /walletTransactions/{transactionId} {
-      allow read, write: if request.auth != null && 
-        resource.data.userId == request.auth.uid;
-      
-      // Admins can read all transactions
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Messages - users can read messages they sent or received
-    match /messages/{messageId} {
-      allow read, write: if request.auth != null && 
-        (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
-      
-      // Admins can read all messages
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Notifications - users can read their own notifications
-    match /notifications/{notificationId} {
-      allow read, write: if request.auth != null && 
-        resource.data.userId == request.auth.uid;
-      
-      // Admins can read all notifications
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // Admin-only collections
-    match /adminStats/{docId} {
-      allow read, write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-    }
-    
-    // System collections (read-only for admins)
-    match /systemConfig/{docId} {
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
-      allow write: if false; // No one can write system config
+    // Allow authenticated users to read/write all documents for development
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

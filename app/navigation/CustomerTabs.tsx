@@ -1,9 +1,12 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Platform } from 'react-native';
 import CustomerDashboard from '../screens/customer/CustomerDashboard';
 import PostRequestScreen from '../screens/customer/PostRequestScreen';
 import CustomerHistoryScreen from '../screens/customer/CustomerHistoryScreen';
-import { Text } from 'react-native';
+import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
+import { Home, Plus, History, User } from 'lucide-react-native';
+import { theme } from '../theme/theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -11,19 +14,27 @@ export default function CustomerTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.text.tertiary,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          borderTopColor: theme.colors.border.light,
+          paddingBottom: 8,
+          height: 70,
+        },
+        tabBarLabelStyle: {
+          fontSize: Platform.OS === 'web' ? theme.fontSize.sm : 12,
+          fontWeight: theme.fontWeight.medium,
         },
         headerStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
         },
         headerTitleStyle: {
-          color: '#1f2937',
-          fontWeight: 'bold',
+          color: theme.colors.text.primary,
+          fontWeight: theme.fontWeight.bold,
+          fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.md,
         },
       }}
     >
@@ -32,9 +43,9 @@ export default function CustomerTabs() {
         component={CustomerDashboard}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>🏠</Text>
+            <Home size={size} color={color} />
           ),
-          headerTitle: 'Customer Dashboard',
+          headerTitle: 'Dashboard',
         }}
       />
       
@@ -43,9 +54,9 @@ export default function CustomerTabs() {
         component={PostRequestScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>➕</Text>
+            <Plus size={size} color={color} />
           ),
-          headerTitle: 'Post Service Request',
+          headerTitle: 'Post Request',
         }}
       />
       
@@ -54,9 +65,20 @@ export default function CustomerTabs() {
         component={CustomerHistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>📋</Text>
+            <History size={size} color={color} />
           ),
-          headerTitle: 'Request History',
+          headerTitle: 'History',
+        }}
+      />
+      
+      <Tab.Screen
+        name="Profile"
+        component={CustomerProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <User size={size} color={color} />
+          ),
+          headerTitle: 'Profile',
         }}
       />
     </Tab.Navigator>
