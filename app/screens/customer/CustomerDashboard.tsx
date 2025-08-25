@@ -478,15 +478,16 @@ const styles = StyleSheet.create({
   },
   cardButton: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     borderRadius: 6,
     backgroundColor: 'transparent',
+    alignItems: 'flex-start',
   },
   cardButtonText: {
     color: theme.colors.primary,
     fontSize: Platform.OS === 'web' ? theme.fontSize.sm : 11,
     fontWeight: theme.fontWeight.medium,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   cancelButton: {
     backgroundColor: 'transparent',
