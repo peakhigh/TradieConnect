@@ -65,9 +65,32 @@ export default function MobileLoginScreen() {
     console.log('✅ Validation passed, sending OTP...');
     setLoading(true);
     try {
-      // TODO: Implement Firebase phone auth
-      // For now, simulate OTP sending
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { RecaptchaVerifier, signInWithPhoneNumber } = await import('firebase/auth');
+      const { auth } = await import('../../services/firebase');
+      
+      // Format phone number for Firebase (add +61 prefix)
+      const formattedPhone = phoneNumber.startsWith('0') 
+        ? '+61' + phoneNumber.substring(1)
+        : phoneNumber.startsWith('+61') 
+        ? phoneNumber 
+        : '+61' + phoneNumber;
+      
+      console.log('Formatted phone:', formattedPhone);
+      
+      // Create reCAPTCHA verifier for web
+      if (Platform.OS === 'web' && !window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA solved');
+          }
+        });
+      }
+      
+      const appVerifier = Platform.OS === 'web' ? window.recaptchaVerifier : undefined;
+      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      window.confirmationResult = confirmationResult;
+      
       console.log('✅ OTP sent successfully');
       setOtpSent(true);
       Alert.alert('OTP Sent', 'Please check your phone for the verification code');
@@ -103,52 +126,69 @@ export default function MobileLoginScreen() {
     console.log('✅ OTP validation passed, verifying...');
     setLoading(true);
     try {
-      // TODO: Implement actual OTP verification with Firebase
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('✅ OTP verification successful');
+      const confirmationResult = window.confirmationResult;
+      if (!confirmationResult) {
+        throw new Error('No confirmation result found');
+      }
       
-      // Simulate user creation (bypassing Firestore for now)
-      const userId = `user_${phoneNumber.replace(/\D/g, '')}`;
-      console.log('📝 Creating simulated user document');
+      const result = await confirmationResult.confirm(otp);
+      const firebaseUser = result.user;
       
-      const userData = {
-        id: userId,
-        phoneNumber: phoneNumber,
-        userType: userType,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        firstName: '',
-        lastName: '',
-        email: '',
-        ...(userType === 'customer' ? {
-          address: ''
-        } : {
-          businessName: '',
-          licenseNumber: '',
-          insuranceDetails: {
-            provider: '',
-            policyNumber: '',
-            expiryDate: new Date(),
-            coverageAmount: 0
-          },
-          interestedSuburbs: [],
-          interestedTrades: [],
-          rating: 0,
-          totalJobs: 0,
-          walletBalance: 10,
-          isApproved: false
-        })
-      };
+      console.log('✅ Firebase Auth successful:', firebaseUser.uid);
       
-      console.log('✅ Simulated user created successfully');
+      // Create or get user document in Firestore
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      let userData;
       
-      // Set user in auth context to trigger navigation
-      setUser(userData as any);
-      console.log('✅ User authenticated, redirecting to dashboard');
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        // Create new user
+        userData = {
+          id: firebaseUser.uid,
+          phoneNumber: phoneNumber,
+          userType: userType,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          firstName: '',
+          lastName: '',
+          email: '',
+          ...(userType === 'customer' ? {
+            streetAddress: '',
+            suburb: '',
+            state: '',
+            postcode: ''
+          } : {
+            businessName: '',
+            licenseNumber: '',
+            insuranceDetails: {
+              provider: '',
+              policyNumber: '',
+              expiryDate: new Date(),
+              coverageAmount: 0
+            },
+            interestedSuburbs: [],
+            interestedTrades: [],
+            rating: 0,
+            totalJobs: 0,
+            walletBalance: 10,
+            isApproved: false
+          })
+        };
+        
+        await setDoc(userDocRef, userData);
+        console.log('✅ New user created in Firestore');
+      } else {
+        userData = { id: firebaseUser.uid, ...userDoc.data() };
+        console.log('✅ Existing user found');
+      }
+      
+      // The AuthContext will automatically handle the Firebase Auth state change
+      console.log('✅ User authenticated, navigation will happen automatically');
       
     } catch (error) {
       console.error('❌ Error verifying OTP:', error);
-      Alert.alert('Error', 'Login failed. Please try again.');
+      Alert.alert('Error', 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -285,6 +325,7 @@ export default function MobileLoginScreen() {
       <View style={styles.webContainer}>
         {renderLeftSide()}
         {renderRightSide()}
+        {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
       </View>
     );
   }
@@ -383,6 +424,7 @@ export default function MobileLoginScreen() {
           )}
           </View>
         </View>
+        {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
       </Container>
     </View>
   );

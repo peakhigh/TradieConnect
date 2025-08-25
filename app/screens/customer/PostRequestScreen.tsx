@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme/theme';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
-import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X } from 'lucide-react-native';
+import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon } from 'lucide-react-native';
 import DateTimePicker from 'react-native-ui-datepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 const POPULAR_TRADES = [
   'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
@@ -48,14 +51,15 @@ export default function PostRequestScreen() {
   
   const [formData, setFormData] = useState({
     description: '',
-    suburb: '',
+    postcode: user?.postcode || '', // Prefill from user profile
     urgency: 'medium' as 'low' | 'medium' | 'high',
     budgetMin: '',
     budgetMax: '',
     earliestDate: new Date(),
-    latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+    latestDate: new Date(Date.now() + 7 * 60 * 60 * 1000), // 7 days from now
     additionalNotes: ''
   });
+  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -74,6 +78,77 @@ export default function PostRequestScreen() {
     }
   };
 
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to take photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const file = {
+        uri: result.assets[0].uri,
+        name: `photo_${Date.now()}.jpg`,
+        type: 'image'
+      };
+      setSelectedFiles(prev => [...prev, file]);
+    }
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Media library permission is required to pick images');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const files = result.assets.map((asset, index) => ({
+        uri: asset.uri,
+        name: `image_${Date.now()}_${index}.jpg`,
+        type: 'image'
+      }));
+      setSelectedFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        multiple: true,
+      });
+
+      if (!result.canceled) {
+        const files = result.assets.map(asset => ({
+          uri: asset.uri,
+          name: asset.name,
+          type: 'document'
+        }));
+        setSelectedFiles(prev => [...prev, ...files]);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     console.log('Form submission started');
     console.log('Selected trades:', selectedTrades);
@@ -87,8 +162,8 @@ export default function PostRequestScreen() {
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
     }
-    if (!formData.suburb.trim()) {
-      newErrors.suburb = 'Suburb is required';
+    if (!formData.postcode.trim()) {
+      newErrors.postcode = 'Postcode is required';
     }
     
     setErrors(newErrors);
@@ -105,10 +180,11 @@ export default function PostRequestScreen() {
         customer: user! as any,
         tradeType: selectedTrades.join(', '),
         description: formData.description,
-        suburb: formData.suburb,
+        postcode: formData.postcode,
         urgency: formData.urgency,
         status: 'active',
-        photos: [],
+        photos: selectedFiles.map(file => file.uri),
+        documents: selectedFiles.filter(file => file.type === 'document').map(file => file.uri),
         voiceMessage: null, // Fixed: use null instead of undefined
         budget: formData.budgetMin && formData.budgetMax ? {
           min: parseFloat(formData.budgetMin),
@@ -120,7 +196,35 @@ export default function PostRequestScreen() {
         }
       };
 
-      console.log('About to save to Firestore:', serviceRequest);
+      console.log('About to upload files and save to Firestore:', serviceRequest);
+      
+      // Upload files to Firebase Storage
+      const uploadedPhotos = [];
+      const uploadedDocuments = [];
+      
+      for (const file of selectedFiles) {
+        try {
+          const response = await fetch(file.uri);
+          const blob = await response.blob();
+          const fileName = `${Date.now()}_${file.name}`;
+          const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
+          
+          await uploadBytes(storageRef, blob);
+          const downloadURL = await getDownloadURL(storageRef);
+          
+          if (file.type === 'image') {
+            uploadedPhotos.push(downloadURL);
+          } else {
+            uploadedDocuments.push(downloadURL);
+          }
+        } catch (error) {
+          console.error('Error uploading file:', file.name, error);
+        }
+      }
+      
+      // Update service request with uploaded file URLs
+      serviceRequest.photos = uploadedPhotos;
+      serviceRequest.documents = uploadedDocuments;
       
       await addDoc(collection(db, 'serviceRequests'), {
         ...serviceRequest,
@@ -130,11 +234,40 @@ export default function PostRequestScreen() {
 
       console.log('Successfully saved to Firestore');
       
+      // Add mock service request to localStorage for demo
+      const mockRequest = {
+        id: `req_${Date.now()}`,
+        customerId: user!.id,
+        tradeType: selectedTrades.join(', '),
+        description: formData.description,
+        postcode: formData.postcode,
+        urgency: formData.urgency,
+        status: 'active',
+        createdAt: new Date(),
+        photos: [], // Will be populated after upload
+        documents: [], // Will be populated after upload
+        budget: formData.budgetMin && formData.budgetMax ? {
+          min: parseFloat(formData.budgetMin),
+          max: parseFloat(formData.budgetMax)
+        } : null,
+        preferredDates: {
+          earliest: formData.earliestDate,
+          latest: formData.latestDate
+        }
+      };
+      
+      // Store in localStorage for demo
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const existingRequests = JSON.parse(localStorage.getItem('mock_service_requests') || '[]');
+        existingRequests.push(mockRequest);
+        localStorage.setItem('mock_service_requests', JSON.stringify(existingRequests));
+      }
+      
       // Reset form
       setSelectedTrades([]);
       setFormData({
         description: '',
-        suburb: '',
+        postcode: user?.postcode || '',
         urgency: 'medium',
         budgetMin: '',
         budgetMax: '',
@@ -142,6 +275,7 @@ export default function PostRequestScreen() {
         latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         additionalNotes: ''
       });
+      setSelectedFiles([]);
 
       // Navigate to Dashboard and show success message
       console.log('About to navigate and show success message');
@@ -264,26 +398,27 @@ export default function PostRequestScreen() {
           {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
         </View>
 
-        {/* Suburb */}
+        {/* Postcode */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
-            <MapPin size={16} color={errors.suburb ? "#dc2626" : "#4b5563"} />
-            <Text style={[styles.label, errors.suburb && styles.errorLabel]}>
-              Suburb *
+            <MapPin size={16} color={errors.postcode ? "#dc2626" : "#4b5563"} />
+            <Text style={[styles.label, errors.postcode && styles.errorLabel]}>
+              Postcode *
             </Text>
           </View>
           <Input
-            placeholder="Enter your suburb"
-            value={formData.suburb}
+            placeholder="Enter your postcode"
+            value={formData.postcode}
             onChangeText={(value) => {
-              handleInputChange('suburb', value);
-              if (errors.suburb) {
-                setErrors(prev => ({...prev, suburb: ''}));
+              handleInputChange('postcode', value);
+              if (errors.postcode) {
+                setErrors(prev => ({...prev, postcode: ''}));
               }
             }}
-            style={[styles.standardInput, errors.suburb && styles.errorInput]}
+            keyboardType="numeric"
+            style={[styles.standardInput, errors.postcode && styles.errorInput]}
           />
-          {errors.suburb && <Text style={styles.errorText}>{errors.suburb}</Text>}
+          {errors.postcode && <Text style={styles.errorText}>{errors.postcode}</Text>}
         </View>
 
         {/* Urgency Level */}
@@ -411,6 +546,48 @@ export default function PostRequestScreen() {
                   }
                 }}
               />
+            </View>
+          )}
+        </View>
+
+        {/* Photos & Documents */}
+        <View style={styles.section}>
+          <View style={styles.labelRow}>
+            <ImageIcon size={16} color="#4b5563" />
+            <Text style={styles.label}>
+              Photos & Documents (Optional)
+            </Text>
+          </View>
+          
+          <View style={styles.fileButtons}>
+            <TouchableOpacity style={styles.fileButton} onPress={handleTakePhoto}>
+              <Camera size={20} color="#3b82f6" />
+              <Text style={styles.fileButtonText}>Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.fileButton} onPress={handlePickImage}>
+              <ImageIcon size={20} color="#3b82f6" />
+              <Text style={styles.fileButtonText}>Pick Image</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.fileButton} onPress={handlePickDocument}>
+              <FileText size={20} color="#3b82f6" />
+              <Text style={styles.fileButtonText}>Pick Document</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {selectedFiles.length > 0 && (
+            <View style={styles.selectedFiles}>
+              {selectedFiles.map((file, index) => (
+                <View key={index} style={styles.fileItem}>
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {file.name || `File ${index + 1}`}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeFile(index)}>
+                    <X size={16} color="#dc2626" />
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -572,13 +749,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#d1d5db',
     backgroundColor: '#ffffff',
-    minHeight: 52,
+    minHeight: Platform.OS === 'web' ? 48 : 44,
   },
   dateButtonText: {
     fontSize: 14,
@@ -593,10 +770,10 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   standardInput: {
-    minHeight: 52,
+    minHeight: Platform.OS === 'web' ? 48 : 44,
   },
   textAreaInput: {
-    minHeight: 100,
+    minHeight: Platform.OS === 'web' ? 120 : 100,
   },
   submitButton: {
     marginTop: 20,
@@ -612,5 +789,43 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 12,
     marginTop: 4,
+  },
+  fileButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  fileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    backgroundColor: '#ffffff',
+  },
+  fileButtonText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  selectedFiles: {
+    gap: 8,
+  },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+  },
+  fileName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1f2937',
   },
 });

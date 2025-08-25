@@ -69,22 +69,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser);
       
-      // Only process Firebase auth if we don't have a localStorage user
-      if (Platform.OS === 'web') {
-        const storedUser = localStorage.getItem('tradieapp_user');
-        if (storedUser) {
-          console.log('🔄 Using localStorage user, ignoring Firebase auth state');
-          return; // Don't override localStorage user
-        }
-      }
-      
       if (firebaseUser) {
         try {
+          console.log('Firebase user authenticated:', firebaseUser.uid);
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
+            const userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
             setUser(userData);
             console.log('User loaded from Firebase:', userData.userType, userData.id);
+            
+            // Also save to localStorage for persistence
+            if (Platform.OS === 'web') {
+              localStorage.setItem('tradieapp_user', JSON.stringify(userData));
+            }
           } else {
             console.log('User document not found');
             setUser(null);
@@ -94,8 +91,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
         }
       } else {
-        setUser(null);
+        console.log('No Firebase user, checking localStorage');
+        // Only check localStorage if no Firebase user
+        if (Platform.OS === 'web') {
+          const storedUser = localStorage.getItem('tradieapp_user');
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            console.log('Restored user from localStorage:', userData.userType);
+            setUser(userData);
+          } else {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       }
+      
+      setLoading(false);
     });
 
     return unsubscribe;

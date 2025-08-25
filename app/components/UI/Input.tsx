@@ -97,13 +97,13 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: Platform.OS === 'web' ? 18 : 15,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
     backgroundColor: '#ffffff',
     color: '#1f2937',
     borderColor: '#d1d5db',
-    minHeight: Platform.OS === 'web' ? 60 : 52,
+    minHeight: Platform.OS === 'web' ? 48 : 44,
     fontFamily: 'sans-serif',
   },
   inputWithLeftIcon: {

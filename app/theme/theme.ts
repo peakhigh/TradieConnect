@@ -53,13 +53,13 @@ export const theme = {
   },
   
   fontSize: {
-    xs: Platform.OS === 'web' ? 16 : 12,
-    sm: Platform.OS === 'web' ? 18 : 14,
-    md: Platform.OS === 'web' ? 20 : 16,
-    lg: Platform.OS === 'web' ? 22 : 18,
-    xl: Platform.OS === 'web' ? 26 : 20,
-    xxl: Platform.OS === 'web' ? 30 : 22,
-    xxxl: Platform.OS === 'web' ? 38 : 26,
+    xs: Platform.OS === 'web' ? 16 : 11,
+    sm: Platform.OS === 'web' ? 18 : 13,
+    md: Platform.OS === 'web' ? 20 : 15,
+    lg: Platform.OS === 'web' ? 22 : 17,
+    xl: Platform.OS === 'web' ? 26 : 19,
+    xxl: Platform.OS === 'web' ? 30 : 21,
+    xxxl: Platform.OS === 'web' ? 38 : 24,
   },
   
   fontFamily: {

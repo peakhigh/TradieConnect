@@ -10,7 +10,7 @@ import { User, LogOut, Mail, Phone, MapPin, X } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 
 export default function CustomerProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -19,8 +19,14 @@ export default function CustomerProfileScreen() {
     lastName: user?.lastName || '',
     email: user?.email || '',
     phoneNumber: user?.phoneNumber || '',
-    address: user?.address || '',
+    streetAddress: user?.streetAddress || '',
+    suburb: user?.suburb || '',
+    state: user?.state || '',
+    postcode: user?.postcode || '',
   });
+
+  // Check if profile is incomplete (only has phone number)
+  const isProfileIncomplete = !user?.firstName && !user?.lastName && !user?.email && !user?.suburb;
 
   const handleSave = async () => {
     if (!user) return;
@@ -30,10 +36,33 @@ export default function CustomerProfileScreen() {
       await updateDoc(doc(db, 'users', user.id), {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        address: formData.address,
+        email: formData.email,
+        streetAddress: formData.streetAddress,
+        suburb: formData.suburb,
+        state: formData.state,
+        postcode: formData.postcode,
         updatedAt: new Date(),
       });
+      
+      // Update user in localStorage and context for web persistence
+      const updatedUser = {
+        ...user,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        streetAddress: formData.streetAddress,
+        suburb: formData.suburb,
+        state: formData.state,
+        postcode: formData.postcode,
+      };
+      
+      // Update localStorage if on web
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('tradieapp_user', JSON.stringify(updatedUser));
+      }
+      
+      // Update user in auth context immediately
+      setUser(updatedUser);
       
       Alert.alert('Success', 'Profile updated successfully!');
       setEditing(false);
@@ -67,55 +96,134 @@ export default function CustomerProfileScreen() {
             <User size={40} color="#6b7280" />
           </View>
           <Text style={styles.name}>
-            {user?.firstName} {user?.lastName}
+            {user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}` : 'Welcome!'}
           </Text>
           <Text style={styles.userType}>Customer</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <Input
-            label={<><User size={16} color="#4b5563" /> First Name</>}
-            value={formData.firstName}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, firstName: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
+        {isProfileIncomplete && !editing ? (
+          <View style={styles.setupSection}>
+            <Text style={styles.setupTitle}>Complete Your Profile</Text>
+            <Text style={styles.setupSubtitle}>
+              Add your details to get started with TradieConnect
+            </Text>
+            <Button
+              title="Setup Profile"
+              onPress={() => setEditing(true)}
+              style={styles.setupButton}
+            />
+          </View>
+        ) : editing ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Edit Profile</Text>
+            
+            <Input
+              label="First Name"
+              value={formData.firstName}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, firstName: value }))}
+            />
 
-          <Input
-            label={<><User size={16} color="#4b5563" /> Last Name</>}
-            value={formData.lastName}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, lastName: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
+            <Input
+              label="Last Name"
+              value={formData.lastName}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, lastName: value }))}
+            />
 
-          <Input
-            label={<><Mail size={16} color="#4b5563" /> Email</>}
-            value={formData.email}
-            editable={false}
-            style={styles.disabledInput}
-          />
+            <Input
+              label="Email"
+              value={formData.email}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, email: value }))}
+              keyboardType="email-address"
+            />
 
-          <Input
-            label={<><Phone size={16} color="#4b5563" /> Phone Number</>}
-            value={formData.phoneNumber}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, phoneNumber: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
+            <Input
+              label="Phone Number"
+              value={formData.phoneNumber}
+              editable={false}
+              style={styles.disabledInput}
+            />
 
-          <Input
-            label={<><MapPin size={16} color="#4b5563" /> Address</>}
-            value={formData.address}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, address: value }))}
-            editable={editing}
-            multiline
-            numberOfLines={3}
-            style={!editing && styles.disabledInput}
-          />
-        </View>
+            <Input
+              label="Street Address"
+              value={formData.streetAddress}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, streetAddress: value }))}
+              placeholder="123 Main Street"
+            />
+
+            <Input
+              label="Suburb"
+              value={formData.suburb}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, suburb: value }))}
+              placeholder="Sydney"
+            />
+
+            <View style={styles.addressRow}>
+              <View style={styles.addressField}>
+                <Input
+                  label="State"
+                  value={formData.state}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, state: value }))}
+                  placeholder="NSW"
+                />
+              </View>
+              <View style={styles.addressField}>
+                <Input
+                  label="Postcode"
+                  value={formData.postcode}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, postcode: value }))}
+                  placeholder="2000"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            
+            <View style={styles.profileView}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>First Name</Text>
+                <Text style={styles.profileValue}>{user?.firstName || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Last Name</Text>
+                <Text style={styles.profileValue}>{user?.lastName || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Email</Text>
+                <Text style={styles.profileValue}>{user?.email || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Phone Number</Text>
+                <Text style={styles.profileValue}>{user?.phoneNumber}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Street Address</Text>
+                <Text style={styles.profileValue}>{user?.streetAddress || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Suburb</Text>
+                <Text style={styles.profileValue}>{user?.suburb || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>State</Text>
+                <Text style={styles.profileValue}>{user?.state || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Postcode</Text>
+                <Text style={styles.profileValue}>{user?.postcode || 'Not set'}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.actions}>
           {editing ? (
@@ -129,33 +237,37 @@ export default function CustomerProfileScreen() {
                     lastName: user?.lastName || '',
                     email: user?.email || '',
                     phoneNumber: user?.phoneNumber || '',
-                    address: user?.address || '',
+                    streetAddress: user?.streetAddress || '',
+                    suburb: user?.suburb || '',
+                    state: user?.state || '',
+                    postcode: user?.postcode || '',
                   });
                 }}
                 variant="outline"
                 style={styles.actionButton}
               />
               <Button
-                title="Save"
+                title="Save Profile"
                 onPress={handleSave}
                 loading={loading}
                 style={styles.actionButton}
               />
             </View>
           ) : (
-            <Button
-              title="Edit Profile"
-              onPress={() => setEditing(true)}
-              style={styles.actionButton}
-            />
+            !isProfileIncomplete && (
+              <Button
+                title="Edit Profile"
+                onPress={() => setEditing(true)}
+                style={styles.actionButton}
+              />
+            )
           )}
 
           <Button
             title="Logout"
             onPress={handleLogout}
             variant="outline"
-            style={[styles.actionButton, styles.logoutButton]}
-            leftIcon={<LogOut size={16} color="#dc2626" />}
+            style={styles.actionButton}
           />
         </View>
 
@@ -255,9 +367,56 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
   },
-  logoutButton: {
-    borderColor: '#dc2626',
+  setupSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+    padding: 24,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
   },
+  setupTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  setupSubtitle: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  setupButton: {
+    minWidth: 200,
+  },
+  profileView: {
+    gap: 16,
+  },
+  profileItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  profileLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  profileValue: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '400',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addressField: {
+    flex: 1,
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

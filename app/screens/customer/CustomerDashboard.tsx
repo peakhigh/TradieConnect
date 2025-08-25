@@ -51,7 +51,7 @@ export default function CustomerDashboard() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.title}>
                 <Sparkles size={24} color={theme.colors.primary} /> Welcome back, {user?.firstName}!
               </Text>
@@ -213,7 +213,8 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flex: 1,
   },
   title: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.xxl : theme.fontSize.xl,
@@ -224,6 +225,8 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.md : theme.fontSize.sm,
     color: theme.colors.text.secondary,
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   quickActions: {
     marginBottom: theme.spacing.xxl,
@@ -278,6 +281,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: '#6b7280',
     textAlign: 'center',
+    flexWrap: 'wrap',
   },
   requestCard: {
     backgroundColor: '#ffffff',
@@ -297,6 +301,7 @@ const styles = StyleSheet.create({
     fontSize: Platform.OS === 'web' ? theme.fontSize.md : theme.fontSize.sm,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
+    flexWrap: 'wrap',
   },
   requestMeta: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
