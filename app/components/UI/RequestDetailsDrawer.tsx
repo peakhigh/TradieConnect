@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated } from 'react-native';
 import { X, FileText } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { VoicePlayer } from './VoicePlayer';
+import { PhotoModal } from './PhotoModal';
+import { ThumbnailImage } from './ThumbnailImage';
 
 interface RequestDetailsDrawerProps {
   visible: boolean;
@@ -17,6 +19,8 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
 }) => {
   const screenWidth = Dimensions.get('window').width;
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
 
   useEffect(() => {
@@ -49,8 +53,16 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
       animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <Animated.View style={[styles.container, { transform: [{ translateX: slideAnim }] }]}>
+      <TouchableOpacity 
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity 
+          style={[styles.container, { transform: [{ translateX: slideAnim }] }]}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
         <View style={styles.header}>
           <Text style={styles.title}>{request.tradeType}</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -69,13 +81,53 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
             )}
           </View>
 
-          {/* Images Carousel */}
+          {/* Request Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Request Information</Text>
+            <View style={styles.detailsCard}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Postcode</Text>
+                <Text style={styles.detailValue}>{request.postcode}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Urgency</Text>
+                <View style={[styles.urgencyBadge, 
+                  request.urgency === 'high' && styles.urgencyHigh,
+                  request.urgency === 'medium' && styles.urgencyMedium,
+                  request.urgency === 'low' && styles.urgencyLow
+                ]}>
+                  <Text style={styles.urgencyText}>{request.urgency}</Text>
+                </View>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Status</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>{request.status}</Text>
+                </View>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Created</Text>
+                <Text style={styles.detailValue}>{request.createdAt?.toDateString?.() || 'Unknown'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Photos */}
           {request.photos && request.photos.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Photos ({request.photos.length})</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel}>
                 {request.photos.map((photo: string, index: number) => (
-                  <Image key={index} source={{ uri: photo }} style={styles.carouselImage} />
+                  <ThumbnailImage
+                    key={index}
+                    uri={photo}
+                    size={140}
+                    onPress={() => {
+                      setSelectedPhotoIndex(index);
+                      setShowPhotoModal(true);
+                    }}
+                    style={styles.photoContainer}
+                  />
                 ))}
               </ScrollView>
             </View>
@@ -85,34 +137,34 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
           {request.documents && request.documents.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Documents ({request.documents.length})</Text>
-              {request.documents.map((doc: string, index: number) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={styles.documentLink}
-                  onPress={() => {
-                    if (typeof window !== 'undefined') {
-                      window.open(doc, '_blank');
-                    }
-                  }}
-                >
-                  <FileText size={16} color="#3b82f6" />
-                  <Text style={styles.documentText}>Document {index + 1}</Text>
-                </TouchableOpacity>
-              ))}
+              <View style={styles.documentsGrid}>
+                {request.documents.map((doc: string, index: number) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.documentCard}
+                    onPress={() => {
+                      if (typeof window !== 'undefined') {
+                        window.open(doc, '_blank');
+                      }
+                    }}
+                  >
+                    <FileText size={20} color="#3b82f6" />
+                    <Text style={styles.documentText}>Document {index + 1}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
-
-          {/* Other Details */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Request Details</Text>
-            <Text style={styles.detail}>Postcode: {request.postcode}</Text>
-            <Text style={styles.detail}>Urgency: {request.urgency}</Text>
-            <Text style={styles.detail}>Status: {request.status}</Text>
-            <Text style={styles.detail}>Created: {request.createdAt?.toDateString?.() || 'Unknown'}</Text>
-          </View>
         </ScrollView>
-        </Animated.View>
-      </View>
+        </TouchableOpacity>
+        
+        <PhotoModal
+          visible={showPhotoModal}
+          onClose={() => setShowPhotoModal(false)}
+          photos={request.photos || []}
+          initialIndex={selectedPhotoIndex}
+        />
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -159,8 +211,103 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
+    color: '#374151',
+    lineHeight: 22,
+  },
+  detailsCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  urgencyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  urgencyHigh: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  urgencyMedium: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  urgencyLow: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  urgencyText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    color: '#374151',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#dbeafe',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    color: '#1e40af',
+  },
+  photoContainer: {
+    marginRight: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  documentsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  documentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    minWidth: 140,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   voiceButton: {
     flexDirection: 'row',
@@ -216,30 +363,10 @@ const styles = StyleSheet.create({
   carousel: {
     flexDirection: 'row',
   },
-  carouselImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  documentLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f9fafb',
-    borderRadius: 6,
-    marginBottom: 8,
-    alignSelf: 'flex-start',
-  },
+
   documentText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#3b82f6',
-  },
-  detail: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 4,
+    fontWeight: '500',
   },
 });

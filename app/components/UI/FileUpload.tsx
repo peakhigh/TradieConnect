@@ -17,7 +17,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     return (
       <TouchableOpacity style={styles.webUploadButton} onPress={onPickImage}>
         <Upload size={20} color="#3b82f6" />
-        <Text style={styles.webUploadText}>Upload Files</Text>
+        <Text style={styles.webUploadText}>Upload Photos/Files</Text>
       </TouchableOpacity>
     );
   }
@@ -26,17 +26,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     <View style={styles.mobileButtons}>
       <TouchableOpacity style={styles.fileButton} onPress={onTakePhoto}>
         <Camera size={20} color="#3b82f6" />
-        <Text style={styles.fileButtonText}>Take Photo</Text>
+        <Text style={styles.fileButtonText}>Camera</Text>
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.fileButton} onPress={onPickImage}>
         <ImageIcon size={20} color="#3b82f6" />
-        <Text style={styles.fileButtonText}>Pick Image</Text>
+        <Text style={styles.fileButtonText}>Gallery</Text>
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.fileButton} onPress={onPickDocument}>
         <FileText size={20} color="#3b82f6" />
-        <Text style={styles.fileButtonText}>Pick Document</Text>
+        <Text style={styles.fileButtonText}>Files</Text>
       </TouchableOpacity>
     </View>
   );

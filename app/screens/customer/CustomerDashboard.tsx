@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform, Modal } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform, Modal, Image } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
-import { Sparkles, MessageCircle, Plus } from 'lucide-react-native';
+import { Sparkles, MessageCircle, Plus, Image as ImageIcon, FileText, Users, X } from 'lucide-react-native';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { SkeletonLoader } from '../../components/UI/SkeletonLoader';
 import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 import { VoicePlayer } from '../../components/UI/VoicePlayer';
+import { PhotoModal } from '../../components/UI/PhotoModal';
+import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
@@ -19,6 +21,12 @@ export default function CustomerDashboard() {
   const [requestToCancel, setRequestToCancel] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [showDocuments, setShowDocuments] = useState<string | null>(null);
+  const [selectedIcon, setSelectedIcon] = useState<{requestId: string, type: string} | null>(null);
+
+
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -149,11 +157,27 @@ export default function CustomerDashboard() {
           ) : (
             activeRequests.map((request) => (
               <View key={request.id} style={styles.requestCard}>
-                <TouchableOpacity onPress={() => handleViewRequestDetails(request)}>
-                  <Text style={[styles.requestTitle, styles.tradeLink]}>
-                    {request.tradeType}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.titleRow}>
+                  <TouchableOpacity onPress={() => handleViewRequestDetails(request)} style={styles.titleContainer}>
+                    <Text style={[styles.requestTitle, styles.tradeLink]}>
+                      {request.tradeType}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <View style={styles.titleTags}>
+                    <View style={[styles.urgencyTag, 
+                      request.urgency === 'high' && styles.urgencyHigh,
+                      request.urgency === 'medium' && styles.urgencyMedium,
+                      request.urgency === 'low' && styles.urgencyLow
+                    ]}>
+                      <Text style={styles.urgencyText}>{request.urgency}</Text>
+                    </View>
+                    
+                    <View style={styles.statusTag}>
+                      <Text style={styles.statusText}>{request.status}</Text>
+                    </View>
+                  </View>
+                </View>
                 
                 {/* Notes or Voice Message */}
                 {request.voiceMessage ? (
@@ -164,32 +188,119 @@ export default function CustomerDashboard() {
                   </Text>
                 )}
                 
-                <Text style={styles.requestMeta}>
-                  Postcode: {request.postcode} • Urgency: {request.urgency}
-                </Text>
+                <Text style={styles.postcodeText}>Postcode: {request.postcode}</Text>
                 
-                <View style={styles.buttonRow}>
+
+                <View style={styles.allIcons}>
+                  <TouchableOpacity 
+                    style={[styles.iconButton, selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && styles.selectedIcon]}
+                    onPress={() => {
+                      if (selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos') {
+                        setSelectedIcon(null);
+                      } else {
+                        setSelectedIcon({requestId: request.id, type: 'photos'});
+                      }
+                    }}
+                  >
+                    <View style={styles.iconTop}>
+                      <Text style={styles.iconCount}>{request.photos ? request.photos.length : 0}</Text>
+                      <ImageIcon size={22} color="#3b82f6" />
+                    </View>
+                    <Text style={styles.iconLabel}>Photos</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.iconButton, selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && styles.selectedIcon]}
+                    onPress={() => {
+                      if (selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents') {
+                        setSelectedIcon(null);
+                      } else {
+                        setSelectedIcon({requestId: request.id, type: 'documents'});
+                      }
+                    }}
+                  >
+                    <View style={styles.iconTop}>
+                      <Text style={styles.iconCount}>{request.documents ? request.documents.length : 0}</Text>
+                      <FileText size={22} color="#3b82f6" />
+                    </View>
+                    <Text style={styles.iconLabel}>Files</Text>
+                  </TouchableOpacity>
+                  
                   <TouchableOpacity 
                     onPress={() => handleViewInterests(request.id)}
-                    style={styles.cardButton}
+                    style={styles.iconButton}
                   >
-                    <Text style={styles.cardButtonText}>Interests (0)</Text>
+                    <View style={styles.iconTop}>
+                      <Text style={styles.iconCount}>0</Text>
+                      <Users size={22} color="#3b82f6" />
+                    </View>
+                    <Text style={styles.iconLabel}>Interests</Text>
                   </TouchableOpacity>
+                  
                   <TouchableOpacity 
                     onPress={() => handleViewMessages(request.id)}
-                    style={styles.cardButton}
+                    style={styles.iconButton}
                   >
-                    <Text style={styles.cardButtonText}>Messages (0)</Text>
+                    <View style={styles.iconTop}>
+                      <Text style={styles.iconCount}>0</Text>
+                      <MessageCircle size={22} color="#3b82f6" />
+                    </View>
+                    <Text style={styles.iconLabel}>Messages</Text>
                   </TouchableOpacity>
+                  
                   {request.status === 'active' && (
                     <TouchableOpacity 
                       onPress={() => handleCancelRequest(request.id)}
-                      style={[styles.cardButton, styles.cancelButton]}
+                      style={styles.iconButton}
                     >
-                      <Text style={[styles.cardButtonText, styles.cancelButtonText]}>Cancel</Text>
+                      <View style={styles.iconTop}>
+                        <X size={22} color="#dc2626" />
+                      </View>
+                      <Text style={[styles.iconLabel, styles.cancelLabel]}>Cancel</Text>
                     </TouchableOpacity>
                   )}
                 </View>
+                
+                {/* Photo Thumbnails */}
+                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && request.photos && request.photos.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
+                    {request.photos.map((photo: string, index: number) => (
+                      <ThumbnailImage
+                        key={index}
+                        uri={photo}
+                        size={40}
+                        onPress={() => {
+                          setSelectedPhotoIndex(index);
+                          setSelectedRequest(request);
+                          setShowPhotoModal(true);
+                        }}
+                        style={styles.thumbnailSpacing}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+                
+                {/* Documents List */}
+                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && request.documents && request.documents.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.documentsRow}>
+                    {request.documents.map((doc: string, index: number) => (
+                      <TouchableOpacity 
+                        key={index}
+                        style={styles.documentItem}
+                        onPress={() => {
+                          if (typeof window !== 'undefined') {
+                            window.open(doc, '_blank');
+                          }
+                        }}
+                      >
+                        <FileText size={16} color="#3b82f6" />
+                        <Text style={styles.documentName} numberOfLines={1}>
+                          Doc {index + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
               </View>
             ))
           )}
@@ -308,6 +419,13 @@ export default function CustomerDashboard() {
         onClose={() => setShowRequestDetails(false)}
         request={selectedRequest}
       />
+      
+      <PhotoModal
+        visible={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        photos={selectedRequest?.photos || []}
+        initialIndex={selectedPhotoIndex}
+      />
     </Container>
   );
 }
@@ -408,11 +526,38 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     marginBottom: 12,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.sm,
+  },
+  titleContainer: {
+    flex: 1,
+  },
   requestTitle: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.sm,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
+  },
+  titleTags: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  statusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: '#dbeafe',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    color: '#1e40af',
   },
   requestDescription: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.md : theme.fontSize.xs,
@@ -420,10 +565,42 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     flexWrap: 'wrap',
   },
-  requestMeta: {
+  requestMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  postcodeText: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.sm : 11,
     color: theme.colors.text.tertiary,
     marginBottom: theme.spacing.md,
+  },
+  urgencyTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  urgencyHigh: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  urgencyMedium: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  urgencyLow: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  urgencyText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    color: '#374151',
   },
   quoteCard: {
     backgroundColor: '#ffffff',
@@ -470,31 +647,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    justifyContent: 'space-between',
-    flex: 1,
-  },
-  cardButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
-    alignItems: 'flex-start',
-  },
-  cardButtonText: {
-    color: theme.colors.primary,
-    fontSize: Platform.OS === 'web' ? theme.fontSize.sm : 11,
-    fontWeight: theme.fontWeight.medium,
-    textAlign: 'left',
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-  },
-  cancelButtonText: {
-    color: '#dc2626',
-  },
+
   tradeLink: {
     color: theme.colors.primary,
     textDecorationLine: 'underline',
@@ -592,6 +745,72 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: '#ffffff',
+    fontWeight: '500',
+  },
+  allIcons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  iconButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 2,
+  },
+  selectedIcon: {
+    backgroundColor: '#dbeafe',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  iconTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  iconCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3b82f6',
+  },
+  iconLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  cancelLabel: {
+    color: '#dc2626',
+  },
+  thumbnailRow: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  thumbnailSpacing: {
+    marginRight: 6,
+  },
+  documentsRow: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  documentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginRight: 6,
+  },
+  documentName: {
+    fontSize: 10,
+    color: '#3b82f6',
     fontWeight: '500',
   },
 });

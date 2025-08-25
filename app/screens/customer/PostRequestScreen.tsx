@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
@@ -44,6 +44,8 @@ type TabParamList = {
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollKey, setScrollKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [showOtherTrades, setShowOtherTrades] = useState(false);
@@ -66,6 +68,14 @@ export default function PostRequestScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const [recording, setRecording] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setScrollKey(prev => prev + 1);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -109,25 +119,50 @@ export default function PostRequestScreen() {
   };
 
   const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Media library permission is required to pick images');
-      return;
-    }
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,.pdf,.doc,.docx,.txt';
+      input.multiple = true;
+      input.style.display = 'none';
+      
+      input.onchange = (e: any) => {
+        const files = Array.from(e.target.files || []);
+        const fileObjs = files.map((file: any, index: number) => {
+          const isImage = file.type.startsWith('image/');
+          return {
+            uri: URL.createObjectURL(file),
+            name: file.name || `file_${Date.now()}_${index}`,
+            type: isImage ? 'image' : 'document'
+          };
+        });
+        setSelectedFiles(prev => [...prev, ...fileObjs]);
+        document.body.removeChild(input);
+      };
+      
+      document.body.appendChild(input);
+      input.click();
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Media library permission is required to pick images');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      const files = result.assets.map((asset, index) => ({
-        uri: asset.uri,
-        name: `image_${Date.now()}_${index}.jpg`,
-        type: 'image'
-      }));
-      setSelectedFiles(prev => [...prev, ...files]);
+      if (!result.canceled) {
+        const files = result.assets.map((asset, index) => ({
+          uri: asset.uri,
+          name: `image_${Date.now()}_${index}.jpg`,
+          type: 'image'
+        }));
+        setSelectedFiles(prev => [...prev, ...files]);
+      }
     }
   };
 
@@ -358,7 +393,12 @@ export default function PostRequestScreen() {
 
   return (
     <Container style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView 
+        key={scrollKey}
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         <Text style={styles.title}>Post Service Request</Text>
 
         {/* Trade Type Multi-Select */}
@@ -538,6 +578,8 @@ export default function PostRequestScreen() {
 
 
 
+
+
         {/* Photos & Documents */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
@@ -579,7 +621,9 @@ export default function PostRequestScreen() {
           size="large"
           style={styles.submitButton}
         />
-      </View>
+      </ScrollView>
+      
+
       {loading && <ProjectLoader message="Uploading files and creating request..." />}
     </Container>
   );
@@ -589,6 +633,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 20,
