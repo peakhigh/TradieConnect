@@ -50,8 +50,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate?.() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
+          preferredDates: data.preferredDates ? {
+            earliest: data.preferredDates.earliest?.toDate ? data.preferredDates.earliest.toDate() : new Date(data.preferredDates.earliest),
+            latest: data.preferredDates.latest?.toDate ? data.preferredDates.latest.toDate() : new Date(data.preferredDates.latest)
+          } : null,
         };
       }) as ServiceRequest[];
       setServiceRequests(requests);

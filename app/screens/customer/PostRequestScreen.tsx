@@ -9,12 +9,15 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
-import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic } from 'lucide-react-native';
 import DateTimePicker from 'react-native-ui-datepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { Audio } from 'expo-av';
+import { ProjectLoader } from '../../components/UI/ProjectLoader';
+import { FileUpload } from '../../components/UI/FileUpload';
 
 const POPULAR_TRADES = [
   'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
@@ -60,6 +63,9 @@ export default function PostRequestScreen() {
     additionalNotes: ''
   });
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const [recording, setRecording] = useState<any>(null);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -149,6 +155,47 @@ export default function PostRequestScreen() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const startRecording = async () => {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+      
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(recording);
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    setRecording(undefined);
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    setVoiceMessage(uri);
+    
+    // Clear description error if voice message is recorded
+    if (errors.description) {
+      setErrors(prev => ({...prev, description: ''}));
+    }
+  };
+
+  const playVoiceMessage = async () => {
+    if (!voiceMessage) return;
+    const { sound } = await Audio.Sound.createAsync({ uri: voiceMessage });
+    await sound.playAsync();
+  };
+
+  const deleteVoiceMessage = () => {
+    setVoiceMessage(null);
+  };
+
   const handleSubmit = async () => {
     console.log('Form submission started');
     console.log('Selected trades:', selectedTrades);
@@ -159,8 +206,8 @@ export default function PostRequestScreen() {
     if (selectedTrades.length === 0) {
       newErrors.trades = 'Please select at least one trade type';
     }
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
+    if (!formData.description.trim() && !voiceMessage) {
+      newErrors.description = 'Notes or voice message is required';
     }
     if (!formData.postcode.trim()) {
       newErrors.postcode = 'Postcode is required';
@@ -201,6 +248,7 @@ export default function PostRequestScreen() {
       // Upload files to Firebase Storage
       const uploadedPhotos = [];
       const uploadedDocuments = [];
+      let uploadedVoiceMessage = null;
       
       for (const file of selectedFiles) {
         try {
@@ -222,9 +270,25 @@ export default function PostRequestScreen() {
         }
       }
       
+      // Upload voice message if exists
+      if (voiceMessage) {
+        try {
+          const response = await fetch(voiceMessage);
+          const blob = await response.blob();
+          const fileName = `voice_${Date.now()}.m4a`;
+          const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
+          
+          await uploadBytes(storageRef, blob);
+          uploadedVoiceMessage = await getDownloadURL(storageRef);
+        } catch (error) {
+          console.error('Error uploading voice message:', error);
+        }
+      }
+      
       // Update service request with uploaded file URLs
       serviceRequest.photos = uploadedPhotos;
       serviceRequest.documents = uploadedDocuments;
+      serviceRequest.voiceMessage = uploadedVoiceMessage;
       
       await addDoc(collection(db, 'serviceRequests'), {
         ...serviceRequest,
@@ -294,8 +358,7 @@ export default function PostRequestScreen() {
 
   return (
     <Container style={styles.container}>
-      <ScrollView>
-        <View style={styles.content}>
+      <View style={styles.content}>
         <Text style={styles.title}>Post Service Request</Text>
 
         {/* Trade Type Multi-Select */}
@@ -373,28 +436,49 @@ export default function PostRequestScreen() {
           {errors.trades && <Text style={styles.errorText}>{errors.trades}</Text>}
         </View>
 
-        {/* Description */}
+        {/* Notes */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
             <FileText size={16} color={errors.description ? "#dc2626" : "#4b5563"} />
             <Text style={[styles.label, errors.description && styles.errorLabel]}>
-              Description *
+              Notes *
             </Text>
           </View>
-          <Input
-            placeholder="Describe the work you need done..."
-            value={formData.description}
-            onChangeText={(value) => {
-              handleInputChange('description', value);
-              if (errors.description) {
-                setErrors(prev => ({...prev, description: ''}));
-              }
-            }}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            style={[styles.textAreaInput, errors.description && styles.errorInput]}
-          />
+          <View style={styles.notesContainer}>
+            <Input
+              placeholder="Describe the work you need done..."
+              value={formData.description}
+              onChangeText={(value) => {
+                handleInputChange('description', value);
+                if (errors.description) {
+                  setErrors(prev => ({...prev, description: ''}));
+                }
+              }}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={[styles.textAreaInput, errors.description && styles.errorInput]}
+            />
+            <TouchableOpacity 
+              style={[styles.micButton, isRecording && styles.recordingButton]}
+              onPress={isRecording ? stopRecording : startRecording}
+            >
+              <Mic size={20} color={isRecording ? "#ffffff" : "#3b82f6"} />
+            </TouchableOpacity>
+          </View>
+          {voiceMessage && (
+            <View style={styles.voiceMessage}>
+              <Text>Voice message recorded</Text>
+              <View style={styles.voiceControls}>
+                <TouchableOpacity style={styles.voiceButton} onPress={playVoiceMessage}>
+                  <Text>Play</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.voiceButton} onPress={deleteVoiceMessage}>
+                  <Text>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
         </View>
 
@@ -450,105 +534,9 @@ export default function PostRequestScreen() {
           </View>
         </View>
 
-        {/* Budget Range */}
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <DollarSign size={16} color="#4b5563" />
-            <Text style={styles.label}>
-              Budget Range (Optional)
-            </Text>
-          </View>
-          <View style={styles.budgetRow}>
-            <View style={styles.budgetInput}>
-              <Input
-                placeholder="Min $"
-                value={formData.budgetMin}
-                onChangeText={(value) => handleInputChange('budgetMin', value)}
-                keyboardType="numeric"
-                style={styles.standardInput}
-              />
-            </View>
-            <Text style={styles.budgetSeparator}>to</Text>
-            <View style={styles.budgetInput}>
-              <Input
-                placeholder="Max $"
-                value={formData.budgetMax}
-                onChangeText={(value) => handleInputChange('budgetMax', value)}
-                keyboardType="numeric"
-                style={styles.standardInput}
-              />
-            </View>
-          </View>
-        </View>
 
-        {/* Preferred Dates */}
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <Calendar size={16} color="#4b5563" />
-            <Text style={styles.label}>
-              Preferred Dates
-            </Text>
-          </View>
-          
-          <View style={styles.dateRow}>
-            <View style={styles.dateInput}>
-              <Text style={styles.dateLabel}>Earliest Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowEarliestDatePicker(true)}
-              >
-                <Text style={styles.dateButtonText}>
-                  {formData.earliestDate.toLocaleDateString()}
-                </Text>
-                <Calendar size={16} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.dateInput}>
-              <Text style={styles.dateLabel}>Latest Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowLatestDatePicker(true)}
-              >
-                <Text style={styles.dateButtonText}>
-                  {formData.latestDate.toLocaleDateString()}
-                </Text>
-                <Calendar size={16} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Date Pickers */}
-          {showEarliestDatePicker && (
-            <View style={styles.datePickerContainer}>
-              <DateTimePicker
-                mode="single"
-                date={formData.earliestDate}
-                onChange={(params) => {
-                  if (params.date) {
-                    handleInputChange('earliestDate', params.date);
-                    setShowEarliestDatePicker(false);
-                  }
-                }}
-              />
-            </View>
-          )}
 
-          {showLatestDatePicker && (
-            <View style={styles.datePickerContainer}>
-              <DateTimePicker
-                mode="single"
-                date={formData.latestDate}
-                onChange={(params) => {
-                  if (params.date) {
-                    handleInputChange('latestDate', params.date);
-                    setShowLatestDatePicker(false);
-                  }
-                }}
-              />
-            </View>
-          )}
-        </View>
 
         {/* Photos & Documents */}
         <View style={styles.section}>
@@ -559,22 +547,11 @@ export default function PostRequestScreen() {
             </Text>
           </View>
           
-          <View style={styles.fileButtons}>
-            <TouchableOpacity style={styles.fileButton} onPress={handleTakePhoto}>
-              <Camera size={20} color="#3b82f6" />
-              <Text style={styles.fileButtonText}>Take Photo</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.fileButton} onPress={handlePickImage}>
-              <ImageIcon size={20} color="#3b82f6" />
-              <Text style={styles.fileButtonText}>Pick Image</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.fileButton} onPress={handlePickDocument}>
-              <FileText size={20} color="#3b82f6" />
-              <Text style={styles.fileButtonText}>Pick Document</Text>
-            </TouchableOpacity>
-          </View>
+          <FileUpload
+            onTakePhoto={handleTakePhoto}
+            onPickImage={handlePickImage}
+            onPickDocument={handlePickDocument}
+          />
           
           {selectedFiles.length > 0 && (
             <View style={styles.selectedFiles}>
@@ -592,19 +569,7 @@ export default function PostRequestScreen() {
           )}
         </View>
 
-        {/* Additional Notes */}
-        <View style={styles.section}>
-          <Input
-            label="Additional Notes (Optional)"
-            placeholder="Any other details or special requirements..."
-            value={formData.additionalNotes}
-            onChangeText={(value) => handleInputChange('additionalNotes', value)}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            style={styles.textAreaInput}
-          />
-        </View>
+
 
         {/* Submit Button */}
         <Button
@@ -614,8 +579,8 @@ export default function PostRequestScreen() {
           size="large"
           style={styles.submitButton}
         />
-        </View>
-      </ScrollView>
+      </View>
+      {loading && <ProjectLoader message="Uploading files and creating request..." />}
     </Container>
   );
 }
@@ -827,5 +792,45 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#1f2937',
+  },
+  notesContainer: {
+    position: 'relative',
+  },
+  micButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  recordingButton: {
+    backgroundColor: '#ef4444',
+    borderColor: '#ef4444',
+  },
+  voiceMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  voiceControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  voiceButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
   },
 });

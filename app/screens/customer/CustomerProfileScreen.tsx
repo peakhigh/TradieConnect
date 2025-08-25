@@ -8,6 +8,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { User, LogOut, Mail, Phone, MapPin, X } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
+import { ProjectLoader } from '../../components/UI/ProjectLoader';
 
 export default function CustomerProfileScreen() {
   const { user, signOut, setUser } = useAuth();
@@ -306,6 +307,7 @@ export default function CustomerProfileScreen() {
         </Modal>
         </View>
       </ScrollView>
+      {loading && <ProjectLoader message="Updating profile..." />}
     </Container>
   );
 }

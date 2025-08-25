@@ -1,32 +1,38 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomerDashboard from '../screens/customer/CustomerDashboard';
 import PostRequestScreen from '../screens/customer/PostRequestScreen';
 import CustomerHistoryScreen from '../screens/customer/CustomerHistoryScreen';
 import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
+import InterestsScreen from '../screens/customer/InterestsScreen';
+import MessagesScreen from '../screens/customer/MessagesScreen';
 import { Home, Plus, History, User } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+function DashboardStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DashboardMain" component={CustomerDashboard} />
+      <Stack.Screen name="Interests" component={InterestsScreen} />
+      <Stack.Screen name="Messages" component={MessagesScreen} />
+    </Stack.Navigator>
+  );
+}
 
 export default function CustomerTabs() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.text.tertiary,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border.light,
-          paddingBottom: 8,
-          height: 70,
-        },
-        tabBarLabelStyle: {
-          fontSize: Platform.OS === 'web' ? theme.fontSize.sm : 12,
-          fontWeight: theme.fontWeight.medium,
-        },
+        tabBarInactiveTintColor: '#374151',
         headerStyle: {
           backgroundColor: theme.colors.surface,
           ...theme.shadows.sm,
@@ -36,11 +42,13 @@ export default function CustomerTabs() {
           fontWeight: theme.fontWeight.bold,
           fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.md,
         },
+
+
       }}
     >
       <Tab.Screen
         name="Dashboard"
-        component={CustomerDashboard}
+        component={DashboardStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Home size={size} color={color} />
@@ -81,6 +89,8 @@ export default function CustomerTabs() {
           headerTitle: 'Profile',
         }}
       />
+      
+
     </Tab.Navigator>
   );
 }
