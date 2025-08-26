@@ -39,11 +39,12 @@ export default function MobileLoginScreen() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   
-  const { control, handleSubmit, watch, formState: { errors }, setError, clearErrors, reset } = useForm({
+  const { control, handleSubmit, watch, formState: { errors }, setError, clearErrors, reset, setValue } = useForm({
     defaultValues: {
       phoneNumber: '',
       otp: ''
-    }
+    },
+    mode: 'onChange'
   });
   
   const phoneNumber = watch('phoneNumber');
@@ -94,7 +95,9 @@ export default function MobileLoginScreen() {
       window.confirmationResult = confirmationResult;
       
 
-      control.setValue('otp', '');
+      // Clear OTP field when switching to OTP screen
+      setTimeout(() => setValue('otp', ''), 100);
+      clearErrors('otp');
       setOtpSent(true);
       Alert.alert('OTP Sent', 'Please check your phone for the verification code');
     } catch (error) {
@@ -394,7 +397,8 @@ export default function MobileLoginScreen() {
                 title="Resend OTP"
                 onPress={() => {
                   setOtpSent(false);
-                  reset();
+                  setValue('otp', '');
+                  clearErrors();
                 }}
                 variant="outline"
                 fullWidth
