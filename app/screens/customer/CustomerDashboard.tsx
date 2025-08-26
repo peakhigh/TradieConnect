@@ -103,7 +103,7 @@ export default function CustomerDashboard() {
   return (
     <Container style={styles.container}>
       <View style={styles.content}>
-        {/* Header */}
+
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={{ flex: 1 }}>
@@ -117,7 +117,7 @@ export default function CustomerDashboard() {
           </View>
         </View>
 
-        {/* Quick Actions */}
+
         <View style={styles.quickActions}>
           <TouchableOpacity onPress={handlePostRequest} style={styles.linkButton}>
             <Plus size={20} color={theme.colors.primary} />
@@ -125,25 +125,25 @@ export default function CustomerDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Messages Notification */}
-        {unreadMessageCount > 0 && (
+
+        {unreadMessageCount > 0 ? (
           <TouchableOpacity
             style={styles.messageNotification}
             onPress={handleViewMessages}
           >
             <Text style={styles.messageTitle}>
-              You have {unreadMessageCount} new message{unreadMessageCount > 1 ? 's' : ''}
+              You have {unreadMessageCount.toString()} new message{unreadMessageCount > 1 ? 's' : ''}
             </Text>
             <Text style={styles.messageSubtitle}>
               Tap to view messages
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
 
-        {/* Active Requests */}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Active Requests ({loading ? '...' : activeRequests.length})
+            Active Requests ({loading ? '...' : activeRequests.length.toString()})
           </Text>
           
           {loading ? (
@@ -179,18 +179,19 @@ export default function CustomerDashboard() {
                   </View>
                 </View>
                 
-                {/* Notes or Voice Message */}
-                {request.voiceMessage ? (
-                  <VoicePlayer voiceUrl={request.voiceMessage} compact={true} />
-                ) : (
-                  <Text style={styles.requestDescription} numberOfLines={1}>
-                    {request.description}
-                  </Text>
-                )}
+                <View>
+                  {request.description ? (
+                    <Text style={styles.requestDescription} numberOfLines={1}>
+                      {request.description}
+                    </Text>
+                  ) : null}
+                  {request.voiceMessage ? (
+                    <VoicePlayer voiceUrl={request.voiceMessage} compact={true} />
+                  ) : null}
+                </View>
                 
                 <Text style={styles.postcodeText}>Postcode: {request.postcode}</Text>
                 
-
                 <View style={styles.allIcons}>
                   <TouchableOpacity 
                     style={[styles.iconButton, selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && styles.selectedIcon]}
@@ -203,7 +204,7 @@ export default function CustomerDashboard() {
                     }}
                   >
                     <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{request.photos ? request.photos.length : 0}</Text>
+                      <Text style={styles.iconCount}>{request.photos ? request.photos.length.toString() : '0'}</Text>
                       <ImageIcon size={22} color="#3b82f6" />
                     </View>
                     <Text style={styles.iconLabel}>Photos</Text>
@@ -220,7 +221,7 @@ export default function CustomerDashboard() {
                     }}
                   >
                     <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{request.documents ? request.documents.length : 0}</Text>
+                      <Text style={styles.iconCount}>{request.documents ? request.documents.length.toString() : '0'}</Text>
                       <FileText size={22} color="#3b82f6" />
                     </View>
                     <Text style={styles.iconLabel}>Files</Text>
@@ -231,7 +232,7 @@ export default function CustomerDashboard() {
                     style={styles.iconButton}
                   >
                     <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>0</Text>
+                      <Text style={styles.iconCount}>{'0'}</Text>
                       <Users size={22} color="#3b82f6" />
                     </View>
                     <Text style={styles.iconLabel}>Interests</Text>
@@ -242,13 +243,13 @@ export default function CustomerDashboard() {
                     style={styles.iconButton}
                   >
                     <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>0</Text>
+                      <Text style={styles.iconCount}>{'0'}</Text>
                       <MessageCircle size={22} color="#3b82f6" />
                     </View>
                     <Text style={styles.iconLabel}>Messages</Text>
                   </TouchableOpacity>
                   
-                  {request.status === 'active' && (
+                  {request.status === 'active' ? (
                     <TouchableOpacity 
                       onPress={() => handleCancelRequest(request.id)}
                       style={styles.iconButton}
@@ -258,11 +259,10 @@ export default function CustomerDashboard() {
                       </View>
                       <Text style={[styles.iconLabel, styles.cancelLabel]}>Cancel</Text>
                     </TouchableOpacity>
-                  )}
+                  ) : null}
                 </View>
                 
-                {/* Photo Thumbnails */}
-                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && request.photos && request.photos.length > 0 && (
+                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && request.photos && request.photos.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
                     {request.photos.map((photo: string, index: number) => (
                       <ThumbnailImage
@@ -278,10 +278,9 @@ export default function CustomerDashboard() {
                       />
                     ))}
                   </ScrollView>
-                )}
+                ) : null}
                 
-                {/* Documents List */}
-                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && request.documents && request.documents.length > 0 && (
+                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && request.documents && request.documents.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.documentsRow}>
                     {request.documents.map((doc: string, index: number) => (
                       <TouchableOpacity 
@@ -300,17 +299,17 @@ export default function CustomerDashboard() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                )}
+                ) : null}
               </View>
             ))
           )}
         </View>
 
-        {/* Recent Quotes */}
+
         {quotes.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Recent Quotes ({quotes.length})
+              Recent Quotes ({quotes.length.toString()})
             </Text>
             
             {quotes.slice(0, 3).map((quote) => (
@@ -344,11 +343,11 @@ export default function CustomerDashboard() {
           </View>
         )}
 
-        {/* Completed Requests */}
+
         {completedRequests.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Completed Requests ({completedRequests.length})
+              Completed Requests ({completedRequests.length.toString()})
             </Text>
             
             {completedRequests.slice(0, 3).map((request) => (
@@ -383,7 +382,7 @@ export default function CustomerDashboard() {
         )}
       </View>
       
-      {/* Cancel Modal */}
+
       <Modal
         visible={showCancelModal}
         transparent={true}

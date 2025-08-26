@@ -87,7 +87,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
           </View>
-          <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
+          <Text style={styles.progressText}>{Math.round(progress * 100).toString()}%</Text>
         </View>
       )}
     </View>

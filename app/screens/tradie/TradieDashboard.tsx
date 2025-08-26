@@ -47,19 +47,18 @@ export default function TradieDashboard() {
           </Text>
         </View>
 
-        {/* Quick Stats */}
         <View style={styles.quickStats}>
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {activeQuotes.length}
+                {activeQuotes.length.toString()}
               </Text>
               <Text style={styles.statLabel}>Active Quotes</Text>
             </View>
             
             <View style={styles.statCard}>
               <Text style={styles.statNumberAccepted}>
-                {acceptedQuotes.length}
+                {acceptedQuotes.length.toString()}
               </Text>
               <Text style={styles.statLabel}>Accepted Jobs</Text>
             </View>
