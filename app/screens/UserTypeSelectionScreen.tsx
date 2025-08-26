@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SimpleButton } from '../components/UI/SimpleButton';
 import { Container } from '../components/UI/Container';
@@ -11,6 +11,18 @@ const { width, height } = Dimensions.get('window');
 
 export default function UserTypeSelectionScreen() {
   const navigation = useNavigation();
+
+  console.log('🔍 USER TYPE SELECTION - Component mounted');
+  console.log('🔍 USER TYPE SELECTION - Current URL:', Platform.OS === 'web' ? window.location.href : 'N/A');
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'customer' || hash === 'tradie') {
+        handleUserTypeSelection(hash as 'customer' | 'tradie');
+      }
+    }
+  }, [navigation]);
 
   const handleUserTypeSelection = (userType: 'customer' | 'tradie') => {
     // Navigate to login/signup with user type

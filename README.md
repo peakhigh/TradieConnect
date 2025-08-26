@@ -176,6 +176,38 @@ Firestore security rules ensure:
 
 ## 🚀 Deployment
 
+### Quick Deploy Commands
+
+**Using npm scripts:**
+```bash
+npm run deploy:app        # Deploy React Native app only
+npm run deploy:website    # Deploy static website only  
+npm run deploy:functions  # Deploy Firebase functions only
+npm run deploy:all        # Deploy everything
+```
+
+**Using shell script directly:**
+```bash
+./deploy.sh app          # Deploy React Native app only
+./deploy.sh website      # Deploy static website only
+./deploy.sh functions    # Deploy Firebase functions only
+./deploy.sh all          # Deploy everything
+./deploy.sh              # Show help menu
+```
+
+### What Each Command Does
+
+- **`deploy:app`** - Builds React Native web app and copies to `/app` directory
+- **`deploy:website`** - Deploys static marketing website only
+- **`deploy:functions`** - Deploys Firebase Cloud Functions only
+- **`deploy:all`** - Full deployment: builds app + deploys website + functions
+
+### Live URLs
+
+- **Main Website**: https://tradie-mate-f852a.web.app (Static marketing site)
+- **App**: https://tradie-mate-f852a.web.app/app (React Native web app)
+- **Console**: https://console.firebase.google.com/project/tradie-mate-f852a/overview
+
 ### Mobile Apps
 
 1. **Build for production**
@@ -187,18 +219,6 @@ Firestore security rules ensure:
 2. **Submit to app stores**
    - iOS: Submit to App Store Connect
    - Android: Submit to Google Play Console
-
-### Web App
-
-1. **Build web version**
-   ```bash
-   expo build:web
-   ```
-
-2. **Deploy to hosting**
-   ```bash
-   firebase deploy --only hosting
-   ```
 
 ## 🔧 Development
 

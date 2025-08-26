@@ -10,7 +10,11 @@
     "start:prod": "expo start",
     "android:prod": "expo start --android",
     "ios:prod": "expo start --ios",
-    "web:prod": "expo start --web"
+    "web:prod": "expo start --web",
+    "deploy:app": "./deploy.sh app",
+    "deploy:website": "./deploy.sh website",
+    "deploy:functions": "./deploy.sh functions",
+    "deploy:all": "./deploy.sh all"
   },
   "dependencies": {
     "@firebase/app": "^0.14.1",

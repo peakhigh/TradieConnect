@@ -9,6 +9,11 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -31,22 +36,22 @@
                             
                             {/* Desktop Navigation */}
                             <nav className="hidden md:flex space-x-8">
-                                <a href="#features" className="text-gray-700 hover:text-blue-600">Features</a>
-                                <a href="#how-it-works" className="text-gray-700 hover:text-blue-600">How It Works</a>
-                                <a href="#pricing" className="text-gray-700 hover:text-blue-600">Pricing</a>
-                                <a href="#contact" className="text-gray-700 hover:text-blue-600">Contact</a>
+                                <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors duration-200">Features</a>
+                                <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors duration-200">How It Works</a>
+                                <a href="#pricing" className="text-gray-700 hover:text-blue-600 transition-colors duration-200">Pricing</a>
+                                <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors duration-200">Contact</a>
                             </nav>
 
                             {/* Login Buttons */}
                             <div className="hidden md:flex space-x-4">
                                 <button 
-                                    onClick={() => window.location.href = '/app'}
+                                    onClick={() => window.open('/app#customer', '_self')}
                                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                                 >
                                     Customer Login
                                 </button>
                                 <button 
-                                    onClick={() => window.location.href = '/app'}
+                                    onClick={() => window.open('/app#tradie', '_self')}
                                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
                                 >
                                     Tradie Login
@@ -72,13 +77,13 @@
                                     <a href="#contact" className="text-gray-700">Contact</a>
                                     <div className="flex flex-col space-y-2 pt-4">
                                         <button 
-                                            onClick={() => window.location.href = '/app'}
+                                            onClick={() => window.open('/app#customer', '_self')}
                                             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
                                         >
                                             Customer Login
                                         </button>
                                         <button 
-                                            onClick={() => window.location.href = '/app'}
+                                            onClick={() => window.open('/app#tradie', '_self')}
                                             className="bg-green-600 text-white px-4 py-2 rounded-lg"
                                         >
                                             Tradie Login
@@ -105,14 +110,14 @@
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <button 
-                                onClick={() => window.location.href = '/app'}
+                                onClick={() => window.open('/app#customer', '_self')}
                                 className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100"
                             >
                                 <i className="fas fa-home mr-2"></i>
                                 I Need a Tradie
                             </button>
                             <button 
-                                onClick={() => window.location.href = '/app'}
+                                onClick={() => window.open('/app#tradie', '_self')}
                                 className="bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-green-700"
                             >
                                 <i className="fas fa-tools mr-2"></i>
@@ -294,7 +299,7 @@
                                 <li><i className="fas fa-check text-green-600 mr-2"></i>Review and rating system</li>
                             </ul>
                             <button 
-                                onClick={() => window.location.href = '/app'}
+                                onClick={() => window.open('/app#customer', '_self')}
                                 className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
                             >
                                 Get Started Free
@@ -313,7 +318,7 @@
                                 <li><i className="fas fa-check text-green-600 mr-2"></i>Build your reputation</li>
                             </ul>
                             <button 
-                                onClick={() => window.location.href = '/app'}
+                                onClick={() => window.open('/app#tradie', '_self')}
                                 className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700"
                             >
                                 Start Earning Today
@@ -324,9 +329,92 @@
             </section>
         );
 
+        // Contact Section
+        const Contact = () => (
+            <section id="contact" className="py-20 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                            Get In Touch
+                        </h2>
+                        <p className="text-xl text-gray-600">
+                            Have questions? We're here to help you get started.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-12">
+                        <div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center">
+                                    <i className="fas fa-phone text-blue-600 text-xl mr-4"></i>
+                                    <div>
+                                        <p className="font-semibold">Phone</p>
+                                        <p className="text-gray-600">1300 TRADIE (1300 872 343)</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <i className="fas fa-envelope text-blue-600 text-xl mr-4"></i>
+                                    <div>
+                                        <p className="font-semibold">Email</p>
+                                        <p className="text-gray-600">support@tradieconnect.com.au</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <i className="fas fa-map-marker-alt text-blue-600 text-xl mr-4"></i>
+                                    <div>
+                                        <p className="font-semibold">Address</p>
+                                        <p className="text-gray-600">Level 10, 123 Collins Street<br/>Melbourne VIC 3000</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <i className="fas fa-clock text-blue-600 text-xl mr-4"></i>
+                                    <div>
+                                        <p className="font-semibold">Business Hours</p>
+                                        <p className="text-gray-600">Mon-Fri: 8:00 AM - 6:00 PM<br/>Sat: 9:00 AM - 4:00 PM</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 p-8 rounded-lg">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h3>
+                            <form className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                                    <input type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent" placeholder="Your full name" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent" placeholder="your.email@example.com" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+                                        <option>General Inquiry</option>
+                                        <option>Customer Support</option>
+                                        <option>Tradie Support</option>
+                                        <option>Technical Issue</option>
+                                        <option>Partnership</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                                    <textarea rows="4" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent" placeholder="Tell us how we can help you..."></textarea>
+                                </div>
+                                <button type="submit" className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                    Send Message
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
         // Footer
         const Footer = () => (
-            <footer id="contact" className="bg-gray-900 text-white py-12">
+            <footer className="bg-gray-900 text-white py-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid md:grid-cols-4 gap-8">
                         <div>
@@ -383,12 +471,14 @@
                 <Features />
                 <HowItWorks />
                 <Pricing />
+                <Contact />
                 <Footer />
             </div>
         );
 
         // Render the app
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>

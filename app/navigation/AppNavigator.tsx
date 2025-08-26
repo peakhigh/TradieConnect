@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
@@ -15,17 +15,43 @@ const Stack = createNativeStackNavigator();
 
 export const AppNavigator: React.FC = () => {
   const { user, loading } = useAuth();
+  const [initialRoute, setInitialRoute] = useState('UserTypeSelection');
+
+  console.log('🔍 APP NAVIGATOR - Component rendered');
+  console.log('🔍 APP NAVIGATOR - User:', user ? 'Logged in' : 'Not logged in');
+  console.log('🔍 APP NAVIGATOR - Loading:', loading);
+  console.log('🔍 APP NAVIGATOR - Initial route:', initialRoute);
+
+  useEffect(() => {
+    console.log('🔍 APP NAVIGATOR - useEffect triggered');
+    if (Platform.OS === 'web') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const userType = urlParams.get('userType');
+      console.log('🔍 APP NAVIGATOR - URL userType param:', userType);
+      if (userType && (userType === 'customer' || userType === 'tradie')) {
+        console.log('🔍 APP NAVIGATOR - Setting initial route to Login');
+        setInitialRoute('Login');
+      } else {
+        console.log('🔍 APP NAVIGATOR - Keeping initial route as UserTypeSelection');
+      }
+    }
+  }, []);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   const linking = Platform.OS === 'web' ? {
-    prefixes: ['http://localhost:8081', 'https://tradieconnect.app'],
+    prefixes: ['http://localhost:8081', 'https://tradie-mate-f852a.web.app'],
     config: {
       screens: {
         UserTypeSelection: '/',
-        Login: '/login',
+        Login: {
+          path: '/login',
+          parse: {
+            userType: (userType: string) => userType || 'customer'
+          }
+        },
         Signup: '/signup',
         CustomerTabs: {
           screens: {
@@ -52,6 +78,7 @@ export const AppNavigator: React.FC = () => {
     return (
       <NavigationContainer linking={linking}>
         <Stack.Navigator
+          initialRouteName={initialRoute}
           screenOptions={{
             headerShown: false,
           }}

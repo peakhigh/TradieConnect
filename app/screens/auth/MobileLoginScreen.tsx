@@ -22,7 +22,23 @@ const isWeb = Platform.OS === 'web';
 
 export default function MobileLoginScreen() {
   const route = useRoute<LoginScreenRouteProp>();
-  const userType = route.params?.userType || 'customer';
+  let userType = route.params?.userType || 'customer';
+  
+  console.log('🔍 LOGIN SCREEN - Initial route params:', route.params);
+  console.log('🔍 LOGIN SCREEN - Initial userType:', userType);
+  console.log('🔍 LOGIN SCREEN - Current URL:', Platform.OS === 'web' ? window.location.href : 'N/A');
+  
+  // Check URL parameters for userType if not in route params
+  if (Platform.OS === 'web' && !route.params?.userType) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlUserType = urlParams.get('userType');
+    console.log('🔍 LOGIN SCREEN - URL userType param:', urlUserType);
+    if (urlUserType && (urlUserType === 'customer' || urlUserType === 'tradie')) {
+      userType = urlUserType as 'customer' | 'tradie';
+      console.log('🔍 LOGIN SCREEN - Updated userType from URL:', userType);
+    }
+  }
+  
   const { setUser } = useAuth();
   
   const [phoneNumber, setPhoneNumber] = useState('');
