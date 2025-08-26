@@ -23,10 +23,8 @@ const setUserWithPersistence = (setUser: React.Dispatch<React.SetStateAction<Use
     if (Platform.OS === 'web') {
       if (userData) {
         localStorage.setItem('tradieapp_user', JSON.stringify(userData));
-        console.log('💾 User saved to localStorage');
       } else {
         localStorage.removeItem('tradieapp_user');
-        console.log('🗑️ User removed from localStorage');
       }
     }
   };
@@ -55,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = localStorage.getItem('tradieapp_user');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
-          console.log('🔄 Restored user from localStorage:', userData.userType);
           setUser(userData);
         }
       } catch (error) {
@@ -71,19 +68,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (firebaseUser) {
         try {
-          console.log('Firebase user authenticated:', firebaseUser.uid);
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
             const userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
             setUser(userData);
-            console.log('User loaded from Firebase:', userData.userType, userData.id);
             
             // Also save to localStorage for persistence
             if (Platform.OS === 'web') {
               localStorage.setItem('tradieapp_user', JSON.stringify(userData));
             }
           } else {
-            console.log('User document not found');
             setUser(null);
           }
         } catch (error) {
@@ -91,13 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
         }
       } else {
-        console.log('No Firebase user, checking localStorage');
         // Only check localStorage if no Firebase user
         if (Platform.OS === 'web') {
           const storedUser = localStorage.getItem('tradieapp_user');
           if (storedUser) {
             const userData = JSON.parse(storedUser);
-            console.log('Restored user from localStorage:', userData.userType);
             setUser(userData);
           } else {
             setUser(null);
@@ -118,7 +110,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await firebaseSignOut(auth);
       setUserWithPersistence(setUser)(null);
       setFirebaseUser(null);
-      console.log('User signed out successfully');
+      
+      // Redirect to static website on web platform
+      if (Platform.OS === 'web') {
+        window.location.href = '/';
+      }
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;

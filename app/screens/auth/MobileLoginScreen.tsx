@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { View, Text, StyleSheet, Alert, Platform, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
@@ -24,29 +25,29 @@ export default function MobileLoginScreen() {
   const route = useRoute<LoginScreenRouteProp>();
   let userType = route.params?.userType || 'customer';
   
-  console.log('🔍 LOGIN SCREEN - Initial route params:', route.params);
-  console.log('🔍 LOGIN SCREEN - Initial userType:', userType);
-  console.log('🔍 LOGIN SCREEN - Current URL:', Platform.OS === 'web' ? window.location.href : 'N/A');
-  
   // Check URL parameters for userType if not in route params
   if (Platform.OS === 'web' && !route.params?.userType) {
     const urlParams = new URLSearchParams(window.location.search);
     const urlUserType = urlParams.get('userType');
-    console.log('🔍 LOGIN SCREEN - URL userType param:', urlUserType);
     if (urlUserType && (urlUserType === 'customer' || urlUserType === 'tradie')) {
       userType = urlUserType as 'customer' | 'tradie';
-      console.log('🔍 LOGIN SCREEN - Updated userType from URL:', userType);
     }
   }
   
   const { setUser } = useAuth();
   
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isSignUp, setIsSignUp] = useState(false);
+  
+  const { control, handleSubmit, watch, formState: { errors }, setError, clearErrors, reset } = useForm({
+    defaultValues: {
+      phoneNumber: '',
+      otp: ''
+    }
+  });
+  
+  const phoneNumber = watch('phoneNumber');
+  const otp = watch('otp');
 
   const validatePhoneNumber = (phone: string) => {
     const phoneRegex = /^(\+61|0)[4-5]\d{8}$/;
@@ -57,49 +58,34 @@ export default function MobileLoginScreen() {
     return otpCode.length === 6 && /^\d+$/.test(otpCode);
   };
 
-  const handleSendOtp = async () => {
-    console.log('🔄 Starting OTP send process...');
-    console.log('📱 Phone number:', phoneNumber);
-    
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
-      console.log('❌ Validation failed: Phone number empty');
-    } else if (!validatePhoneNumber(phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid Australian mobile number';
-      console.log('❌ Validation failed: Invalid phone format');
-    }
-    
-    setErrors(newErrors);
-    
-    if (Object.keys(newErrors).length > 0) {
-      console.log('❌ Stopping due to validation errors');
+  const handleSendOtp = async (data: { phoneNumber: string }) => {
+    if (!data.phoneNumber.trim()) {
+      setError('phoneNumber', { message: 'Phone number is required' });
       return;
     }
-
-    console.log('✅ Validation passed, sending OTP...');
+    if (!validatePhoneNumber(data.phoneNumber)) {
+      setError('phoneNumber', { message: 'Please enter a valid Australian mobile number' });
+      return;
+    }
+    
+    clearErrors('phoneNumber');
     setLoading(true);
     try {
       const { RecaptchaVerifier, signInWithPhoneNumber } = await import('firebase/auth');
       const { auth } = await import('../../services/firebase');
       
       // Format phone number for Firebase (add +61 prefix)
-      const formattedPhone = phoneNumber.startsWith('0') 
-        ? '+61' + phoneNumber.substring(1)
-        : phoneNumber.startsWith('+61') 
-        ? phoneNumber 
-        : '+61' + phoneNumber;
-      
-      console.log('Formatted phone:', formattedPhone);
+      const formattedPhone = data.phoneNumber.startsWith('0') 
+        ? '+61' + data.phoneNumber.substring(1)
+        : data.phoneNumber.startsWith('+61') 
+        ? data.phoneNumber 
+        : '+61' + data.phoneNumber;
       
       // Create reCAPTCHA verifier for web
       if (Platform.OS === 'web' && !window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA solved');
-          }
+          callback: () => {}
         });
       }
       
@@ -107,39 +93,29 @@ export default function MobileLoginScreen() {
       const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       window.confirmationResult = confirmationResult;
       
-      console.log('✅ OTP sent successfully');
+
+      control.setValue('otp', '');
       setOtpSent(true);
       Alert.alert('OTP Sent', 'Please check your phone for the verification code');
     } catch (error) {
-      console.error('❌ Error sending OTP:', error);
+      console.error('Error sending OTP:', error);
       Alert.alert('Error', 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    console.log('🔄 Starting OTP verification...');
-    console.log('🔢 OTP entered:', otp);
-    
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!otp.trim()) {
-      newErrors.otp = 'OTP is required';
-      console.log('❌ Validation failed: OTP empty');
-    } else if (!validateOtp(otp)) {
-      newErrors.otp = 'Please enter a valid 6-digit OTP';
-      console.log('❌ Validation failed: Invalid OTP format');
-    }
-    
-    setErrors(newErrors);
-    
-    if (Object.keys(newErrors).length > 0) {
-      console.log('❌ Stopping due to validation errors');
+  const handleVerifyOtp = async (data: { otp: string }) => {
+    if (!data.otp.trim()) {
+      setError('otp', { message: 'OTP is required' });
       return;
     }
-
-    console.log('✅ OTP validation passed, verifying...');
+    if (!validateOtp(data.otp)) {
+      setError('otp', { message: 'Please enter a valid 6-digit OTP' });
+      return;
+    }
+    
+    clearErrors('otp');
     setLoading(true);
     try {
       const confirmationResult = window.confirmationResult;
@@ -147,10 +123,10 @@ export default function MobileLoginScreen() {
         throw new Error('No confirmation result found');
       }
       
-      const result = await confirmationResult.confirm(otp);
+      const result = await confirmationResult.confirm(data.otp);
       const firebaseUser = result.user;
       
-      console.log('✅ Firebase Auth successful:', firebaseUser.uid);
+
       
       // Create or get user document in Firestore
       const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -193,17 +169,17 @@ export default function MobileLoginScreen() {
         };
         
         await setDoc(userDocRef, userData);
-        console.log('✅ New user created in Firestore');
+
       } else {
         userData = { id: firebaseUser.uid, ...userDoc.data() };
-        console.log('✅ Existing user found');
+
       }
       
       // The AuthContext will automatically handle the Firebase Auth state change
-      console.log('✅ User authenticated, navigation will happen automatically');
+
       
     } catch (error) {
-      console.error('❌ Error verifying OTP:', error);
+      console.error('Error verifying OTP:', error);
       Alert.alert('Error', 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
@@ -258,12 +234,12 @@ export default function MobileLoginScreen() {
     <View style={styles.rightSide}>
       <View style={styles.loginForm}>
         <Text style={styles.formTitle}>
-          {otpSent ? 'Enter Verification Code' : 'Sign in / Sign up'}
+          {otpSent ? 'Enter Verification Code' : 'Welcome'}
         </Text>
         
         <Text style={styles.formSubtitle}>
           {otpSent 
-            ? `We've sent a 6-digit code to ${phoneNumber}`
+            ? `We've sent a 6-digit code to ${watch('phoneNumber')}`
             : 'Enter your mobile number to get started'
           }
         </Text>
@@ -348,78 +324,67 @@ export default function MobileLoginScreen() {
 
   return (
     <View style={[styles.mobileContainer, { backgroundColor: userInfo.color }]}>
-      <Container>
-        <View style={styles.mobileContent}>
+      <View style={styles.mobileContent}>
         <View style={styles.loginForm}>
           <Text style={styles.formTitle}>
-            {otpSent ? 'Enter Verification Code' : (isSignUp ? 'Sign Up' : 'Sign In')}
+            {otpSent ? 'Enter Verification Code' : 'Welcome'}
           </Text>
           
           <Text style={styles.formSubtitle}>
             {otpSent 
-              ? `We've sent a 6-digit code to ${phoneNumber}`
-              : 'We\'ll send you a verification code'
+              ? `We've sent a 6-digit code to ${watch('phoneNumber')}`
+              : 'Enter your phone number to continue'
             }
           </Text>
 
           {!otpSent ? (
             <>
-              <Input
-                label="Phone Number"
-                placeholder="0412 345 678"
-                value={phoneNumber}
-                onChangeText={(value) => {
-                  setPhoneNumber(value);
-                  if (errors.phoneNumber) {
-                    setErrors(prev => ({...prev, phoneNumber: ''}));
-                  }
-                }}
-                keyboardType="phone-pad"
-                style={[styles.input, errors.phoneNumber && styles.errorInput]}
+              <Controller
+                control={control}
+                name="phoneNumber"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Phone Number"
+                    placeholder="0412 345 678"
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="phone-pad"
+                    style={[styles.input, errors.phoneNumber && styles.errorInput]}
+                  />
+                )}
               />
-              {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
+              {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber.message}</Text>}
 
               <Button
-                title={isSignUp ? 'Create Account' : 'Send OTP'}
-                onPress={handleSendOtp}
+                title="Continue"
+                onPress={handleSubmit(handleSendOtp)}
                 loading={loading}
                 fullWidth
                 style={styles.button}
               />
-              
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-                  <Text 
-                    style={styles.linkText} 
-                    onPress={() => setIsSignUp(!isSignUp)}
-                  >
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                  </Text>
-                </Text>
-              </View>
             </>
           ) : (
             <>
-              <Input
-                label="Verification Code"
-                placeholder="123456"
-                value={otp}
-                onChangeText={(value) => {
-                  setOtp(value);
-                  if (errors.otp) {
-                    setErrors(prev => ({...prev, otp: ''}));
-                  }
-                }}
-                keyboardType="numeric"
-                maxLength={6}
-                style={[styles.input, errors.otp && styles.errorInput]}
+              <Controller
+                control={control}
+                name="otp"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Verification Code"
+                    placeholder="123456"
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    maxLength={6}
+                    style={[styles.input, errors.otp && styles.errorInput]}
+                  />
+                )}
               />
-              {errors.otp && <Text style={styles.errorText}>{errors.otp}</Text>}
+              {errors.otp && <Text style={styles.errorText}>{errors.otp.message}</Text>}
 
               <Button
                 title="Verify & Login"
-                onPress={handleVerifyOtp}
+                onPress={handleSubmit(handleVerifyOtp)}
                 loading={loading}
                 fullWidth
                 style={styles.button}
@@ -429,8 +394,7 @@ export default function MobileLoginScreen() {
                 title="Resend OTP"
                 onPress={() => {
                   setOtpSent(false);
-                  setOtp('');
-                  setErrors({});
+                  reset();
                 }}
                 variant="outline"
                 fullWidth
@@ -438,10 +402,9 @@ export default function MobileLoginScreen() {
               />
             </>
           )}
-          </View>
         </View>
         {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
-      </Container>
+      </View>
     </View>
   );
 }
@@ -495,6 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.xxxl,
+    minHeight: '100vh',
   },
   loginForm: {
     width: '100%',
@@ -503,6 +467,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.xxl,
     ...theme.shadows.lg,
+    alignSelf: 'center',
   },
   formTitle: {
     fontSize: theme.fontSize.xxl,
@@ -542,6 +507,7 @@ const styles = StyleSheet.create({
   },
   mobileContainer: {
     flex: 1,
+    minHeight: '100vh',
   },
   mobileContent: {
     flex: 1,

@@ -11,10 +11,9 @@
     "android:prod": "expo start --android",
     "ios:prod": "expo start --ios",
     "web:prod": "expo start --web",
-    "deploy:app": "./deploy.sh app",
-    "deploy:website": "./deploy.sh website",
-    "deploy:functions": "./deploy.sh functions",
-    "deploy:all": "./deploy.sh all"
+    "deploy": "npx expo export -p web && firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:all": "npx expo export -p web && firebase deploy"
   },
   "dependencies": {
     "@firebase/app": "^0.14.1",
@@ -46,6 +45,7 @@
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-hook-form": "^7.62.0",
     "react-native": "0.79.6",
     "react-native-gesture-handler": "^2.28.0",
     "react-native-safe-area-context": "^5.6.1",

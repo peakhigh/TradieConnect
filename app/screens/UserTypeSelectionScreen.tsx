@@ -12,8 +12,7 @@ const { width, height } = Dimensions.get('window');
 export default function UserTypeSelectionScreen() {
   const navigation = useNavigation();
 
-  console.log('🔍 USER TYPE SELECTION - Component mounted');
-  console.log('🔍 USER TYPE SELECTION - Current URL:', Platform.OS === 'web' ? window.location.href : 'N/A');
+
 
   useEffect(() => {
     if (Platform.OS === 'web') {

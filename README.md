@@ -137,7 +137,8 @@ tradie-app/
 │   │   ├── admin/             # Admin module screens
 │   │   ├── auth/              # Authentication screens
 │   │   ├── customer/          # Customer module screens
-│   │   └── tradie/            # Tradie module screens
+│   │   ├── tradie/            # Tradie module screens
+│   │   └── HomeScreen.tsx     # Marketing website (landing page)
 │   ├── services/               # API and Firebase services
 │   ├── types/                  # TypeScript type definitions
 │   └── utils/                  # Utility functions
@@ -180,16 +181,14 @@ Firestore security rules ensure:
 
 **Using npm scripts:**
 ```bash
-npm run deploy:app        # Deploy React Native app only
-npm run deploy:website    # Deploy static website only  
-npm run deploy:functions  # Deploy Firebase functions only
-npm run deploy:all        # Deploy everything
+npm run deploy           # Deploy React Native app
+npm run deploy:functions # Deploy Firebase functions only
+npm run deploy:all       # Deploy everything
 ```
 
 **Using shell script directly:**
 ```bash
-./deploy.sh app          # Deploy React Native app only
-./deploy.sh website      # Deploy static website only
+./deploy.sh app          # Deploy React Native app
 ./deploy.sh functions    # Deploy Firebase functions only
 ./deploy.sh all          # Deploy everything
 ./deploy.sh              # Show help menu
@@ -197,15 +196,13 @@ npm run deploy:all        # Deploy everything
 
 ### What Each Command Does
 
-- **`deploy:app`** - Builds React Native web app and copies to `/app` directory
-- **`deploy:website`** - Deploys static marketing website only
+- **`deploy`** - Builds and deploys the React Native app (includes marketing site)
 - **`deploy:functions`** - Deploys Firebase Cloud Functions only
-- **`deploy:all`** - Full deployment: builds app + deploys website + functions
+- **`deploy:all`** - Full deployment: app + functions
 
 ### Live URLs
 
-- **Main Website**: https://tradie-mate-f852a.web.app (Static marketing site)
-- **App**: https://tradie-mate-f852a.web.app/app (React Native web app)
+- **App**: https://tradie-mate-f852a.web.app (Complete app with marketing site)
 - **Console**: https://console.firebase.google.com/project/tradie-mate-f852a/overview
 
 ### Mobile Apps
