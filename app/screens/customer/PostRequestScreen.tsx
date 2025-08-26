@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
@@ -54,16 +55,20 @@ export default function PostRequestScreen() {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   
-  const [formData, setFormData] = useState({
-    description: '',
-    postcode: user?.postcode || '', // Prefill from user profile
-    urgency: 'medium' as 'low' | 'medium' | 'high',
-    budgetMin: '',
-    budgetMax: '',
-    earliestDate: new Date(),
-    latestDate: new Date(Date.now() + 7 * 60 * 60 * 1000), // 7 days from now
-    additionalNotes: ''
+  const { control, handleSubmit, watch, formState: { errors: formErrors }, setError, clearErrors, reset, setValue } = useForm({
+    defaultValues: {
+      description: '',
+      postcode: user?.postcode || '',
+      urgency: 'medium' as 'low' | 'medium' | 'high',
+      budgetMin: '',
+      budgetMax: '',
+      earliestDate: new Date(),
+      latestDate: new Date(Date.now() + 7 * 60 * 60 * 1000),
+      additionalNotes: ''
+    }
   });
+  
+  const formData = watch();
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
@@ -77,9 +82,7 @@ export default function PostRequestScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+
 
   const toggleTrade = (trade: string) => {
     const newTrades = selectedTrades.includes(trade) 
@@ -231,7 +234,7 @@ export default function PostRequestScreen() {
     setVoiceMessage(null);
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = async () => {
     console.log('Form submission started');
     console.log('Selected trades:', selectedTrades);
     console.log('Form data:', formData);
@@ -364,7 +367,7 @@ export default function PostRequestScreen() {
       
       // Reset form
       setSelectedTrades([]);
-      setFormData({
+      reset({
         description: '',
         postcode: user?.postcode || '',
         urgency: 'medium',
@@ -485,19 +488,20 @@ export default function PostRequestScreen() {
             </Text>
           </View>
           <View style={styles.notesContainer}>
-            <Input
-              placeholder="Describe the work you need done..."
-              value={formData.description}
-              onChangeText={(value) => {
-                handleInputChange('description', value);
-                if (errors.description) {
-                  setErrors(prev => ({...prev, description: ''}));
-                }
-              }}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              style={[styles.textAreaInput, errors.description && styles.errorInput]}
+            <Controller
+              control={control}
+              name="description"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  placeholder="Describe the work you need done..."
+                  value={value}
+                  onChangeText={onChange}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  style={[styles.textAreaInput, errors.description && styles.errorInput]}
+                />
+              )}
             />
             <TouchableOpacity 
               style={[styles.micButton, isRecording && styles.recordingButton]}
@@ -530,17 +534,18 @@ export default function PostRequestScreen() {
               Postcode *
             </Text>
           </View>
-          <Input
-            placeholder="Enter your postcode"
-            value={formData.postcode}
-            onChangeText={(value) => {
-              handleInputChange('postcode', value);
-              if (errors.postcode) {
-                setErrors(prev => ({...prev, postcode: ''}));
-              }
-            }}
-            keyboardType="numeric"
-            style={[styles.standardInput, errors.postcode && styles.errorInput]}
+          <Controller
+            control={control}
+            name="postcode"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                placeholder="Enter your postcode"
+                value={value}
+                onChangeText={onChange}
+                keyboardType="numeric"
+                style={[styles.standardInput, errors.postcode && styles.errorInput]}
+              />
+            )}
           />
           {errors.postcode && <Text style={styles.errorText}>{errors.postcode}</Text>}
         </View>
@@ -561,7 +566,7 @@ export default function PostRequestScreen() {
                   styles.urgencyButton,
                   formData.urgency === level.value && styles.selectedUrgencyButton
                 ]}
-                onPress={() => handleInputChange('urgency', level.value)}
+                onPress={() => setValue('urgency', level.value)}
               >
                 <Text style={[
                   styles.urgencyText,
@@ -616,7 +621,7 @@ export default function PostRequestScreen() {
         {/* Submit Button */}
         <Button
           title="Post Service Request"
-          onPress={handleSubmit}
+          onPress={onSubmit}
           loading={loading}
           size="large"
           style={styles.submitButton}
