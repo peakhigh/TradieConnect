@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform, 
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
-import { Sparkles, MessageCircle, Plus, Image as ImageIcon, FileText, Users, X } from 'lucide-react-native';
+import { Sparkles, MessageCircle, Plus, Image as ImageIcon, FileText, Users, X, Edit3, Lock } from 'lucide-react-native';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -100,6 +100,10 @@ export default function CustomerDashboard() {
     navigation.navigate('PostRequest' as never);
   };
 
+  const handleEditRequest = (requestId: string) => {
+    navigation.navigate('PostRequest' as never, { editRequestId: requestId });
+  };
+
   return (
     <Container style={styles.container}>
       <View style={styles.content}>
@@ -159,9 +163,23 @@ export default function CustomerDashboard() {
               <View key={request.id} style={styles.requestCard}>
                 <View style={styles.titleRow}>
                   <TouchableOpacity onPress={() => handleViewRequestDetails(request)} style={styles.titleContainer}>
-                    <Text style={[styles.requestTitle, styles.tradeLink]}>
-                      {request.tradeType}
-                    </Text>
+                    <View style={styles.titleWithIcon}>
+                      <Text style={[styles.requestTitle, styles.tradeLink]}>
+                        {request.tradeType}
+                      </Text>
+                      {request.status === 'active' ? (
+                        <TouchableOpacity 
+                          style={styles.editIcon}
+                          onPress={() => handleEditRequest(request.id)}
+                        >
+                          <Edit3 size={16} color="#6b7280" />
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.lockIcon}>
+                          <Lock size={16} color="#9ca3af" />
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
                   
                   <View style={styles.titleTags}>
@@ -533,6 +551,18 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
+  },
+  titleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editIcon: {
+    padding: 4,
+  },
+  lockIcon: {
+    padding: 4,
+    opacity: 0.5,
   },
   requestTitle: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.sm,

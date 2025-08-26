@@ -12,7 +12,7 @@ import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
 import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic } from 'lucide-react-native';
 import DateTimePicker from 'react-native-ui-datepicker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -45,6 +45,9 @@ type TabParamList = {
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const route = useRoute();
+  const editRequestId = route.params?.editRequestId;
+  const isEditMode = !!editRequestId;
   const scrollViewRef = useRef<ScrollView>(null);
   const [scrollKey, setScrollKey] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -67,6 +70,78 @@ export default function PostRequestScreen() {
       additionalNotes: ''
     }
   });
+  
+  // Load existing request data for edit mode
+  useEffect(() => {
+    if (isEditMode && editRequestId) {
+      loadRequestData(editRequestId);
+    }
+  }, [isEditMode, editRequestId]);
+  
+  const loadRequestData = async (requestId: string) => {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('../../services/firebase');
+      
+      const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
+      if (requestDoc.exists()) {
+        const data = requestDoc.data();
+        console.log('Loading request data:', data);
+        
+        // Set form values
+        setValue('description', data.description || '');
+        setValue('postcode', data.postcode || '');
+        setValue('urgency', data.urgency || 'medium');
+        setValue('budgetMin', data.budget?.min?.toString() || '');
+        setValue('budgetMax', data.budget?.max?.toString() || '');
+        
+        // Handle dates - check if they're Firestore timestamps or Date objects
+        const earliestDate = data.preferredDates?.earliest;
+        const latestDate = data.preferredDates?.latest;
+        
+        setValue('earliestDate', earliestDate?.toDate ? earliestDate.toDate() : (earliestDate || new Date()));
+        setValue('latestDate', latestDate?.toDate ? latestDate.toDate() : (latestDate || new Date()));
+        
+        // Set selected trades
+        if (data.tradeType) {
+          setSelectedTrades(data.tradeType.split(', '));
+        }
+        
+        // Set files (photos and documents)
+        const files = [];
+        if (data.photos && data.photos.length > 0) {
+          files.push(...data.photos.map((url: string, index: number) => ({
+            uri: url,
+            name: `photo_${index + 1}.jpg`,
+            type: 'image'
+          })));
+        }
+        if (data.documents && data.documents.length > 0) {
+          files.push(...data.documents.map((url: string, index: number) => ({
+            uri: url,
+            name: `document_${index + 1}`,
+            type: 'document'
+          })));
+        }
+        setSelectedFiles(files);
+        console.log('Loaded files:', files);
+        
+        // Set voice message
+        if (data.voiceMessage) {
+          setVoiceMessage(data.voiceMessage);
+          console.log('Loaded voice message:', data.voiceMessage);
+        }
+        
+        console.log('Data loaded successfully');
+      } else {
+        console.log('Request document not found');
+        Alert.alert('Error', 'Request not found');
+      }
+    } catch (error) {
+      console.error('Error loading request data:', error);
+      Alert.alert('Error', 'Failed to load request data');
+    }
+  };
   
   const formData = watch();
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
@@ -290,6 +365,16 @@ export default function PostRequestScreen() {
       
       for (const file of selectedFiles) {
         try {
+          // Skip uploading if it's already a Firebase Storage URL
+          if (file.uri.startsWith('https://firebasestorage.googleapis.com')) {
+            if (file.type === 'image') {
+              uploadedPhotos.push(file.uri);
+            } else {
+              uploadedDocuments.push(file.uri);
+            }
+            continue;
+          }
+          
           const response = await fetch(file.uri);
           const blob = await response.blob();
           const fileName = `${Date.now()}_${file.name}`;
@@ -311,13 +396,18 @@ export default function PostRequestScreen() {
       // Upload voice message if exists
       if (voiceMessage) {
         try {
-          const response = await fetch(voiceMessage);
-          const blob = await response.blob();
-          const fileName = `voice_${Date.now()}.m4a`;
-          const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
-          
-          await uploadBytes(storageRef, blob);
-          uploadedVoiceMessage = await getDownloadURL(storageRef);
+          // Skip uploading if it's already a Firebase Storage URL
+          if (voiceMessage.startsWith('https://firebasestorage.googleapis.com')) {
+            uploadedVoiceMessage = voiceMessage;
+          } else {
+            const response = await fetch(voiceMessage);
+            const blob = await response.blob();
+            const fileName = `voice_${Date.now()}.m4a`;
+            const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
+            
+            await uploadBytes(storageRef, blob);
+            uploadedVoiceMessage = await getDownloadURL(storageRef);
+          }
         } catch (error) {
           console.error('Error uploading voice message:', error);
         }
@@ -328,13 +418,23 @@ export default function PostRequestScreen() {
       serviceRequest.documents = uploadedDocuments;
       serviceRequest.voiceMessage = uploadedVoiceMessage;
       
-      await addDoc(collection(db, 'serviceRequests'), {
-        ...serviceRequest,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      if (isEditMode && editRequestId) {
+        // Update existing request
+        const { doc, updateDoc } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'serviceRequests', editRequestId), {
+          ...serviceRequest,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Create new request
+        await addDoc(collection(db, 'serviceRequests'), {
+          ...serviceRequest,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
 
-      console.log('Successfully saved to Firestore');
+      console.log(isEditMode ? 'Successfully updated request' : 'Successfully saved to Firestore');
       
       // Add mock service request to localStorage for demo
       const mockRequest = {
@@ -365,23 +465,26 @@ export default function PostRequestScreen() {
         localStorage.setItem('mock_service_requests', JSON.stringify(existingRequests));
       }
       
-      // Reset form
-      setSelectedTrades([]);
-      reset({
-        description: '',
-        postcode: user?.postcode || '',
-        urgency: 'medium',
-        budgetMin: '',
-        budgetMax: '',
-        earliestDate: new Date(),
-        latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        additionalNotes: ''
-      });
-      setSelectedFiles([]);
+      // Reset form only if not in edit mode
+      if (!isEditMode) {
+        setSelectedTrades([]);
+        reset({
+          description: '',
+          postcode: user?.postcode || '',
+          urgency: 'medium',
+          budgetMin: '',
+          budgetMax: '',
+          earliestDate: new Date(),
+          latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          additionalNotes: ''
+        });
+        setSelectedFiles([]);
+        setVoiceMessage(null);
+      }
 
       // Navigate to Dashboard and show success message
       console.log('About to navigate and show success message');
-      showSuccessMessage('Service request posted successfully!');
+      showSuccessMessage(isEditMode ? 'Service request updated successfully!' : 'Service request posted successfully!');
       console.log('Success message set, now navigating');
       navigation.navigate('Dashboard');
       console.log('Navigation triggered');
@@ -402,7 +505,7 @@ export default function PostRequestScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.title}>Post Service Request</Text>
+        <Text style={styles.title}>{isEditMode ? 'Edit Service Request' : 'Post Service Request'}</Text>
 
         {/* Trade Type Multi-Select */}
         <View style={styles.section}>
@@ -620,7 +723,7 @@ export default function PostRequestScreen() {
 
         {/* Submit Button */}
         <Button
-          title="Post Service Request"
+          title={isEditMode ? 'Update Request' : 'Post Service Request'}
           onPress={onSubmit}
           loading={loading}
           size="large"
