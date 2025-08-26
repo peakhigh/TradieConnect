@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "tradie-mate-f852a"
+  },
+  "targets": {
+    "tradie-mate-f852a": {
+      "hosting": {
+        "website": [
+          "tradie-mate-f852a"
+        ],
+        "app": [
+          "app-tradie-mate-f852a"
+        ]
+      }
+    }
   }
 }

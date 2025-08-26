@@ -21,6 +21,20 @@
       ]
     }
   ],
+  "hosting": {
+    "public": "website",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/app/**",
+        "destination": "/app/index.html"
+      }
+    ]
+  },
   "storage": {
     "rules": "storage.rules"
   },

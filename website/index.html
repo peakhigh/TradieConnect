@@ -40,13 +40,13 @@
                             {/* Login Buttons */}
                             <div className="hidden md:flex space-x-4">
                                 <button 
-                                    onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                    onClick={() => window.location.href = '/app'}
                                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                                 >
                                     Customer Login
                                 </button>
                                 <button 
-                                    onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                    onClick={() => window.location.href = '/app'}
                                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
                                 >
                                     Tradie Login
@@ -72,13 +72,13 @@
                                     <a href="#contact" className="text-gray-700">Contact</a>
                                     <div className="flex flex-col space-y-2 pt-4">
                                         <button 
-                                            onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                            onClick={() => window.location.href = '/app'}
                                             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
                                         >
                                             Customer Login
                                         </button>
                                         <button 
-                                            onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                            onClick={() => window.location.href = '/app'}
                                             className="bg-green-600 text-white px-4 py-2 rounded-lg"
                                         >
                                             Tradie Login
@@ -105,14 +105,14 @@
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <button 
-                                onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                onClick={() => window.location.href = '/app'}
                                 className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100"
                             >
                                 <i className="fas fa-home mr-2"></i>
                                 I Need a Tradie
                             </button>
                             <button 
-                                onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                onClick={() => window.location.href = '/app'}
                                 className="bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-green-700"
                             >
                                 <i className="fas fa-tools mr-2"></i>
@@ -294,7 +294,7 @@
                                 <li><i className="fas fa-check text-green-600 mr-2"></i>Review and rating system</li>
                             </ul>
                             <button 
-                                onClick={() => window.open('http://localhost:8081/login?userType=customer', '_blank')}
+                                onClick={() => window.location.href = '/app'}
                                 className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
                             >
                                 Get Started Free
@@ -313,7 +313,7 @@
                                 <li><i className="fas fa-check text-green-600 mr-2"></i>Build your reputation</li>
                             </ul>
                             <button 
-                                onClick={() => window.open('http://localhost:8081/login?userType=tradie', '_blank')}
+                                onClick={() => window.location.href = '/app'}
                                 className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700"
                             >
                                 Start Earning Today
