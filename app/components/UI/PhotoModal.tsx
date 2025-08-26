@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Image, ScrollView, Dimensions } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 
@@ -18,6 +18,37 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
+
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleKeyPress = (event: KeyboardEvent) => {
+      switch (event.key) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          goToPrevious();
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          goToNext();
+          break;
+        case 'Escape':
+          onClose();
+          break;
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [visible, photos.length]);
 
   const goToPrevious = () => {
     setCurrentIndex(prev => prev > 0 ? prev - 1 : photos.length - 1);
