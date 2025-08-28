@@ -1,6 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { createCursorStyle } from '../../theme/crossPlatform';
+import { theme } from '../../theme/theme';
 
 interface ButtonProps {
   title: string;
@@ -29,32 +31,30 @@ export const SimpleButton: React.FC<ButtonProps> = ({
 }) => {
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.lg,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      minHeight: theme.minHeight.button,
+      ...theme.shadows.md,
+      ...createCursorStyle('pointer'),
     };
 
     const sizeStyle: ViewStyle = {
-      small: { paddingHorizontal: 12, paddingVertical: 8 },
-      medium: { paddingHorizontal: 16, paddingVertical: 12 },
-      large: { paddingHorizontal: 24, paddingVertical: 16 },
+      small: { paddingHorizontal: theme.padding.md, paddingVertical: theme.padding.sm },
+      medium: { paddingHorizontal: theme.padding.lg, paddingVertical: theme.padding.md },
+      large: { paddingHorizontal: theme.padding.xl, paddingVertical: theme.padding.lg },
     }[size];
 
     const variantStyle: ViewStyle = {
-      primary: { backgroundColor: '#2563eb' },
-      secondary: { backgroundColor: '#7c3aed' },
+      primary: { backgroundColor: theme.colors.primary },
+      secondary: { backgroundColor: theme.colors.secondary },
       outline: { 
         backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: '#2563eb',
+        borderWidth: theme.borderWidth.medium,
+        borderColor: theme.colors.primary,
       },
-      danger: { backgroundColor: '#dc2626' },
-      success: { backgroundColor: '#16a34a' },
+      danger: { backgroundColor: theme.colors.error },
+      success: { backgroundColor: theme.colors.success },
     }[variant];
 
     const widthStyle: ViewStyle = fullWidth ? { width: '100%' } : {};
@@ -64,28 +64,29 @@ export const SimpleButton: React.FC<ButtonProps> = ({
       ...sizeStyle,
       ...variantStyle,
       ...widthStyle,
-      opacity: disabled ? 0.5 : 1,
+      opacity: disabled ? theme.opacity.disabled : 1,
     };
   };
 
   const getTextStyle = (): TextStyle => {
     const baseStyle: TextStyle = {
-      fontWeight: 'bold',
+      fontWeight: theme.fontWeight.bold,
       textAlign: 'center',
+      fontFamily: theme.fontFamily.bold,
     };
 
     const sizeStyle: TextStyle = {
-      small: { fontSize: 14 },
-      medium: { fontSize: 16 },
-      large: { fontSize: 18 },
+      small: { fontSize: theme.fontSize.sm },
+      medium: { fontSize: theme.fontSize.md },
+      large: { fontSize: theme.fontSize.lg },
     }[size];
 
     const variantStyle: TextStyle = {
-      primary: { color: '#ffffff' },
-      secondary: { color: '#ffffff' },
-      outline: { color: '#2563eb' },
-      danger: { color: '#ffffff' },
-      success: { color: '#ffffff' },
+      primary: { color: theme.colors.text.inverse },
+      secondary: { color: theme.colors.text.inverse },
+      outline: { color: theme.colors.primary },
+      danger: { color: theme.colors.text.inverse },
+      success: { color: theme.colors.text.inverse },
     }[variant];
 
     return {
@@ -130,13 +131,13 @@ export const SimpleButton: React.FC<ButtonProps> = ({
             right: 0,
             top: 0,
             bottom: 0,
-            borderRadius: 12,
+            borderRadius: theme.borderRadius.lg,
           }}
         />
         {loading ? (
           <ActivityIndicator color="#ffffff" size="small" />
         ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.gap.lg }}>
             {leftIcon}
             <Text style={[getTextStyle(), textStyle]}>
               {title}
@@ -160,7 +161,7 @@ export const SimpleButton: React.FC<ButtonProps> = ({
           size="small" 
         />
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.gap.lg }}>
           {leftIcon}
           <Text style={[getTextStyle(), textStyle]}>
             {title}

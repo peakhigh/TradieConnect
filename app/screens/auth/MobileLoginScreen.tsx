@@ -6,6 +6,7 @@ import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
+import { createCrossPlatformStyle } from '../../theme/crossPlatform';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Phone, Shield, Home, Wrench } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -320,7 +321,11 @@ export default function MobileLoginScreen() {
       <View style={styles.webContainer}>
         {renderLeftSide()}
         {renderRightSide()}
-        {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
+        {Platform.OS === 'web' && (
+          <View style={{ position: 'absolute', top: -1000, left: -1000 }}>
+            <div id="recaptcha-container"></div>
+          </View>
+        )}
       </View>
     );
   }
@@ -407,7 +412,11 @@ export default function MobileLoginScreen() {
             </>
           )}
         </View>
-        {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
+        {Platform.OS === 'web' && (
+          <View style={{ position: 'absolute', top: -1000, left: -1000 }}>
+            <div id="recaptcha-container"></div>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -462,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.xxxl,
-    minHeight: '100vh',
+    ...createCrossPlatformStyle({ minHeight: '100vh' }),
   },
   loginForm: {
     width: '100%',
@@ -511,7 +520,7 @@ const styles = StyleSheet.create({
   },
   mobileContainer: {
     flex: 1,
-    minHeight: '100vh',
+    ...createCrossPlatformStyle({ minHeight: '100vh' }),
   },
   mobileContent: {
     flex: 1,

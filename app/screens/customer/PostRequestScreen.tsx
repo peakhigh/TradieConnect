@@ -236,7 +236,7 @@ export default function PostRequestScreen() {
       if (!result.canceled) {
         const files = result.assets.map((asset, index) => ({
           uri: asset.uri,
-          name: `image_${Date.now()}_${index}.jpg`,
+          name: asset.fileName || `image_${Date.now()}_${index}.jpg`,
           type: 'image'
         }));
         setSelectedFiles(prev => [...prev, ...files]);

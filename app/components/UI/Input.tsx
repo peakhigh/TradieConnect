@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TextInputProps, StyleSheet, Platform } from 'react-native';
+import { createCursorStyle } from '../../theme/crossPlatform';
+import { theme } from '../../theme/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -75,70 +77,71 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: theme.margin.lg,
   },
   labelContainer: {
-    marginBottom: 8,
+    marginBottom: theme.margin.sm,
   },
   label: {
-    fontSize: Platform.OS === 'web' ? 16 : 13,
-    fontWeight: '500',
-    color: '#4b5563',
-    marginBottom: 6,
-    fontFamily: 'sans-serif',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.margin.md,
+    fontFamily: theme.fontFamily.medium,
     letterSpacing: 0,
   },
   required: {
-    color: '#ef4444',
+    color: theme.colors.error,
   },
   inputContainer: {
     position: 'relative',
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: Platform.OS === 'web' ? 16 : 14,
-    backgroundColor: '#ffffff',
-    color: '#1f2937',
-    borderColor: '#d1d5db',
-    minHeight: Platform.OS === 'web' ? 48 : 44,
-    fontFamily: 'sans-serif',
+    borderWidth: theme.borderWidth.thin,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.padding.lg,
+    paddingVertical: theme.padding.md,
+    fontSize: theme.fontSize.md,
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.text.primary,
+    borderColor: theme.colors.border.medium,
+    minHeight: theme.minHeight.input,
+    fontFamily: theme.fontFamily.regular,
+    ...createCursorStyle('text'),
   },
   inputWithLeftIcon: {
-    paddingLeft: 48,
+    paddingLeft: theme.padding.xxxxl + theme.padding.lg,
   },
   inputWithRightIcon: {
-    paddingRight: 48,
+    paddingRight: theme.padding.xxxxl + theme.padding.lg,
   },
   inputError: {
-    borderColor: '#ef4444',
+    borderColor: theme.colors.error,
   },
   leftIcon: {
     position: 'absolute',
-    left: 16,
+    left: theme.padding.lg,
     top: '50%',
     transform: [{ translateY: -10 }],
-    zIndex: 1,
+    zIndex: theme.zIndex.dropdown,
   },
   rightIcon: {
     position: 'absolute',
-    right: 16,
+    right: theme.padding.lg,
     top: '50%',
     transform: [{ translateY: -10 }],
-    zIndex: 1,
+    zIndex: theme.zIndex.dropdown,
   },
   errorText: {
-    fontSize: 14,
-    color: '#ef4444',
-    marginTop: 4,
-    marginLeft: 4,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.error,
+    marginTop: theme.margin.xs,
+    marginLeft: theme.margin.xs,
   },
   helperText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-    marginLeft: 4,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: theme.margin.xs,
+    marginLeft: theme.margin.xs,
   },
 });

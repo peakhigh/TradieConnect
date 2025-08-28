@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform, 
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
-import { Sparkles, MessageCircle, Plus, Image as ImageIcon, FileText, Users, X, Edit3, Lock } from 'lucide-react-native';
+import { createCursorStyle, createTextDecoration } from '../../theme/crossPlatform';
+import { Sparkles, MessageCircle, Plus } from 'lucide-react-native';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +13,8 @@ import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 import { VoicePlayer } from '../../components/UI/VoicePlayer';
 import { PhotoModal } from '../../components/UI/PhotoModal';
 import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
+import { RequestCard } from '../../components/UI/RequestCard';
+import { ImageViewer } from '../../components/UI/ImageViewer';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
@@ -21,8 +24,9 @@ export default function CustomerDashboard() {
   const [requestToCancel, setRequestToCancel] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [selectedRequestPhotos, setSelectedRequestPhotos] = useState<string[]>([]);
   const [showDocuments, setShowDocuments] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<{requestId: string, type: string} | null>(null);
 
@@ -160,165 +164,20 @@ export default function CustomerDashboard() {
             </View>
           ) : (
             activeRequests.map((request) => (
-              <View key={request.id} style={styles.requestCard}>
-                <View style={styles.titleRow}>
-                  <TouchableOpacity onPress={() => handleViewRequestDetails(request)} style={styles.titleContainer}>
-                    <View style={styles.titleWithIcon}>
-                      <Text style={[styles.requestTitle, styles.tradeLink]}>
-                        {request.tradeType}
-                      </Text>
-                      {request.status === 'active' ? (
-                        <TouchableOpacity 
-                          style={styles.editIcon}
-                          onPress={() => handleEditRequest(request.id)}
-                        >
-                          <Edit3 size={16} color="#6b7280" />
-                        </TouchableOpacity>
-                      ) : (
-                        <View style={styles.lockIcon}>
-                          <Lock size={16} color="#9ca3af" />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <View style={styles.titleTags}>
-                    <View style={[styles.urgencyTag, 
-                      request.urgency === 'high' && styles.urgencyHigh,
-                      request.urgency === 'medium' && styles.urgencyMedium,
-                      request.urgency === 'low' && styles.urgencyLow
-                    ]}>
-                      <Text style={styles.urgencyText}>{request.urgency}</Text>
-                    </View>
-                    
-                    <View style={styles.statusTag}>
-                      <Text style={styles.statusText}>{request.status}</Text>
-                    </View>
-                  </View>
-                </View>
-                
-                <View>
-                  {request.description ? (
-                    <Text style={styles.requestDescription} numberOfLines={1}>
-                      {request.description}
-                    </Text>
-                  ) : null}
-                  {request.voiceMessage ? (
-                    <VoicePlayer voiceUrl={request.voiceMessage} compact={true} />
-                  ) : null}
-                </View>
-                
-                <Text style={styles.postcodeText}>Postcode: {request.postcode}</Text>
-                
-                <View style={styles.allIcons}>
-                  <TouchableOpacity 
-                    style={[styles.iconButton, selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && styles.selectedIcon]}
-                    onPress={() => {
-                      if (selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos') {
-                        setSelectedIcon(null);
-                      } else {
-                        setSelectedIcon({requestId: request.id, type: 'photos'});
-                      }
-                    }}
-                  >
-                    <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{request.photos ? request.photos.length.toString() : '0'}</Text>
-                      <ImageIcon size={22} color="#3b82f6" />
-                    </View>
-                    <Text style={styles.iconLabel}>Photos</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.iconButton, selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && styles.selectedIcon]}
-                    onPress={() => {
-                      if (selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents') {
-                        setSelectedIcon(null);
-                      } else {
-                        setSelectedIcon({requestId: request.id, type: 'documents'});
-                      }
-                    }}
-                  >
-                    <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{request.documents ? request.documents.length.toString() : '0'}</Text>
-                      <FileText size={22} color="#3b82f6" />
-                    </View>
-                    <Text style={styles.iconLabel}>Files</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => handleViewInterests(request.id)}
-                    style={styles.iconButton}
-                  >
-                    <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{'0'}</Text>
-                      <Users size={22} color="#3b82f6" />
-                    </View>
-                    <Text style={styles.iconLabel}>Interests</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => handleViewMessages(request.id)}
-                    style={styles.iconButton}
-                  >
-                    <View style={styles.iconTop}>
-                      <Text style={styles.iconCount}>{'0'}</Text>
-                      <MessageCircle size={22} color="#3b82f6" />
-                    </View>
-                    <Text style={styles.iconLabel}>Messages</Text>
-                  </TouchableOpacity>
-                  
-                  {request.status === 'active' ? (
-                    <TouchableOpacity 
-                      onPress={() => handleCancelRequest(request.id)}
-                      style={styles.iconButton}
-                    >
-                      <View style={styles.iconTop}>
-                        <X size={22} color="#dc2626" />
-                      </View>
-                      <Text style={[styles.iconLabel, styles.cancelLabel]}>Cancel</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                
-                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'photos' && request.photos && request.photos.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
-                    {request.photos.map((photo: string, index: number) => (
-                      <ThumbnailImage
-                        key={index}
-                        uri={photo}
-                        size={40}
-                        onPress={() => {
-                          setSelectedPhotoIndex(index);
-                          setSelectedRequest(request);
-                          setShowPhotoModal(true);
-                        }}
-                        style={styles.thumbnailSpacing}
-                      />
-                    ))}
-                  </ScrollView>
-                ) : null}
-                
-                {selectedIcon?.requestId === request.id && selectedIcon?.type === 'documents' && request.documents && request.documents.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.documentsRow}>
-                    {request.documents.map((doc: string, index: number) => (
-                      <TouchableOpacity 
-                        key={index}
-                        style={styles.documentItem}
-                        onPress={() => {
-                          if (typeof window !== 'undefined') {
-                            window.open(doc, '_blank');
-                          }
-                        }}
-                      >
-                        <FileText size={16} color="#3b82f6" />
-                        <Text style={styles.documentName} numberOfLines={1}>
-                          Doc {index + 1}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                ) : null}
-              </View>
+              <RequestCard
+                key={request.id}
+                request={request}
+                onEdit={handleEditRequest}
+                onViewDetails={handleViewRequestDetails}
+                onViewInterests={handleViewInterests}
+                onViewMessages={handleViewMessages}
+                onCancel={handleCancelRequest}
+                onPhotoPress={(photoIndex, req) => {
+                  setSelectedPhotoIndex(photoIndex);
+                  setSelectedRequestPhotos(req.photos || []);
+                  setShowImageViewer(true);
+                }}
+              />
             ))
           )}
         </View>
@@ -437,10 +296,10 @@ export default function CustomerDashboard() {
         request={selectedRequest}
       />
       
-      <PhotoModal
-        visible={showPhotoModal}
-        onClose={() => setShowPhotoModal(false)}
-        photos={selectedRequest?.photos || []}
+      <ImageViewer
+        visible={showImageViewer}
+        onClose={() => setShowImageViewer(false)}
+        images={selectedRequestPhotos}
         initialIndex={selectedPhotoIndex}
       />
     </Container>
@@ -679,7 +538,8 @@ const styles = StyleSheet.create({
 
   tradeLink: {
     color: theme.colors.primary,
-    textDecorationLine: 'underline',
+    ...createTextDecoration('underline'),
+    ...createCursorStyle('pointer'),
   },
   voiceMessageButton: {
     flexDirection: 'row',
