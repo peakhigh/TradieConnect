@@ -201,6 +201,15 @@ export const theme = {
     lg: 800,
     xl: 1200,
   },
+  
+  iconSize: {
+    xs: Platform.OS === 'web' ? 16 : 14,
+    sm: Platform.OS === 'web' ? 20 : 18,
+    md: Platform.OS === 'web' ? 24 : 22,
+    lg: Platform.OS === 'web' ? 28 : 24,
+    xl: Platform.OS === 'web' ? 32 : 28,
+    xxl: Platform.OS === 'web' ? 36 : 32,
+  },
 };
 
 // Helper functions for common style patterns

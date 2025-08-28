@@ -33,6 +33,9 @@ export default function CustomerTabs() {
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: '#374151',
+        tabBarLabelStyle: {
+          fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
+        },
         headerStyle: {
           backgroundColor: theme.colors.surface,
           ...theme.shadows.sm,
@@ -51,7 +54,7 @@ export default function CustomerTabs() {
         component={DashboardStack}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Home size={size} color={color} />
+            <Home size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Dashboard',
         }}
@@ -62,7 +65,7 @@ export default function CustomerTabs() {
         component={PostRequestScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Plus size={size} color={color} />
+            <Plus size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Post Request',
         }}
@@ -73,7 +76,7 @@ export default function CustomerTabs() {
         component={CustomerHistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <History size={size} color={color} />
+            <History size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'History',
         }}
@@ -84,7 +87,7 @@ export default function CustomerTabs() {
         component={CustomerProfileScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+            <User size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Profile',
         }}

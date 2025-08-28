@@ -95,7 +95,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{request.photos ? request.photos.length.toString() : '0'}</Text>
             <ImageIcon size={22} color="#3b82f6" />
           </View>
-          <Text style={styles.iconLabel}>Photos</Text>
+          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Photos</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -106,7 +106,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{request.documents ? request.documents.length.toString() : '0'}</Text>
             <FileText size={22} color="#3b82f6" />
           </View>
-          <Text style={styles.iconLabel}>Files</Text>
+          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Files</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -117,7 +117,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{'0'}</Text>
             <Users size={22} color="#3b82f6" />
           </View>
-          <Text style={styles.iconLabel}>Interests</Text>
+          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Interests</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -128,7 +128,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{'0'}</Text>
             <MessageCircle size={22} color="#3b82f6" />
           </View>
-          <Text style={styles.iconLabel}>Messages</Text>
+          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Messages</Text>
         </TouchableOpacity>
         
         {request.status === 'active' && onCancel && (
@@ -139,7 +139,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <View style={styles.iconTop}>
               <X size={22} color="#dc2626" />
             </View>
-            <Text style={[styles.iconLabel, styles.cancelLabel]}>Cancel</Text>
+            <Text style={[styles.iconLabel, styles.cancelLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Cancel</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     gap: theme.gap.xs,
   },
   iconCount: {
-    fontSize: theme.fontSize.xs,
+    fontSize: Platform.OS === 'web' ? 20 : theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.primary,
   },
   iconLabel: {
-    fontSize: theme.fontSize.xxs,
+    fontSize: Platform.OS === 'web' ? 18 : theme.fontSize.xxs,
     color: theme.colors.text.secondary,
     marginTop: 2,
     textAlign: 'center',
