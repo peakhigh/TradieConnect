@@ -84,16 +84,18 @@ export default function MobileLoginScreen() {
         : '+61' + data.phoneNumber;
       
       // Create reCAPTCHA verifier for web
-      if (Platform.OS === 'web' && !window.recaptchaVerifier) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
           callback: () => {}
         });
       }
       
-      const appVerifier = Platform.OS === 'web' ? window.recaptchaVerifier : undefined;
+      const appVerifier = Platform.OS === 'web' && typeof window !== 'undefined' ? window.recaptchaVerifier : undefined;
       const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      window.confirmationResult = confirmationResult;
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.confirmationResult = confirmationResult;
+      }
       
 
       // Clear OTP field when switching to OTP screen
@@ -122,7 +124,7 @@ export default function MobileLoginScreen() {
     clearErrors('otp');
     setLoading(true);
     try {
-      const confirmationResult = window.confirmationResult;
+      const confirmationResult = Platform.OS === 'web' && typeof window !== 'undefined' ? window.confirmationResult : null;
       if (!confirmationResult) {
         throw new Error('No confirmation result found');
       }

@@ -19,6 +19,7 @@ import { ImageViewer } from '../../components/UI/ImageViewer';
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
   const { serviceRequests, quotes, unreadMessageCount } = useUser();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState<string | null>(null);
@@ -97,8 +98,6 @@ export default function CustomerDashboard() {
   const handleAcceptQuote = (quoteId: string) => {
     Alert.alert('Info', 'Quote acceptance functionality coming soon');
   };
-
-  const navigation = useNavigation();
 
   const handlePostRequest = () => {
     navigation.navigate('PostRequest' as never);
