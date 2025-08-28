@@ -1,19 +1,47 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme/theme';
-import { Home, Wrench, Shield, Clock, DollarSign, MessageCircle, Star, Smartphone } from 'lucide-react-native';
+import { Home, Wrench, Shield, Clock, DollarSign, MessageCircle, Star, Smartphone, Menu, X, CheckCircle, Users, TrendingUp } from 'lucide-react-native';
+
+const { width } = Dimensions.get('window');
+const isSmallScreen = width < 768;
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const [sectionPositions, setSectionPositions] = useState({
+    howItWorks: 0,
+    pricing: 0,
+    contact: 0,
+  });
 
   const handleUserTypeSelection = (userType: 'customer' | 'tradie') => {
     navigation.navigate('Login', { userType });
   };
 
+  const scrollToSection = (section: keyof typeof sectionPositions) => {
+    if (scrollViewRef.current && sectionPositions[section]) {
+      scrollViewRef.current.scrollTo({
+        y: sectionPositions[section] - 80,
+        animated: true,
+      });
+    }
+    setIsMenuOpen(false);
+  };
+
+  const onSectionLayout = (section: keyof typeof sectionPositions, event: any) => {
+    const { y } = event.nativeEvent.layout;
+    setSectionPositions(prev => ({ ...prev, [section]: y }));
+  };
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      ref={scrollViewRef}
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -22,44 +50,137 @@ export default function HomeScreen() {
             <Text style={styles.logoText}>TradieConnect</Text>
           </View>
           
-          <View style={styles.headerButtons}>
+          {isSmallScreen ? (
             <TouchableOpacity 
-              onPress={() => handleUserTypeSelection('customer')}
-              style={[styles.headerButton, styles.customerButton]}
+              onPress={() => setIsMenuOpen(!isMenuOpen)}
+              style={styles.menuButton}
+            >
+              {isMenuOpen ? <X size={24} color="#111827" /> : <Menu size={24} color="#111827" />}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerNav}>
+              <View style={styles.navLinks}>
+                <TouchableOpacity 
+                  style={styles.navLink}
+                  onPress={() => scrollToSection('howItWorks')}
+                >
+                  <Text style={styles.navLinkText}>How It Works</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.navLink}
+                  onPress={() => scrollToSection('pricing')}
+                >
+                  <Text style={styles.navLinkText}>Pricing</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.navLink}
+                  onPress={() => scrollToSection('contact')}
+                >
+                  <Text style={styles.navLinkText}>Contact Us</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.headerButtons}>
+                <TouchableOpacity 
+                  onPress={() => handleUserTypeSelection('customer')}
+                  style={[styles.headerButton, styles.customerButton]}
+                >
+                  <Text style={styles.customerButtonText}>Customer Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleUserTypeSelection('tradie')}
+                  style={[styles.headerButton, styles.tradieButton]}
+                >
+                  <Text style={styles.tradieButtonText}>Tradie Login</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+        
+        {/* Mobile Menu */}
+        {isMenuOpen && isSmallScreen && (
+          <View style={styles.mobileMenu}>
+            <TouchableOpacity 
+              onPress={() => scrollToSection('howItWorks')}
+              style={styles.mobileNavLink}
+            >
+              <Text style={styles.mobileNavLinkText}>How It Works</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => scrollToSection('pricing')}
+              style={styles.mobileNavLink}
+            >
+              <Text style={styles.mobileNavLinkText}>Pricing</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => scrollToSection('contact')}
+              style={styles.mobileNavLink}
+            >
+              <Text style={styles.mobileNavLinkText}>Contact Us</Text>
+            </TouchableOpacity>
+            <View style={styles.mobileDivider} />
+            <TouchableOpacity 
+              onPress={() => {
+                handleUserTypeSelection('customer');
+                setIsMenuOpen(false);
+              }}
+              style={[styles.mobileMenuItem, styles.customerButton]}
             >
               <Text style={styles.customerButtonText}>Customer Login</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={() => handleUserTypeSelection('tradie')}
-              style={[styles.headerButton, styles.tradieButton]}
+              onPress={() => {
+                handleUserTypeSelection('tradie');
+                setIsMenuOpen(false);
+              }}
+              style={[styles.mobileMenuItem, styles.tradieButton]}
             >
               <Text style={styles.tradieButtonText}>Tradie Login</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
       </View>
 
       {/* Hero Section */}
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Connect with Trusted Tradies</Text>
-        <Text style={styles.heroSubtitle}>
-          Get quality work done by verified professionals. Post your job, receive quotes, and hire with confidence.
-        </Text>
-        <View style={styles.heroButtons}>
-          <TouchableOpacity 
-            onPress={() => handleUserTypeSelection('customer')}
-            style={[styles.heroButton, styles.customerHeroButton]}
-          >
-            <Home size={20} color={theme.colors.primary} />
-            <Text style={styles.customerHeroButtonText}>I Need a Tradie</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => handleUserTypeSelection('tradie')}
-            style={[styles.heroButton, styles.tradieHeroButton]}
-          >
-            <Wrench size={20} color="#ffffff" />
-            <Text style={styles.tradieHeroButtonText}>I'm a Tradie</Text>
-          </TouchableOpacity>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle}>Australia's Trusted Tradie Marketplace</Text>
+          <Text style={styles.heroSubtitle}>
+            Connect with 10,000+ verified tradies across Australia. Get your home repairs and improvements done with confidence, backed by our guarantee.
+          </Text>
+          
+          {/* Stats */}
+          <View style={styles.heroStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>10K+</Text>
+              <Text style={styles.statLabel}>Verified Tradies</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>50K+</Text>
+              <Text style={styles.statLabel}>Jobs Completed</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>4.9★</Text>
+              <Text style={styles.statLabel}>Average Rating</Text>
+            </View>
+          </View>
+          
+          <View style={styles.heroButtons}>
+            <TouchableOpacity 
+              onPress={() => handleUserTypeSelection('customer')}
+              style={[styles.heroButton, styles.customerHeroButton]}
+            >
+              <Home size={20} color={theme.colors.primary} />
+              <Text style={styles.customerHeroButtonText}>Post Service Request - FREE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => handleUserTypeSelection('tradie')}
+              style={[styles.heroButton, styles.tradieHeroButton]}
+            >
+              <Wrench size={20} color="#ffffff" />
+              <Text style={styles.tradieHeroButtonText}>Find Work - $10 Bonus</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -121,23 +242,88 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* How It Works */}
+      <View 
+        style={styles.section}
+        onLayout={(event) => onSectionLayout('howItWorks', event)}
+      >
+        <Text style={styles.sectionTitle}>How TradieConnect Works</Text>
+        <Text style={styles.sectionSubtitle}>
+          Get your work done in 3 simple steps
+        </Text>
+        
+        <View style={styles.stepsContainer}>
+          <View style={styles.stepCard}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>1</Text>
+            </View>
+            <Text style={styles.stepTitle}>Post Service Request</Text>
+            <Text style={styles.stepDescription}>
+              Describe what needs fixing or building with photos and details. It's completely free!
+            </Text>
+          </View>
+          
+          <View style={styles.stepCard}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>2</Text>
+            </View>
+            <Text style={styles.stepTitle}>Receive Quotes</Text>
+            <Text style={styles.stepDescription}>
+              Verified tradies compete for your work with competitive quotes.
+            </Text>
+          </View>
+          
+          <View style={styles.stepCard}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>3</Text>
+            </View>
+            <Text style={styles.stepTitle}>Hire & Pay</Text>
+            <Text style={styles.stepDescription}>
+              Choose your tradie, get the work done, and pay securely through our platform.
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Pricing Section */}
-      <View style={[styles.section, styles.pricingSection]}>
+      <View 
+        style={[styles.section, styles.pricingSection]}
+        onLayout={(event) => onSectionLayout('pricing', event)}
+      >
         <Text style={styles.sectionTitle}>Simple, Transparent Pricing</Text>
         <Text style={styles.sectionSubtitle}>
           No hidden fees. Pay only when you find value.
         </Text>
         
-        <View style={styles.pricingGrid}>
+        <View style={styles.pricingContainer}>
           <View style={styles.pricingCard}>
-            <Home size={48} color={theme.colors.primary} />
-            <Text style={styles.pricingTitle}>For Customers</Text>
-            <Text style={styles.pricingPrice}>FREE</Text>
+            <View style={styles.pricingHeader}>
+              <Home size={48} color={theme.colors.primary} />
+              <Text style={styles.pricingTitle}>For Customers</Text>
+              <Text style={styles.pricingPrice}>FREE</Text>
+              <Text style={styles.pricingSubPrice}>Always free to use</Text>
+            </View>
             <View style={styles.pricingFeatures}>
-              <Text style={styles.pricingFeature}>✓ Post unlimited jobs</Text>
-              <Text style={styles.pricingFeature}>✓ Receive multiple quotes</Text>
-              <Text style={styles.pricingFeature}>✓ Direct communication</Text>
-              <Text style={styles.pricingFeature}>✓ Review and rating system</Text>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Post unlimited requests</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Receive multiple quotes</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Direct communication</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Review and rating system</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Secure payment protection</Text>
+              </View>
             </View>
             <TouchableOpacity 
               onPress={() => handleUserTypeSelection('customer')}
@@ -148,15 +334,36 @@ export default function HomeScreen() {
           </View>
 
           <View style={[styles.pricingCard, styles.featuredPricingCard]}>
-            <Wrench size={48} color="#10b981" />
-            <Text style={styles.pricingTitle}>For Tradies</Text>
-            <Text style={styles.pricingPrice}>$0.50</Text>
-            <Text style={styles.pricingSubPrice}>per job unlock</Text>
+            <View style={styles.popularBadge}>
+              <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+            </View>
+            <View style={styles.pricingHeader}>
+              <Wrench size={48} color="#10b981" />
+              <Text style={styles.pricingTitle}>For Tradies</Text>
+              <Text style={styles.pricingPrice}>$0.50</Text>
+              <Text style={styles.pricingSubPrice}>per request unlock</Text>
+            </View>
             <View style={styles.pricingFeatures}>
-              <Text style={styles.pricingFeature}>✓ Browse jobs for free</Text>
-              <Text style={styles.pricingFeature}>✓ $10 signup bonus</Text>
-              <Text style={styles.pricingFeature}>✓ Minimum $5 wallet recharge</Text>
-              <Text style={styles.pricingFeature}>✓ Build your reputation</Text>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Browse requests for free</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>$10 signup bonus</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Minimum $5 wallet recharge</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Build your reputation</Text>
+              </View>
+              <View style={styles.pricingFeature}>
+                <CheckCircle size={16} color="#10b981" />
+                <Text style={styles.pricingFeatureText}>Direct customer contact</Text>
+              </View>
             </View>
             <TouchableOpacity 
               onPress={() => handleUserTypeSelection('tradie')}
@@ -164,6 +371,82 @@ export default function HomeScreen() {
             >
               <Text style={styles.tradiePricingButtonText}>Start Earning Today</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Testimonials */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>What Our Users Say</Text>
+        <View style={styles.testimonialsGrid}>
+          <View style={styles.testimonialCard}>
+            <View style={styles.testimonialStars}>
+              {[1,2,3,4,5].map(i => <Star key={i} size={16} color="#fbbf24" />)}
+            </View>
+            <Text style={styles.testimonialText}>
+              "Found an amazing electrician within hours. The whole process was seamless and professional."
+            </Text>
+            <Text style={styles.testimonialAuthor}>- Sarah M., Sydney</Text>
+          </View>
+          
+          <View style={styles.testimonialCard}>
+            <View style={styles.testimonialStars}>
+              {[1,2,3,4,5].map(i => <Star key={i} size={16} color="#fbbf24" />)}
+            </View>
+            <Text style={styles.testimonialText}>
+              "As a plumber, TradieConnect has doubled my business. Quality leads at an affordable price."
+            </Text>
+            <Text style={styles.testimonialAuthor}>- Mike T., Melbourne</Text>
+          </View>
+          
+          <View style={styles.testimonialCard}>
+            <View style={styles.testimonialStars}>
+              {[1,2,3,4,5].map(i => <Star key={i} size={16} color="#fbbf24" />)}
+            </View>
+            <Text style={styles.testimonialText}>
+              "Competitive quotes and excellent communication. Highly recommend for any home project."
+            </Text>
+            <Text style={styles.testimonialAuthor}>- James L., Brisbane</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Contact Section */}
+      <View 
+        style={[styles.section, styles.contactSection]}
+        onLayout={(event) => onSectionLayout('contact', event)}
+      >
+        <Text style={styles.sectionTitle}>Contact Us</Text>
+        <Text style={styles.sectionSubtitle}>
+          Have questions? We're here to help you get started.
+        </Text>
+        
+        <View style={styles.contactGrid}>
+          <View style={styles.contactCard}>
+            <MessageCircle size={48} color={theme.colors.primary} />
+            <Text style={styles.contactTitle}>Email Support</Text>
+            <Text style={styles.contactDescription}>
+              Get help with your account, technical issues, or general questions.
+            </Text>
+            <Text style={styles.contactInfo}>support@tradieconnect.com.au</Text>
+          </View>
+          
+          <View style={styles.contactCard}>
+            <Smartphone size={48} color="#10b981" />
+            <Text style={styles.contactTitle}>Phone Support</Text>
+            <Text style={styles.contactDescription}>
+              Speak directly with our team for urgent matters or complex issues.
+            </Text>
+            <Text style={styles.contactInfo}>1300 TRADIE (872 343)</Text>
+          </View>
+          
+          <View style={styles.contactCard}>
+            <Clock size={48} color="#f59e0b" />
+            <Text style={styles.contactTitle}>Business Hours</Text>
+            <Text style={styles.contactDescription}>
+              Our support team is available during these hours (AEST).
+            </Text>
+            <Text style={styles.contactInfo}>Mon-Fri: 9AM-6PM{"\n"}Sat: 9AM-1PM</Text>
           </View>
         </View>
       </View>
@@ -199,25 +482,87 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    position: 'relative',
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   logo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoText: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 18 : 24,
     fontWeight: 'bold',
     color: '#111827',
     marginLeft: 8,
   },
+  headerNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 32,
+  },
+  navLinks: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  navLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  navLinkText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
   headerButtons: {
     flexDirection: 'row',
     gap: 12,
+  },
+  menuButton: {
+    padding: 8,
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mobileMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+    zIndex: 1000,
+  },
+  mobileNavLink: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  mobileNavLinkText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  mobileDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 8,
+  },
+  mobileMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   headerButton: {
     paddingVertical: 8,
@@ -240,36 +585,66 @@ const styles = StyleSheet.create({
   },
   hero: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 80,
+    paddingVertical: isSmallScreen ? 60 : 100,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
+  heroContent: {
+    maxWidth: 1200,
+    alignItems: 'center',
+  },
   heroTitle: {
-    fontSize: 36,
+    fontSize: isSmallScreen ? 28 : 48,
     fontWeight: 'bold',
     color: '#ffffff',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: isSmallScreen ? 36 : 56,
   },
   heroSubtitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 20,
     color: '#ffffff',
     textAlign: 'center',
     opacity: 0.9,
-    marginBottom: 32,
-    maxWidth: 600,
+    marginBottom: 40,
+    maxWidth: 700,
+    lineHeight: isSmallScreen ? 24 : 30,
+  },
+  heroStats: {
+    flexDirection: isSmallScreen ? 'column' : 'row',
+    gap: isSmallScreen ? 16 : 40,
+    marginBottom: 40,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: isSmallScreen ? 24 : 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.8,
+    marginTop: 4,
   },
   heroButtons: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: isSmallScreen ? 'column' : 'row',
     gap: 16,
+    width: '100%',
+    maxWidth: 500,
   },
   heroButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 8,
+    borderRadius: 12,
     gap: 8,
+    flex: isSmallScreen ? 0 : 1,
+    minHeight: 56,
   },
   customerHeroButton: {
     backgroundColor: '#ffffff',
@@ -288,23 +663,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    paddingVertical: 80,
+    paddingVertical: isSmallScreen ? 60 : 80,
     paddingHorizontal: 20,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   sectionTitle: {
-    fontSize: 32,
+    fontSize: isSmallScreen ? 24 : 36,
     fontWeight: 'bold',
     color: '#111827',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: isSmallScreen ? 32 : 44,
   },
   sectionSubtitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 18,
     color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 64,
+    marginBottom: isSmallScreen ? 40 : 64,
     maxWidth: 600,
     alignSelf: 'center',
+    lineHeight: 26,
   },
   featuresGrid: {
     flexDirection: 'row',
@@ -312,17 +692,56 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 24,
   },
+  stepsContainer: {
+    flexDirection: 'column',
+    gap: isSmallScreen ? 40 : 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepCard: {
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: isSmallScreen ? '100%' : 350,
+    paddingHorizontal: isSmallScreen ? 20 : 0,
+  },
+  stepNumber: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  stepNumberText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  stepTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  stepDescription: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   featureCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 32,
     alignItems: 'center',
-    width: Platform.OS === 'web' ? 300 : '100%',
+    width: isSmallScreen ? '100%' : 320,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   featureTitle: {
     fontSize: 20,
@@ -341,22 +760,43 @@ const styles = StyleSheet.create({
   pricingSection: {
     backgroundColor: '#f9fafb',
   },
-  pricingGrid: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+  pricingContainer: {
+    flexDirection: isSmallScreen ? 'column' : 'row',
     justifyContent: 'center',
-    gap: 24,
+    gap: 32,
+    alignItems: isSmallScreen ? 'center' : 'stretch',
   },
   pricingCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 32,
-    alignItems: 'center',
-    width: Platform.OS === 'web' ? 350 : '100%',
+    width: isSmallScreen ? '100%' : 380,
+    maxWidth: 400,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 8,
+    position: 'relative',
+  },
+  pricingHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -12,
+    left: '50%',
+    transform: [{ translateX: -60 }],
+    backgroundColor: '#10b981',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  popularBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   featuredPricingCard: {
     borderWidth: 2,
@@ -383,18 +823,26 @@ const styles = StyleSheet.create({
   pricingFeatures: {
     alignSelf: 'stretch',
     marginBottom: 32,
+    gap: 12,
   },
   pricingFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pricingFeatureText: {
     fontSize: 16,
     color: '#374151',
-    marginBottom: 8,
+    flex: 1,
   },
   pricingButton: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 8,
+    borderRadius: 12,
     alignSelf: 'stretch',
     alignItems: 'center',
+    minHeight: 56,
+    justifyContent: 'center',
   },
   customerPricingButton: {
     backgroundColor: theme.colors.primary,
@@ -414,6 +862,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
     paddingVertical: 48,
     paddingHorizontal: 20,
+  },
+  testimonialsGrid: {
+    flexDirection: 'column',
+    gap: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  testimonialCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: isSmallScreen ? '100%' : 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  testimonialStars: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 16,
+  },
+  testimonialText: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  testimonialAuthor: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   footerContent: {
     alignItems: 'center',
@@ -438,6 +921,48 @@ const styles = StyleSheet.create({
   copyright: {
     fontSize: 14,
     color: '#6b7280',
+    textAlign: 'center',
+  },
+  contactSection: {
+    backgroundColor: '#f9fafb',
+  },
+  contactGrid: {
+    flexDirection: 'column',
+    gap: 24,
+    alignItems: 'center',
+  },
+  contactCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: isSmallScreen ? '100%' : 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  contactTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  contactDescription: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  contactInfo: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });
