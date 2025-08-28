@@ -10,7 +10,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
-import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic } from 'lucide-react-native';
+import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic, ArrowLeft } from 'lucide-react-native';
 import DateTimePicker from 'react-native-ui-datepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -71,8 +71,30 @@ export default function PostRequestScreen() {
     }
   });
   
-  // Load existing request data for edit mode
+  // Clear form data on every load, then load edit data if needed
   useEffect(() => {
+    // Always clear form first
+    setSelectedTrades([]);
+    setSelectedFiles([]);
+    setVoiceMessage(null);
+    setErrors({});
+    reset({
+      description: '',
+      postcode: user?.postcode || '',
+      urgency: 'medium',
+      budgetMin: '',
+      budgetMax: '',
+      earliestDate: new Date(),
+      latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      additionalNotes: ''
+    });
+    
+    // Scroll to top
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, 100);
+    
+    // Then load edit data if in edit mode
     if (isEditMode && editRequestId) {
       loadRequestData(editRequestId);
     }
@@ -152,6 +174,10 @@ export default function PostRequestScreen() {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       setScrollKey(prev => prev + 1);
+      // Scroll to top when screen is focused
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      }, 100);
     });
 
     return unsubscribe;
@@ -505,7 +531,16 @@ export default function PostRequestScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.title}>{isEditMode ? 'Edit Service Request' : 'Post Service Request'}</Text>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.navigate('Dashboard')}
+          >
+            <ArrowLeft size={20} color={theme.colors.text.secondary} />
+            <Text style={styles.backButtonText}>Back to Dashboard</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>{isEditMode ? 'Edit Service Request' : 'Post Service Request'}</Text>
+        </View>
 
         {/* Trade Type Multi-Select */}
         <View style={styles.section}>
@@ -752,11 +787,24 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  header: {
+    marginBottom: 20,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 20,
   },
   section: {
     marginBottom: 20,
