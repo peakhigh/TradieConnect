@@ -250,24 +250,27 @@ export default function MobileLoginScreen() {
 
         {!otpSent ? (
           <>
-            <Input
-              label="Mobile Number"
-              placeholder="0412 345 678"
-              value={phoneNumber}
-              onChangeText={(value) => {
-                setPhoneNumber(value);
-                if (errors.phoneNumber) {
-                  setErrors(prev => ({...prev, phoneNumber: ''}));
-                }
-              }}
-              keyboardType="phone-pad"
-              style={[styles.input, errors.phoneNumber && styles.errorInput]}
+            <Controller
+              control={control}
+              name="phoneNumber"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Mobile Number"
+                  placeholder="0412 345 678"
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="phone-pad"
+                  style={[styles.input, errors.phoneNumber && styles.errorInput]}
+                  onSubmitEditing={() => handleSubmit(handleSendOtp)()}
+                  returnKeyType="send"
+                />
+              )}
             />
-            {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
+            {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber.message}</Text>}
 
             <Button
               title="Send OTP"
-              onPress={handleSendOtp}
+              onPress={handleSubmit(handleSendOtp)}
               loading={loading}
               fullWidth
               style={styles.button}
@@ -275,25 +278,28 @@ export default function MobileLoginScreen() {
           </>
         ) : (
           <>
-            <Input
-              label="Verification Code"
-              placeholder="123456"
-              value={otp}
-              onChangeText={(value) => {
-                setOtp(value);
-                if (errors.otp) {
-                  setErrors(prev => ({...prev, otp: ''}));
-                }
-              }}
-              keyboardType="numeric"
-              maxLength={6}
-              style={[styles.input, errors.otp && styles.errorInput]}
+            <Controller
+              control={control}
+              name="otp"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Verification Code"
+                  placeholder="123456"
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  style={[styles.input, errors.otp && styles.errorInput]}
+                  onSubmitEditing={() => handleSubmit(handleVerifyOtp)()}
+                  returnKeyType="send"
+                />
+              )}
             />
-            {errors.otp && <Text style={styles.errorText}>{errors.otp}</Text>}
+            {errors.otp && <Text style={styles.errorText}>{errors.otp.message}</Text>}
 
             <Button
               title="Verify & Login"
-              onPress={handleVerifyOtp}
+              onPress={handleSubmit(handleVerifyOtp)}
               loading={loading}
               fullWidth
               style={styles.button}
@@ -303,8 +309,8 @@ export default function MobileLoginScreen() {
               title="Resend OTP"
               onPress={() => {
                 setOtpSent(false);
-                setOtp('');
-                setErrors({});
+                setValue('otp', '');
+                clearErrors();
               }}
               variant="outline"
               fullWidth
@@ -358,6 +364,8 @@ export default function MobileLoginScreen() {
                     onChangeText={onChange}
                     keyboardType="phone-pad"
                     style={[styles.input, errors.phoneNumber && styles.errorInput]}
+                    onSubmitEditing={() => handleSubmit(handleSendOtp)()}
+                    returnKeyType="send"
                   />
                 )}
               />
@@ -385,6 +393,8 @@ export default function MobileLoginScreen() {
                     keyboardType="numeric"
                     maxLength={6}
                     style={[styles.input, errors.otp && styles.errorInput]}
+                    onSubmitEditing={() => handleSubmit(handleVerifyOtp)()}
+                    returnKeyType="send"
                   />
                 )}
               />

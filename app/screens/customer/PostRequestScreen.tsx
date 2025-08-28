@@ -603,6 +603,8 @@ export default function PostRequestScreen() {
                   numberOfLines={4}
                   textAlignVertical="top"
                   style={[styles.textAreaInput, errors.description && styles.errorInput]}
+                  onSubmitEditing={() => onSubmit()}
+                  returnKeyType="done"
                 />
               )}
             />
@@ -647,6 +649,8 @@ export default function PostRequestScreen() {
                 onChangeText={onChange}
                 keyboardType="numeric"
                 style={[styles.standardInput, errors.postcode && styles.errorInput]}
+                onSubmitEditing={() => onSubmit()}
+                returnKeyType="done"
               />
             )}
           />
