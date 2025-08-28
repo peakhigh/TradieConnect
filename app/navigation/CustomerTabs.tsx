@@ -11,6 +11,7 @@ import InterestsScreen from '../screens/customer/InterestsScreen';
 import MessagesScreen from '../screens/customer/MessagesScreen';
 import { Home, Plus, History, User } from 'lucide-react-native';
 import { theme } from '../theme/theme';
+import { isWebDesktop } from '../utils/platform';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -34,7 +35,11 @@ export default function CustomerTabs() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: '#374151',
         tabBarLabelStyle: {
-          fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
+          fontSize: isWebDesktop ? theme.fontSize.lg : (Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs),
+        },
+        tabBarStyle: {
+          height: Platform.OS === 'web' ? 70 : undefined,
+          paddingBottom: Platform.OS === 'web' ? 10 : undefined,
         },
         headerStyle: {
           backgroundColor: theme.colors.surface,

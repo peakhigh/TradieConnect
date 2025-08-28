@@ -1,8 +1,13 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
+import { Container } from '../../components/UI/Container';
+import { StatCard } from '../../components/UI/StatCard';
+import { MessageNotification } from '../../components/UI/MessageNotification';
+import { EmptyState } from '../../components/UI/EmptyState';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
+import { theme } from '../../theme/theme';
 
 export default function TradieDashboard() {
   const { user } = useAuth();
@@ -35,8 +40,8 @@ export default function TradieDashboard() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <Container>
+      <ScrollView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
@@ -49,35 +54,26 @@ export default function TradieDashboard() {
 
         <View style={styles.quickStats}>
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {activeQuotes.length.toString()}
-              </Text>
-              <Text style={styles.statLabel}>Active Quotes</Text>
-            </View>
+            <StatCard
+              title="Active Quotes"
+              value={activeQuotes.length.toString()}
+              color={theme.colors.primary}
+            />
             
-            <View style={styles.statCard}>
-              <Text style={styles.statNumberAccepted}>
-                {acceptedQuotes.length.toString()}
-              </Text>
-              <Text style={styles.statLabel}>Accepted Jobs</Text>
-            </View>
+            <StatCard
+              title="Accepted Jobs"
+              value={acceptedQuotes.length.toString()}
+              color={theme.colors.success}
+            />
           </View>
         </View>
 
         {/* Messages Notification */}
         {unreadMessageCount > 0 && (
-          <TouchableOpacity
-            style={styles.messageNotification}
+          <MessageNotification
+            count={unreadMessageCount}
             onPress={handleViewMessages}
-          >
-            <Text style={styles.messageTitle}>
-              You have {unreadMessageCount} new message{unreadMessageCount > 1 ? 's' : ''}
-            </Text>
-            <Text style={styles.messageSubtitle}>
-              Tap to view messages
-            </Text>
-          </TouchableOpacity>
+          />
         )}
 
         {/* Quick Actions */}
@@ -161,11 +157,10 @@ export default function TradieDashboard() {
           </Text>
           
           {quotes.length === 0 ? (
-            <View style={styles.noActivityCard}>
-              <Text style={styles.noActivityText}>
-                No recent activity. Start exploring service requests!
-              </Text>
-            </View>
+            <EmptyState
+              title="No Recent Activity"
+              message="Start exploring service requests!"
+            />
           ) : (
             quotes.slice(0, 3).map((quote) => (
               <View key={quote.id} style={styles.activityCard}>
@@ -193,18 +188,14 @@ export default function TradieDashboard() {
             and trades to maximize your success rate and earnings.
           </Text>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   content: {
-    padding: 16,
+    padding: theme.padding.lg,
   },
   header: {
     marginBottom: 16,
@@ -226,48 +217,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  statCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#eee',
-    alignItems: 'center',
-    flex: 1,
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#4f46e5', // primary-600
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  statNumberAccepted: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#22c55e', // green-600
-  },
-  messageNotification: {
-    backgroundColor: '#e0f7fa', // blue-50
-    borderWidth: 1,
-    borderColor: '#90caf9', // blue-200
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  },
-  messageTitle: {
-    fontSize: 16,
-    fontWeight: 'semibold',
-    color: '#4299e1', // blue-800
-  },
-  messageSubtitle: {
-    fontSize: 14,
-    color: '#60a5fa', // blue-600
-    marginTop: 4,
-  },
+
   quickActions: {
     marginBottom: 16,
   },
@@ -342,17 +292,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
-  noActivityCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  noActivityText: {
-    color: '#999',
-    textAlign: 'center',
-  },
+
   activityCard: {
     backgroundColor: '#fff',
     borderRadius: 8,

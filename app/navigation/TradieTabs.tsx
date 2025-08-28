@@ -6,6 +6,7 @@ import TradieHistoryScreen from '../screens/tradie/TradieHistoryScreen';
 import TradieProfileScreen from '../screens/tradie/TradieProfileScreen';
 import { Text, Platform } from 'react-native';
 import { theme } from '../theme/theme';
+import { isWebDesktop } from '../utils/platform';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,7 +17,7 @@ export default function TradieTabs() {
         tabBarActiveTintColor: '#2563eb',
         tabBarInactiveTintColor: '#6b7280',
         tabBarLabelStyle: {
-          fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
+          fontSize: isWebDesktop ? theme.fontSize.lg : (Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs),
         },
         tabBarStyle: {
           backgroundColor: '#ffffff',

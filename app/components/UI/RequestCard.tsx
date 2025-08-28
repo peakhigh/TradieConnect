@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from '
 import { Edit3, Lock, Image as ImageIcon, FileText, Users, MessageCircle, X } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { createTextDecoration, createCursorStyle } from '../../theme/crossPlatform';
+import { isWebDesktop } from '../../utils/platform';
 import { VoicePlayer } from './VoicePlayer';
 import { ThumbnailImage } from './ThumbnailImage';
 
@@ -95,7 +96,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{request.photos ? request.photos.length.toString() : '0'}</Text>
             <ImageIcon size={22} color="#3b82f6" />
           </View>
-          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Photos</Text>
+          <Text style={styles.iconLabel}>Photos</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -106,7 +107,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{request.documents ? request.documents.length.toString() : '0'}</Text>
             <FileText size={22} color="#3b82f6" />
           </View>
-          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Files</Text>
+          <Text style={styles.iconLabel}>Files</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -117,7 +118,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{'0'}</Text>
             <Users size={22} color="#3b82f6" />
           </View>
-          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Interests</Text>
+          <Text style={styles.iconLabel}>Interests</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -128,7 +129,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <Text style={styles.iconCount}>{'0'}</Text>
             <MessageCircle size={22} color="#3b82f6" />
           </View>
-          <Text style={[styles.iconLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Messages</Text>
+          <Text style={styles.iconLabel}>Messages</Text>
         </TouchableOpacity>
         
         {request.status === 'active' && onCancel && (
@@ -139,7 +140,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <View style={styles.iconTop}>
               <X size={22} color="#dc2626" />
             </View>
-            <Text style={[styles.iconLabel, styles.cancelLabel, Platform.OS === 'web' && { fontSize: theme.fontSize.lg }]}>Cancel</Text>
+            <Text style={[styles.iconLabel, styles.cancelLabel]}>Cancel</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -150,7 +151,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <ThumbnailImage
               key={index}
               uri={photo}
-              size={40}
+              size={isWebDesktop ? 70 : 40}
               onPress={() => onPhotoPress?.(index, request)}
               style={styles.thumbnailSpacing}
             />
@@ -173,7 +174,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                 }
               }}
             >
-              <FileText size={16} color="#3b82f6" />
+              <FileText size={isWebDesktop ? 28 : 16} color="#3b82f6" />
               <Text style={styles.documentName} numberOfLines={1}>
                 Doc {index + 1}
               </Text>
@@ -299,12 +300,12 @@ const styles = StyleSheet.create({
     gap: theme.gap.xs,
   },
   iconCount: {
-    fontSize: Platform.OS === 'web' ? 20 : theme.fontSize.xs,
+    fontSize: isWebDesktop ? theme.fontSize.xl : theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.primary,
   },
   iconLabel: {
-    fontSize: Platform.OS === 'web' ? 18 : theme.fontSize.xxs,
+    fontSize: isWebDesktop ? theme.fontSize.xl : theme.fontSize.xxs,
     color: theme.colors.text.secondary,
     marginTop: 2,
     textAlign: 'center',
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     ...createCursorStyle('pointer'),
   },
   documentName: {
-    fontSize: theme.fontSize.xxs,
+    fontSize: isWebDesktop ? theme.fontSize.md : theme.fontSize.xxs,
     color: theme.colors.primary,
     fontWeight: theme.fontWeight.medium,
   },
