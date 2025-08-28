@@ -43,7 +43,7 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isMenuOpen && isSmallScreen && { paddingBottom: 0 }]}>
         <View style={styles.headerContent}>
           <View style={styles.logo}>
             <Wrench size={24} color={theme.colors.primary} />
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    position: 'relative',
+    zIndex: 1000,
   },
   headerContent: {
     flexDirection: 'row',
@@ -532,17 +532,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mobileMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
     paddingHorizontal: 20,
     paddingVertical: 16,
     gap: 12,
-    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   mobileNavLink: {
     paddingVertical: 12,
