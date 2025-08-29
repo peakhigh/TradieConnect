@@ -1,73 +1,132 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
+import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
+import { RequestCard } from '../../components/UI/RequestCard';
+import { EmptyState } from '../../components/UI/EmptyState';
+import { Pagination } from '../../components/UI/Pagination';
+import { FilterDrawer } from '../../components/UI/FilterDrawer';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { ServiceRequest } from '../../types';
 import { theme } from '../../theme/theme';
+import { Filter, Search } from 'lucide-react-native';
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
 type SortBy = 'date' | 'urgency' | 'tradeType';
+
+const PAGE_SIZE = 5;
 
 export default function CustomerHistoryScreen() {
   const { user } = useAuth();
   const { serviceRequests } = useUser();
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date');
-
-  const filteredRequests = serviceRequests.filter(request => {
-    if (filterStatus === 'all') return true;
-    return request.status === filterStatus;
-  });
-
-  const sortedRequests = [...filteredRequests].sort((a, b) => {
-    switch (sortBy) {
-      case 'date':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'urgency':
-        const urgencyOrder = { high: 3, medium: 2, low: 1 };
-        return urgencyOrder[b.urgency] - urgencyOrder[a.urgency];
-      case 'tradeType':
-        return a.tradeType.localeCompare(b.tradeType);
-      default:
-        return 0;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateRange, setDateRange] = useState<{start?: Date, end?: Date}>({});
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  
+  // Temporary filter states for drawer
+  const [tempSearchQuery, setTempSearchQuery] = useState(searchQuery);
+  const [tempFilterStatus, setTempFilterStatus] = useState(filterStatus);
+  const [tempSortBy, setTempSortBy] = useState(sortBy);
+  const [tempDateRange, setTempDateRange] = useState(dateRange);
+  const [tempShowDatePicker, setTempShowDatePicker] = useState(false);
+  
+  // Add mock data if no service requests exist
+  React.useEffect(() => {
+    if (serviceRequests.length === 0) {
+      // This would normally come from your data source
+      const mockRequests = [
+        {
+          id: '1',
+          tradeType: 'Plumbing',
+          description: 'Fix leaking kitchen tap and replace bathroom faucet',
+          postcode: '2000',
+          urgency: 'high',
+          status: 'active',
+          createdAt: new Date('2024-01-15'),
+          photos: [],
+          documents: []
+        },
+        {
+          id: '2', 
+          tradeType: 'Electrical',
+          description: 'Install new power outlets in living room',
+          postcode: '2001',
+          urgency: 'medium',
+          status: 'completed',
+          createdAt: new Date('2024-01-10'),
+          photos: [],
+          documents: []
+        },
+        {
+          id: '3',
+          tradeType: 'Carpentry',
+          description: 'Build custom kitchen cabinets and shelving',
+          postcode: '2002', 
+          urgency: 'low',
+          status: 'active',
+          createdAt: new Date('2024-01-05'),
+          photos: [],
+          documents: []
+        }
+      ];
+      // You would set this in your context/state management
     }
-  });
+  }, [serviceRequests.length]);
 
-  const handleViewDetails = (request: ServiceRequest) => {
-    // TODO: Navigate to detailed view
-    Alert.alert('Request Details', `Trade: ${request.tradeType}\nStatus: ${request.status}\nDescription: ${request.description}`);
-  };
+  const filteredAndSortedRequests = useMemo(() => {
+    let filtered = serviceRequests.filter(request => {
+      // Status filter
+      if (filterStatus !== 'all' && request.status !== filterStatus) return false;
+      
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesTradeType = request.tradeType.toLowerCase().includes(query);
+        const matchesDescription = request.description.toLowerCase().includes(query);
+        if (!matchesTradeType && !matchesDescription) return false;
+      }
+      
+      // Date range filter
+      if (dateRange.start || dateRange.end) {
+        const requestDate = new Date(request.createdAt);
+        if (dateRange.start && requestDate < dateRange.start) return false;
+        if (dateRange.end && requestDate > dateRange.end) return false;
+      }
+      
+      return true;
+    });
+    
+    // Sort
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'urgency':
+          const urgencyOrder = { high: 3, medium: 2, low: 1 };
+          return urgencyOrder[b.urgency] - urgencyOrder[a.urgency];
+        case 'tradeType':
+          return a.tradeType.localeCompare(b.tradeType);
+        default:
+          return 0;
+      }
+    });
+  }, [serviceRequests, filterStatus, searchQuery, dateRange, sortBy]);
+  
+  const totalPages = Math.ceil(filteredAndSortedRequests.length / PAGE_SIZE);
+  const paginatedRequests = filteredAndSortedRequests.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
-  const handleContactTradie = (request: ServiceRequest) => {
-    // TODO: Navigate to chat
-    Alert.alert('Contact Tradie', 'Chat functionality coming soon');
-  };
 
-  const handleRateTradie = (request: ServiceRequest) => {
-    // TODO: Navigate to rating screen
-    Alert.alert('Rate Tradie', 'Rating functionality coming soon');
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return { text: '#2563eb', bg: '#dbeafe' };
-      case 'completed': return { text: '#16a34a', bg: '#dcfce7' };
-      case 'cancelled': return { text: '#dc2626', bg: '#fee2e2' };
-      case 'in-progress': return { text: '#ca8a04', bg: '#fef3c7' };
-      default: return { text: '#6b7280', bg: '#f3f4f6' };
-    }
-  };
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return { text: '#dc2626', bg: '#fee2e2' };
-      case 'medium': return { text: '#ca8a04', bg: '#fef3c7' };
-      case 'low': return { text: '#16a34a', bg: '#dcfce7' };
-      default: return { text: '#6b7280', bg: '#f3f4f6' };
-    }
-  };
 
   return (
     <Container style={styles.container}>
@@ -75,196 +134,106 @@ export default function CustomerHistoryScreen() {
         <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>
-            Request History
-          </Text>
-          <Text style={styles.subtitle}>
-            View all your service requests and their status
-          </Text>
+          <Text style={styles.title}>Request History</Text>
+          <Text style={styles.subtitle}>View all your service requests and their status</Text>
         </View>
 
-        {/* Filters and Sort */}
-        <View style={styles.filtersSection}>
-          {/* Status Filter */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterLabel}>Filter by Status</Text>
-            <View style={styles.filterButtons}>
-              {(['all', 'active', 'in-progress', 'completed', 'cancelled'] as FilterStatus[]).map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={[
-                    styles.filterButton,
-                    filterStatus === status && styles.selectedFilterButton
-                  ]}
-                  onPress={() => setFilterStatus(status)}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      filterStatus === status && styles.selectedFilterButtonText
-                    ]}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
 
-          {/* Sort Options */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterLabel}>Sort by</Text>
-            <View style={styles.filterButtons}>
-              {(['date', 'urgency', 'tradeType'] as SortBy[]).map((sort) => (
-                <TouchableOpacity
-                  key={sort}
-                  style={[
-                    styles.filterButton,
-                    sortBy === sort && styles.selectedFilterButton
-                  ]}
-                  onPress={() => setSortBy(sort)}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      sortBy === sort && styles.selectedFilterButtonText
-                    ]}
-                  >
-                    {sort === 'date' ? 'Date' : sort === 'urgency' ? 'Urgency' : 'Trade Type'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
 
-        {/* Results Count */}
-        <View style={styles.resultsCount}>
-          <Text style={styles.resultsCountText}>
-            Showing {sortedRequests.length} of {serviceRequests.length} requests
-          </Text>
+        {/* Search and Controls Section */}
+        <View style={styles.controlsSection}>
+          {/* First Row: Search + Buttons */}
+          <View style={styles.searchRow}>
+            <View style={styles.searchContainer}>
+              <Input
+                placeholder="Search by trade type or description..."
+                value={searchQuery}
+                onChangeText={(query) => {
+                  setSearchQuery(query.toLowerCase());
+                  setCurrentPage(1);
+                }}
+                style={styles.searchInput}
+              />
+            </View>
+            <TouchableOpacity style={styles.searchButton}>
+              <Search size={20} color={theme.colors.text.inverse} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.filterButton}
+              onPress={() => {
+                setTempSearchQuery(searchQuery);
+                setTempFilterStatus(filterStatus);
+                setTempSortBy(sortBy);
+                setTempDateRange(dateRange);
+                setShowFilterDrawer(true);
+              }}
+            >
+              <Filter size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Second Row: Results Count + Pagination */}
+          <View style={styles.resultsRow}>
+            <Text style={styles.resultsCountText}>
+              {filteredAndSortedRequests.length} of {serviceRequests.length} records
+            </Text>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </View>
         </View>
 
         {/* Requests List */}
-        {sortedRequests.length === 0 ? (
-          <View style={styles.noRequestsContainer}>
-            <Text style={styles.noRequestsText}>
-              No requests found with the current filters
-            </Text>
-          </View>
+        {filteredAndSortedRequests.length === 0 ? (
+          <EmptyState
+            title="No Requests Found"
+            message={searchQuery || dateRange.start || dateRange.end 
+              ? "No requests match your current filters"
+              : "You haven't posted any service requests yet"
+            }
+          />
         ) : (
-          sortedRequests.map((request) => (
-            <View key={request.id} style={styles.requestCard}>
-              {/* Header */}
-              <View style={styles.requestHeader}>
-                <View style={styles.requestInfo}>
-                  <Text style={styles.requestTitle}>
-                    {request.tradeType}
-                  </Text>
-                  <Text style={styles.requestDate}>
-                    Posted on {new Date(request.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                <View style={styles.requestStatusAndUrgency}>
-                  <View style={[styles.statusTag, { backgroundColor: getStatusColor(request.status).bg }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(request.status).text }]}>
-                      {request.status}
-                    </Text>
-                  </View>
-                  <View style={[styles.urgencyTag, { backgroundColor: getUrgencyColor(request.urgency).bg }]}>
-                    <Text style={[styles.urgencyText, { color: getUrgencyColor(request.urgency).text }]}>
-                      {request.urgency}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Description */}
-              <Text style={styles.requestDescription} numberOfLines={3}>
-                {request.description}
-              </Text>
-
-              {/* Details */}
-              <View style={styles.requestDetails}>
-                <Text style={styles.detailLabel}>📍 Suburb:</Text>
-                <Text style={styles.detailValue}>{request.suburb}</Text>
-                {request.budget && (
-                  <>
-                    <Text style={styles.detailLabel}>💰 Budget:</Text>
-                    <Text style={styles.detailValue}>${request.budget.min} - ${request.budget.max}</Text>
-                  </>
-                )}
-                {request.preferredDates && (
-                  <>
-                    <Text style={styles.detailLabel}>📅 Preferred:</Text>
-                    <Text style={styles.detailValue}>{new Date(request.preferredDates.earliest).toLocaleDateString()} - {new Date(request.preferredDates.latest).toLocaleDateString()}</Text>
-                  </>
-                )}
-              </View>
-
-              {/* Actions */}
-              <View style={styles.requestActions}>
-                <Button
-                  title="View Details"
-                  onPress={() => handleViewDetails(request)}
-                  variant="outline"
-                  size="small"
-                />
-                
-                {request.status === 'active' && (
-                  <Button
-                    title="Contact Tradie"
-                    onPress={() => handleContactTradie(request)}
-                    variant="outline"
-                    size="small"
-                  />
-                )}
-                
-                {request.status === 'completed' && (
-                  <Button
-                    title="Rate Tradie"
-                    onPress={() => handleRateTradie(request)}
-                    size="small"
-                  />
-                )}
-              </View>
-            </View>
+          paginatedRequests.map((request) => (
+            <RequestCard
+              key={request.id}
+              request={request}
+              showEditButton={false}
+            />
           ))
         )}
 
-        {/* Summary Stats */}
-        {serviceRequests.length > 0 && (
-          <View style={styles.summaryStatsContainer}>
-            <Text style={styles.summaryStatsTitle}>
-              Summary
-            </Text>
-            <View style={styles.summaryStatsContent}>
-              <View style={styles.summaryStatItem}>
-                <Text style={styles.summaryStatLabel}>Total Requests</Text>
-                <Text style={styles.summaryStatValue}>{serviceRequests.length}</Text>
-              </View>
-              <View style={styles.summaryStatItem}>
-                <Text style={styles.summaryStatLabel}>Active</Text>
-                <Text style={styles.summaryStatValue}>
-                  {serviceRequests.filter(r => r.status === 'active').length}
-                </Text>
-              </View>
-              <View style={styles.summaryStatItem}>
-                <Text style={styles.summaryStatLabel}>Completed</Text>
-                <Text style={styles.summaryStatValue}>
-                  {serviceRequests.filter(r => r.status === 'completed').length}
-                </Text>
-              </View>
-              <View style={styles.summaryStatItem}>
-                <Text style={styles.summaryStatLabel}>In Progress</Text>
-                <Text style={styles.summaryStatValue}>
-                  {serviceRequests.filter(r => r.status === 'in-progress').length}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
+
+
+
         </View>
+        
+        {/* Filter Drawer */}
+        <FilterDrawer
+          visible={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          searchQuery={tempSearchQuery}
+          filterStatus={tempFilterStatus}
+          sortBy={tempSortBy}
+          dateRange={tempDateRange}
+          showDatePicker={tempShowDatePicker}
+          onSearchChange={setTempSearchQuery}
+          onStatusChange={setTempFilterStatus}
+          onSortChange={setTempSortBy}
+          onDateRangeChange={setTempDateRange}
+          onToggleDatePicker={() => setTempShowDatePicker(!tempShowDatePicker)}
+          onClearDateRange={() => setTempDateRange({})}
+          onSubmit={() => {
+            setSearchQuery(tempSearchQuery);
+            setFilterStatus(tempFilterStatus);
+            setSortBy(tempSortBy);
+            setDateRange(tempDateRange);
+            setCurrentPage(1);
+            setShowFilterDrawer(false);
+          }}
+          onCancel={() => setShowFilterDrawer(false)}
+        />
       </ScrollView>
     </Container>
   );
@@ -275,176 +244,64 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: theme.spacing.xxl,
+    padding: theme.spacing.lg,
   },
   header: {
-    marginBottom: 16, // Tailwind mb-6
+    marginBottom: theme.spacing.lg,
   },
   title: {
-    fontSize: 24, // Tailwind text-2xl
-    fontWeight: 'bold',
-    color: '#1f2937', // Tailwind text-gray-900
+    fontSize: Platform.OS === 'web' ? theme.fontSize.xxl : theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
   },
   subtitle: {
-    fontSize: 14, // Tailwind text-gray-600
-    color: '#6b7280',
-    marginTop: 4,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
   },
-  filtersSection: {
-    marginBottom: 16, // Tailwind mb-6
+
+  controlsSection: {
+    flexDirection: 'column',
+    marginBottom: theme.spacing.lg,
   },
-  filterGroup: {
-    marginBottom: 12, // Tailwind mb-4
-  },
-  filterLabel: {
-    fontSize: 14, // Tailwind text-sm
-    fontWeight: 'medium',
-    color: '#4b5563', // Tailwind text-gray-700
-    marginBottom: 8,
-  },
-  filterButtons: {
+  searchRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
-  filterButton: {
-    paddingHorizontal: 12, // Tailwind px-3
-    paddingVertical: 8, // Tailwind py-2
-    borderRadius: 999, // Tailwind rounded-full
-    borderWidth: 1,
-    borderColor: '#d1d5db', // Tailwind border-gray-300
-  },
-  selectedFilterButton: {
-    backgroundColor: '#3b82f6', // Tailwind bg-primary-600
-    borderColor: '#3b82f6',
-  },
-  filterButtonText: {
-    fontSize: 14, // Tailwind text-sm
-    fontWeight: 'medium',
-    color: '#6b7280', // Tailwind text-gray-700
-  },
-  selectedFilterButtonText: {
-    color: '#ffffff', // Tailwind text-white
-  },
-  resultsCount: {
-    marginBottom: 16, // Tailwind mb-4
-  },
-  resultsCountText: {
-    fontSize: 14, // Tailwind text-gray-600
-    color: '#6b7280',
-  },
-  noRequestsContainer: {
-    backgroundColor: '#ffffff', // Tailwind bg-white
-    borderRadius: 12, // Tailwind rounded-lg
-    padding: 24, // Tailwind p-8
-    borderWidth: 1,
-    borderColor: '#e5e7eb', // Tailwind border-gray-200
-  },
-  noRequestsText: {
-    fontSize: 16, // Tailwind text-gray-500
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  requestCard: {
-    backgroundColor: '#ffffff', // Tailwind bg-white
-    borderRadius: 12, // Tailwind rounded-lg
-    padding: 16, // Tailwind p-4
-    borderWidth: 1,
-    borderColor: '#e5e7eb', // Tailwind border-gray-200
-    marginBottom: 12, // Tailwind mb-4
-  },
-  requestHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12, // Tailwind mb-3
-  },
-  requestInfo: {
+  searchContainer: {
     flex: 1,
   },
-  requestTitle: {
-    fontSize: 18, // Tailwind text-lg
-    fontWeight: 'semibold',
-    color: '#1f2937', // Tailwind text-gray-900
-    marginBottom: 4, // Tailwind mb-1
+  searchInput: {
+    marginBottom: 0,
   },
-  requestDate: {
-    fontSize: 13, // Tailwind text-gray-600
-    color: '#6b7280',
+  searchButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primary,
   },
-  requestStatusAndUrgency: {
-    flexDirection: 'row',
-    gap: 8,
+  filterButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.border.light,
+    backgroundColor: theme.colors.surface,
   },
-  statusTag: {
-    paddingHorizontal: 8, // Tailwind px-2
-    paddingVertical: 4, // Tailwind py-1
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 12, // Tailwind text-xs
-    fontWeight: 'medium',
-    textTransform: 'capitalize',
-  },
-  urgencyTag: {
-    paddingHorizontal: 8, // Tailwind px-2
-    paddingVertical: 4, // Tailwind py-1
-    borderRadius: 999,
-  },
-  urgencyText: {
-    fontSize: 12, // Tailwind text-xs
-    fontWeight: 'medium',
-    textTransform: 'capitalize',
-  },
-  requestDescription: {
-    fontSize: 14, // Tailwind text-gray-700
-    color: '#4b5563',
-    marginBottom: 12, // Tailwind mb-3
-  },
-  requestDetails: {
-    marginBottom: 12, // Tailwind mb-3
-  },
-  detailLabel: {
-    fontSize: 13, // Tailwind text-sm
-    color: '#6b7280',
-    marginBottom: 4, // Tailwind mb-1
-  },
-  detailValue: {
-    fontSize: 13, // Tailwind text-sm
-    color: '#4b5563',
-  },
-  requestActions: {
+  resultsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    alignItems: 'center',
   },
-  summaryStatsContainer: {
-    marginTop: 24, // Tailwind mt-6
-    backgroundColor: '#ffffff', // Tailwind bg-white
-    borderRadius: 12, // Tailwind rounded-lg
-    padding: 16, // Tailwind p-4
-    borderWidth: 1,
-    borderColor: '#e5e7eb', // Tailwind border-gray-200
+  resultsCountText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.tertiary,
   },
-  summaryStatsTitle: {
-    fontSize: 18, // Tailwind text-lg
-    fontWeight: 'semibold',
-    color: '#1f2937', // Tailwind text-gray-900
-    marginBottom: 12, // Tailwind mb-3
-  },
-  summaryStatsContent: {
-    gap: 8, // Tailwind space-y-2
-  },
-  summaryStatItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryStatLabel: {
-    fontSize: 14, // Tailwind text-gray-600
-    color: '#6b7280',
-  },
-  summaryStatValue: {
-    fontSize: 14, // Tailwind text-gray-600
-    fontWeight: 'semibold',
-  },
+
 });

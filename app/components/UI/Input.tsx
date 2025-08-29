@@ -77,7 +77,7 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.margin.lg,
+    // marginBottom: theme.margin.lg,
   },
   labelContainer: {
     marginBottom: theme.margin.sm,
