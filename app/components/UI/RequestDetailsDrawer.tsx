@@ -58,11 +58,14 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity 
+        <Animated.View 
           style={[styles.container, { transform: [{ translateX: slideAnim }] }]}
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
         >
+          <TouchableOpacity 
+            style={styles.drawerContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
         <View style={styles.header}>
           <Text style={styles.title}>{request.tradeType}</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -105,7 +108,7 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
                   <Text style={styles.statusText}>{request.status}</Text>
                 </View>
               </View>
-              <View style={styles.detailRow}>
+              <View style={[styles.detailRow, styles.lastDetailRow]}>
                 <Text style={styles.detailLabel}>Created</Text>
                 <Text style={styles.detailValue}>{request.createdAt?.toDateString?.() || 'Unknown'}</Text>
               </View>
@@ -156,7 +159,8 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
             </View>
           )}
         </ScrollView>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
         
         <PhotoModal
           visible={showPhotoModal}
@@ -178,7 +182,18 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '80%',
+    backgroundColor: 'transparent',
+  },
+  drawerContent: {
+    flex: 1,
     backgroundColor: '#ffffff',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
@@ -368,5 +383,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#3b82f6',
     fontWeight: '500',
+  },
+  lastDetailRow: {
+    borderBottomWidth: 0,
   },
 });

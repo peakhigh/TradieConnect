@@ -75,14 +75,14 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       </View>
       
       <View>
-        {request.description ? (
+        {request.description && (
           <Text style={styles.requestDescription} numberOfLines={1}>
             {request.description}
           </Text>
-        ) : null}
-        {request.voiceMessage ? (
+        )}
+        {request.voiceMessage && (
           <VoicePlayer voiceUrl={request.voiceMessage} compact={true} />
-        ) : null}
+        )}
       </View>
       
       <Text style={styles.postcodeText}>Postcode: {request.postcode}</Text>

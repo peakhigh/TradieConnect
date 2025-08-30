@@ -13,6 +13,7 @@
     "web:prod": "expo start --web",
     "deploy": "npx expo export -p web && firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",
+    "deploy:indexes": "firebase deploy --only firestore:indexes",
     "deploy:all": "npx expo export -p web && firebase deploy"
   },
   "dependencies": {

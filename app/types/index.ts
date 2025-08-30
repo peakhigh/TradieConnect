@@ -44,7 +44,9 @@ export interface ServiceRequest {
   description: string;
   voiceMessage?: string;
   photos: string[];
-  suburb: string;
+  documents?: string[];
+  postcode?: string;
+  suburb?: string;
   urgency: 'low' | 'medium' | 'high';
   status: 'active' | 'in-progress' | 'completed' | 'cancelled';
   createdAt: Date;
@@ -57,6 +59,11 @@ export interface ServiceRequest {
     earliest: Date;
     latest: Date;
   };
+  // Computed search fields
+  searchKeywords?: string[];
+  searchText?: string;
+  tradeTypeLower?: string;
+  descriptionLower?: string;
 }
 
 export interface Quote {

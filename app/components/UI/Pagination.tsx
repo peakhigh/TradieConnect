@@ -82,14 +82,13 @@ export const Pagination: React.FC<PaginationProps> = ({
       
       {/* Page Numbers */}
       <View style={styles.pageNumbers}>
-        {/* First page */}
         {currentPage > 3 && (
-          <>
-            <TouchableOpacity style={styles.numberButton} onPress={() => onPageChange(1)}>
-              <Text style={styles.numberButtonText}>1</Text>
-            </TouchableOpacity>
-            {currentPage > 4 && <Text style={styles.ellipsis}>...</Text>}
-          </>
+          <TouchableOpacity style={styles.numberButton} onPress={() => onPageChange(1)}>
+            <Text style={styles.numberButtonText}>1</Text>
+          </TouchableOpacity>
+        )}
+        {currentPage > 4 && (
+          <Text style={styles.ellipsis}>...</Text>
         )}
         
         {/* Current page range */}
@@ -109,14 +108,13 @@ export const Pagination: React.FC<PaginationProps> = ({
           );
         })}
         
-        {/* Last page */}
+        {currentPage < totalPages - 3 && (
+          <Text style={styles.ellipsis}>...</Text>
+        )}
         {currentPage < totalPages - 2 && (
-          <>
-            {currentPage < totalPages - 3 && <Text style={styles.ellipsis}>...</Text>}
-            <TouchableOpacity style={styles.numberButton} onPress={() => onPageChange(totalPages)}>
-              <Text style={styles.numberButtonText}>{totalPages}</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity style={styles.numberButton} onPress={() => onPageChange(totalPages)}>
+            <Text style={styles.numberButtonText}>{totalPages}</Text>
+          </TouchableOpacity>
         )}
       </View>
       

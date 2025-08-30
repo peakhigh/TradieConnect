@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
@@ -7,11 +7,15 @@ import { RequestCard } from '../../components/UI/RequestCard';
 import { EmptyState } from '../../components/UI/EmptyState';
 import { Pagination } from '../../components/UI/Pagination';
 import { FilterDrawer } from '../../components/UI/FilterDrawer';
-import { useUser } from '../../context/UserContext';
+import { RequestCardSkeleton } from '../../components/UI/Skeleton';
+import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
+import { ImageViewer } from '../../components/UI/ImageViewer';
 import { useAuth } from '../../context/AuthContext';
 import { ServiceRequest } from '../../types';
 import { theme } from '../../theme/theme';
 import { Filter, Search } from 'lucide-react-native';
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
 type SortBy = 'date' | 'urgency' | 'tradeType';
@@ -20,196 +24,197 @@ const PAGE_SIZE = 5;
 
 export default function CustomerHistoryScreen() {
   const { user } = useAuth();
-  const { serviceRequests } = useUser();
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateRange, setDateRange] = useState<{start?: Date, end?: Date}>({});
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  
-  // Temporary filter states for drawer
+  const [loading, setLoading] = useState(false);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [tempSearchQuery, setTempSearchQuery] = useState(searchQuery);
   const [tempFilterStatus, setTempFilterStatus] = useState(filterStatus);
   const [tempSortBy, setTempSortBy] = useState(sortBy);
   const [tempDateRange, setTempDateRange] = useState(dateRange);
   const [tempShowDatePicker, setTempShowDatePicker] = useState(false);
-  
-  // Add mock data if no service requests exist
-  React.useEffect(() => {
-    if (serviceRequests.length === 0) {
-      // This would normally come from your data source
-      const mockRequests = [
-        {
-          id: '1',
-          tradeType: 'Plumbing',
-          description: 'Fix leaking kitchen tap and replace bathroom faucet',
-          postcode: '2000',
-          urgency: 'high',
-          status: 'active',
-          createdAt: new Date('2024-01-15'),
-          photos: [],
-          documents: []
-        },
-        {
-          id: '2', 
-          tradeType: 'Electrical',
-          description: 'Install new power outlets in living room',
-          postcode: '2001',
-          urgency: 'medium',
-          status: 'completed',
-          createdAt: new Date('2024-01-10'),
-          photos: [],
-          documents: []
-        },
-        {
-          id: '3',
-          tradeType: 'Carpentry',
-          description: 'Build custom kitchen cabinets and shelving',
-          postcode: '2002', 
-          urgency: 'low',
-          status: 'active',
-          createdAt: new Date('2024-01-05'),
-          photos: [],
-          documents: []
-        }
-      ];
-      // You would set this in your context/state management
-    }
-  }, [serviceRequests.length]);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [selectedRequestPhotos, setSelectedRequestPhotos] = useState<string[]>([]);
 
-  const filteredAndSortedRequests = useMemo(() => {
-    let filtered = serviceRequests.filter(request => {
-      // Status filter
-      if (filterStatus !== 'all' && request.status !== filterStatus) return false;
-      
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesTradeType = request.tradeType.toLowerCase().includes(query);
-        const matchesDescription = request.description.toLowerCase().includes(query);
-        if (!matchesTradeType && !matchesDescription) return false;
-      }
-      
-      // Date range filter
-      if (dateRange.start || dateRange.end) {
-        const requestDate = new Date(request.createdAt);
-        if (dateRange.start && requestDate < dateRange.start) return false;
-        if (dateRange.end && requestDate > dateRange.end) return false;
-      }
-      
-      return true;
-    });
+  const fetchRequests = async () => {
+    if (!user?.id) return;
     
-    // Sort
-    return filtered.sort((a, b) => {
+    setLoading(true);
+    try {
+      let q = query(
+        collection(db, 'serviceRequests'),
+        where('customerId', '==', user.id)
+      );
+      
+      // Add status filter
+      if (filterStatus !== 'all') {
+        q = query(q, where('status', '==', filterStatus));
+      }
+      
+      // Add search filter - use array-contains for better search
+      if (searchQuery.trim()) {
+        const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
+        if (searchTerms.length > 0) {
+          // Search in multiple fields using array-contains-any
+          q = query(q, where('searchKeywords', 'array-contains-any', searchTerms));
+        }
+      }
+      
+      // Add date range filter
+      if (dateRange.start) {
+        q = query(q, where('createdAt', '>=', dateRange.start));
+      }
+      if (dateRange.end) {
+        q = query(q, where('createdAt', '<=', dateRange.end));
+      }
+      
+      // Add sorting
       switch (sortBy) {
         case 'date':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          q = query(q, orderBy('createdAt', 'desc'));
+          break;
         case 'urgency':
-          const urgencyOrder = { high: 3, medium: 2, low: 1 };
-          return urgencyOrder[b.urgency] - urgencyOrder[a.urgency];
+          q = query(q, orderBy('urgency', 'desc'));
+          break;
         case 'tradeType':
-          return a.tradeType.localeCompare(b.tradeType);
-        default:
-          return 0;
+          q = query(q, orderBy('tradeType', 'asc'));
+          break;
       }
-    });
-  }, [serviceRequests, filterStatus, searchQuery, dateRange, sortBy]);
+      
+      // Get total count
+      const countSnapshot = await getCountFromServer(q);
+      setTotalCount(countSnapshot.data().count);
+      
+      // Add pagination
+      const offset = (currentPage - 1) * PAGE_SIZE;
+      if (offset > 0) {
+        // For pagination, we need to get documents up to the offset
+        const offsetQuery = query(q, limit(offset));
+        const offsetSnapshot = await getDocs(offsetQuery);
+        const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+        if (lastDoc) {
+          q = query(q, startAfter(lastDoc));
+        }
+      }
+      
+      q = query(q, limit(PAGE_SIZE));
+      
+      const snapshot = await getDocs(q);
+      const requests = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date()
+      })) as ServiceRequest[];
+      
+      setServiceRequests(requests);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  const totalPages = Math.ceil(filteredAndSortedRequests.length / PAGE_SIZE);
-  const paginatedRequests = filteredAndSortedRequests.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
-
-
-
-
+  useEffect(() => {
+    fetchRequests();
+  }, [user?.id, filterStatus, searchQuery, dateRange, sortBy, currentPage]);
+  
+  const handleSearch = () => {
+    setSearchQuery(searchInput.toLowerCase());
+    setCurrentPage(1);
+  };
+  
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <Container style={styles.container}>
       <ScrollView>
         <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Request History</Text>
-          <Text style={styles.subtitle}>View all your service requests and their status</Text>
-        </View>
-
-
-
-        {/* Search and Controls Section */}
-        <View style={styles.controlsSection}>
-          {/* First Row: Search + Buttons */}
-          <View style={styles.searchRow}>
-            <View style={styles.searchContainer}>
-              <Input
-                placeholder="Search by trade type or description..."
-                value={searchQuery}
-                onChangeText={(query) => {
-                  setSearchQuery(query.toLowerCase());
-                  setCurrentPage(1);
+          <View style={styles.header}>
+            <Text style={styles.title}>Request History</Text>
+            <Text style={styles.subtitle}>View all your service requests and their status</Text>
+          </View>
+          <View style={styles.controlsSection}>
+            <View style={styles.searchRow}>
+              <View style={styles.searchContainer}>
+                <Input
+                  placeholder="Search by trade type or description..."
+                  value={searchInput}
+                  onChangeText={setSearchInput}
+                  onSubmitEditing={handleSearch}
+                  style={styles.searchInput}
+                />
+              </View>
+              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                <Search size={20} color={theme.colors.text.inverse} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.filterButton}
+                onPress={() => {
+                  setTempSearchQuery(searchQuery);
+                  setTempFilterStatus(filterStatus);
+                  setTempSortBy(sortBy);
+                  setTempDateRange(dateRange);
+                  setShowFilterDrawer(true);
                 }}
-                style={styles.searchInput}
+              >
+                <Filter size={20} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.resultsRow}>
+              <Text style={styles.resultsCountText}>
+                {serviceRequests.length} of {totalCount} records
+              </Text>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
               />
             </View>
-            <TouchableOpacity style={styles.searchButton}>
-              <Search size={20} color={theme.colors.text.inverse} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.filterButton}
-              onPress={() => {
-                setTempSearchQuery(searchQuery);
-                setTempFilterStatus(filterStatus);
-                setTempSortBy(sortBy);
-                setTempDateRange(dateRange);
-                setShowFilterDrawer(true);
-              }}
-            >
-              <Filter size={20} color={theme.colors.primary} />
-            </TouchableOpacity>
           </View>
-          
-          {/* Second Row: Results Count + Pagination */}
-          <View style={styles.resultsRow}>
-            <Text style={styles.resultsCountText}>
-              {filteredAndSortedRequests.length} of {serviceRequests.length} records
-            </Text>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
+          {loading ? (
+            <View>
+              {Array.from({ length: PAGE_SIZE }).map((_, index) => (
+                <RequestCardSkeleton key={index} />
+              ))}
+            </View>
+          ) : serviceRequests.length === 0 ? (
+            <EmptyState
+              title="No Requests Found"
+              message={searchQuery || dateRange.start || dateRange.end 
+                ? "No requests match your current filters"
+                : "You haven't posted any service requests yet"
+              }
             />
-          </View>
+          ) : (
+            serviceRequests.map((request) => (
+              <RequestCard
+                key={request.id}
+                request={request}
+                showEditButton={false}
+                onViewDetails={(req) => {
+                  setSelectedRequest(req);
+                  setShowRequestDetails(true);
+                }}
+                onPhotoPress={(photoIndex, req) => {
+                  setSelectedPhotoIndex(photoIndex);
+                  setSelectedRequestPhotos(req.photos || []);
+                  setShowImageViewer(true);
+                }}
+              />
+            ))
+          )}
         </View>
-
-        {/* Requests List */}
-        {filteredAndSortedRequests.length === 0 ? (
-          <EmptyState
-            title="No Requests Found"
-            message={searchQuery || dateRange.start || dateRange.end 
-              ? "No requests match your current filters"
-              : "You haven't posted any service requests yet"
-            }
-          />
-        ) : (
-          paginatedRequests.map((request) => (
-            <RequestCard
-              key={request.id}
-              request={request}
-              showEditButton={false}
-            />
-          ))
-        )}
-
-
-
-
-        </View>
-        
-        {/* Filter Drawer */}
         <FilterDrawer
           visible={showFilterDrawer}
           onClose={() => setShowFilterDrawer(false)}
@@ -225,7 +230,7 @@ export default function CustomerHistoryScreen() {
           onToggleDatePicker={() => setTempShowDatePicker(!tempShowDatePicker)}
           onClearDateRange={() => setTempDateRange({})}
           onSubmit={() => {
-            setSearchQuery(tempSearchQuery);
+            setSearchQuery(tempSearchQuery.toLowerCase());
             setFilterStatus(tempFilterStatus);
             setSortBy(tempSortBy);
             setDateRange(tempDateRange);
@@ -233,6 +238,17 @@ export default function CustomerHistoryScreen() {
             setShowFilterDrawer(false);
           }}
           onCancel={() => setShowFilterDrawer(false)}
+        />
+        <RequestDetailsDrawer
+          visible={showRequestDetails}
+          onClose={() => setShowRequestDetails(false)}
+          request={selectedRequest}
+        />
+        <ImageViewer
+          visible={showImageViewer}
+          onClose={() => setShowImageViewer(false)}
+          images={selectedRequestPhotos}
+          initialIndex={selectedPhotoIndex}
         />
       </ScrollView>
     </Container>
@@ -303,5 +319,17 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.tertiary,
   },
+  clearButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.border.light,
+  },
+  clearButtonText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    fontWeight: theme.fontWeight.medium,
+  },
+
 
 });

@@ -361,25 +361,35 @@ export default function PostRequestScreen() {
     console.log('Validation passed, starting submission');
     setLoading(true);
     try {
+      const tradeTypeStr = selectedTrades.join(', ');
+      const descriptionStr = formData.description;
+      
       const serviceRequest: Omit<ServiceRequest, 'id' | 'createdAt' | 'updatedAt'> = {
         customerId: user!.id,
         customer: user! as any,
-        tradeType: selectedTrades.join(', '),
-        description: formData.description,
+        tradeType: tradeTypeStr,
+        description: descriptionStr,
         postcode: formData.postcode,
         urgency: formData.urgency,
         status: 'active',
         photos: selectedFiles.map(file => file.uri),
         documents: selectedFiles.filter(file => file.type === 'document').map(file => file.uri),
-        voiceMessage: null, // Fixed: use null instead of undefined
+        voiceMessage: null,
         budget: formData.budgetMin && formData.budgetMax ? {
           min: parseFloat(formData.budgetMin),
           max: parseFloat(formData.budgetMax)
-        } : null, // Fixed: use null instead of undefined
+        } : null,
         preferredDates: {
           earliest: formData.earliestDate,
           latest: formData.latestDate
-        }
+        },
+        // Computed search fields for array-contains-any search
+        searchKeywords: [
+          ...tradeTypeStr.toLowerCase().split(/[\s,]+/).filter(word => word.length > 2),
+          ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 2),
+          ...selectedTrades.map(trade => trade.toLowerCase()),
+          formData.postcode.toLowerCase()
+        ].filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
       };
 
       console.log('About to upload files and save to Firestore:', serviceRequest);

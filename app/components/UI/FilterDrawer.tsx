@@ -70,8 +70,6 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-
-
             {/* Date Range */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Date Range</Text>
@@ -118,6 +116,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                       justifyContent: 'center',
                       alignItems: 'center'
                     }}
+                    selectedRangeBackgroundColor={theme.colors.primary + '20'}
+                    selectedRangeBorderColor={theme.colors.primary}
                     todayContainerStyle={{
                       borderWidth: 1,
                       borderColor: theme.colors.primary,
