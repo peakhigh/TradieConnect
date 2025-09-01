@@ -5,15 +5,17 @@ import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { RequestCard } from '../../components/UI/RequestCard';
 import { EmptyState } from '../../components/UI/EmptyState';
-import { Pagination } from '../../components/UI/Pagination';
+import { ResultsHeader } from '../../components/UI/ResultsHeader';
 import { RequestCardSkeleton } from '../../components/UI/Skeleton';
 import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 import { ImageViewer } from '../../components/UI/ImageViewer';
-import { SimpleDatePicker } from '../../components/UI/SimpleDatePicker';
+import { FilterTags } from '../../components/UI/FilterTags';
+import { SearchBar } from '../../components/UI/SearchBar';
+import { FilterOverlays } from '../../components/UI/FilterOverlays';
 import { useAuth } from '../../context/AuthContext';
 import { ServiceRequest } from '../../types';
 import { theme } from '../../theme/theme';
-import { Search, Calendar, ChevronDown, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -148,159 +150,59 @@ export default function CustomerHistoryScreen() {
             <Text style={styles.subtitle}>View all your service requests and their status</Text>
           </View>
           <View style={styles.controlsSection}>
-            {/* Clear All Button */}
-            <View style={styles.clearAllContainer}>
-              <TouchableOpacity 
-                onPress={() => {
-                  setSearchInput('');
-                  setSearchQuery('');
-                  setFilterStatus('all');
-                  setDateRange({});
-                  setSortBy('date');
-                  setCurrentPage(1);
-                }}
-                style={[
-                  styles.clearAllButton,
-                  !(searchQuery || filterStatus !== 'all' || dateRange.start || dateRange.end || sortBy !== 'date') && styles.clearAllHidden
-                ]}
-              >
-                <Text style={styles.clearAllText}>Clear all filters</Text>
-              </TouchableOpacity>
-            </View>
 
-            {/* Filter Tags Row */}
-            <View style={styles.filterTagsRow}>
-              {/* Date Filter Tag */}
-              <TouchableOpacity 
-                style={[styles.filterTag, styles.dateFilterTag]}
-                onPress={() => {
-                  setTempDateRange(dateRange);
-                  setShowDatePicker(!showDatePicker);
-                }}
-              >
-                <View style={styles.filterTagContent}>
-                  <View style={styles.filterTagHeader}>
-                    <Calendar size={16} color={theme.colors.primary} />
-                    <Text style={styles.filterTagTitle}>Dates</Text>
-                    {(dateRange.start || dateRange.end) ? (
-                      <TouchableOpacity 
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setDateRange({});
-                          setCurrentPage(1);
-                        }}
-                        style={styles.filterTagClose}
-                      >
-                        <X size={14} color={theme.colors.primary} />
-                      </TouchableOpacity>
-                    ) : (
-                      <ChevronDown size={14} color={theme.colors.primary} />
-                    )}
-                  </View>
-                  <Text style={styles.filterTagValue}>
-                    {dateRange.start || dateRange.end 
-                      ? `${dateRange.start?.toLocaleDateString() || 'Start'} - ${dateRange.end?.toLocaleDateString() || 'End'}`
-                      : 'All'
-                    }
-                  </Text>
-                </View>
-              </TouchableOpacity>
 
-              {/* Status Filter Tag */}
-              <TouchableOpacity 
-                style={styles.filterTag}
-                onPress={() => setShowStatusDropdown(!showStatusDropdown)}
-              >
-                <View style={styles.filterTagContent}>
-                  <View style={styles.filterTagHeader}>
-                    <Text style={styles.filterTagTitle}>Status</Text>
-                    {filterStatus !== 'all' ? (
-                      <TouchableOpacity 
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setFilterStatus('all');
-                          setCurrentPage(1);
-                        }}
-                        style={styles.filterTagClose}
-                      >
-                        <X size={14} color={theme.colors.primary} />
-                      </TouchableOpacity>
-                    ) : (
-                      <ChevronDown size={14} color={theme.colors.primary} />
-                    )}
-                  </View>
-                  <Text style={styles.filterTagValue}>
-                    {filterStatus === 'all' ? 'All' : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+            <FilterTags
+              dateRange={dateRange}
+              filterStatus={filterStatus}
+              sortBy={sortBy}
+              onDatePress={() => {
+                setTempDateRange(dateRange);
+                setShowDatePicker(!showDatePicker);
+              }}
+              onStatusPress={() => setShowStatusDropdown(!showStatusDropdown)}
+              onSortPress={() => setShowSortDropdown(!showSortDropdown)}
+              onClearDate={() => {
+                setDateRange({});
+                setCurrentPage(1);
+              }}
+              onClearStatus={() => {
+                setFilterStatus('all');
+                setCurrentPage(1);
+              }}
+              onClearSort={() => {
+                setSortBy('date');
+                setCurrentPage(1);
+              }}
+              onClearAll={() => {
+                setSearchInput('');
+                setSearchQuery('');
+                setFilterStatus('all');
+                setDateRange({});
+                setSortBy('date');
+                setCurrentPage(1);
+              }}
+            />
 
-              {/* Sort Filter Tag */}
-              <TouchableOpacity 
-                style={styles.filterTag}
-                onPress={() => setShowSortDropdown(!showSortDropdown)}
-              >
-                <View style={styles.filterTagContent}>
-                  <View style={styles.filterTagHeader}>
-                    <Text style={styles.filterTagTitle}>Sort</Text>
-                    {sortBy !== 'date' ? (
-                      <TouchableOpacity 
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setSortBy('date');
-                          setCurrentPage(1);
-                        }}
-                        style={styles.filterTagClose}
-                      >
-                        <X size={14} color={theme.colors.primary} />
-                      </TouchableOpacity>
-                    ) : (
-                      <ChevronDown size={14} color={theme.colors.primary} />
-                    )}
-                  </View>
-                  <Text style={styles.filterTagValue}>
-                    {sortBy === 'date' ? 'Date' : sortBy === 'urgency' ? 'Urgency' : 'Trade Type'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+            <SearchBar
+              searchInput={searchInput}
+              onSearchInputChange={setSearchInput}
+              onSearch={handleSearch}
+              onClear={() => {
+                setSearchInput('');
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+              placeholder="Search by trade type or description..."
+            />
 
-            <View style={styles.searchRow}>
-              <View style={styles.searchInputContainer}>
-                <Input
-                  placeholder="Search by trade type or description..."
-                  value={searchInput}
-                  onChangeText={setSearchInput}
-                  onSubmitEditing={handleSearch}
-                  style={styles.searchInputWithIcon}
-                />
-                {searchInput ? (
-                  <TouchableOpacity 
-                    style={styles.clearIconButton} 
-                    onPress={() => {
-                      setSearchInput('');
-                      setSearchQuery('');
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <Text style={styles.clearIcon}>×</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-              <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                <Search size={20} color={theme.colors.text.inverse} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.resultsRow}>
-              <Text style={styles.resultsCountText}>
-                {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount} records
-              </Text>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </View>
+            <ResultsHeader
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+            />
             {searchQuery ? (
               <View style={styles.activeFilters}>
                 <View style={styles.activeFilterTag}>
@@ -366,97 +268,48 @@ export default function CustomerHistoryScreen() {
         />
       </ScrollView>
       
-      {/* Overlays */}
-      {showDatePicker ? (
-        <View style={styles.overlay}>
-          <TouchableOpacity 
-            style={styles.overlayBackground} 
-            onPress={() => setShowDatePicker(false)}
-          />
-          <View style={styles.datePickerOverlay}>
-            <SimpleDatePicker
-              startDate={tempDateRange.start}
-              endDate={tempDateRange.end}
-              onDateRangeChange={(start, end) => {
-                setTempDateRange({ start, end });
-              }}
-              onClose={() => setShowDatePicker(false)}
-            />
-            <View style={styles.datePickerActions}>
-              <Button
-                title="Cancel"
-                variant="outline"
-                onPress={() => {
-                  setTempDateRange({});
-                  setShowDatePicker(false);
-                }}
-                style={styles.datePickerButton}
-              />
-              <Button
-                title="OK"
-                onPress={() => {
-                  setDateRange(tempDateRange);
-                  setCurrentPage(1);
-                  setShowDatePicker(false);
-                }}
-                style={styles.datePickerButton}
-              />
-            </View>
-          </View>
-        </View>
-      ) : null}
-
-      {showStatusDropdown ? (
-        <View style={styles.overlay}>
-          <TouchableOpacity 
-            style={styles.overlayBackground} 
-            onPress={() => setShowStatusDropdown(false)}
-          />
-          <View style={styles.dropdownOverlay}>
-            {(['all', 'active', 'completed', 'cancelled'] as FilterStatus[]).map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={[styles.dropdownItem, filterStatus === status && styles.dropdownItemSelected]}
-                onPress={() => {
-                  setFilterStatus(status);
-                  setShowStatusDropdown(false);
-                  setCurrentPage(1);
-                }}
-              >
-                <Text style={[styles.dropdownItemText, filterStatus === status && styles.dropdownItemTextSelected]}>
-                  {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {showSortDropdown ? (
-        <View style={styles.overlay}>
-          <TouchableOpacity 
-            style={styles.overlayBackground} 
-            onPress={() => setShowSortDropdown(false)}
-          />
-          <View style={styles.dropdownOverlay}>
-            {(['date', 'urgency', 'tradeType'] as SortBy[]).map((sort) => (
-              <TouchableOpacity
-                key={sort}
-                style={[styles.dropdownItem, sortBy === sort && styles.dropdownItemSelected]}
-                onPress={() => {
-                  setSortBy(sort);
-                  setShowSortDropdown(false);
-                  setCurrentPage(1);
-                }}
-              >
-                <Text style={[styles.dropdownItemText, sortBy === sort && styles.dropdownItemTextSelected]}>
-                  {sort === 'date' ? 'Date' : sort === 'urgency' ? 'Urgency' : 'Trade Type'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      ) : null}
+      <FilterOverlays
+        showDatePicker={showDatePicker}
+        tempDateRange={tempDateRange}
+        onDateRangeChange={(start, end) => setTempDateRange({ start, end })}
+        onDatePickerClose={() => setShowDatePicker(false)}
+        onDatePickerCancel={() => {
+          setTempDateRange({});
+          setShowDatePicker(false);
+        }}
+        onDatePickerConfirm={() => {
+          setDateRange(tempDateRange);
+          setCurrentPage(1);
+          setShowDatePicker(false);
+        }}
+        showStatusDropdown={showStatusDropdown}
+        statusOptions={[
+          { value: 'all', label: 'All' },
+          { value: 'active', label: 'Active' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'cancelled', label: 'Cancelled' }
+        ]}
+        selectedStatus={filterStatus}
+        onStatusSelect={(status) => {
+          setFilterStatus(status as FilterStatus);
+          setShowStatusDropdown(false);
+          setCurrentPage(1);
+        }}
+        onStatusDropdownClose={() => setShowStatusDropdown(false)}
+        showSortDropdown={showSortDropdown}
+        sortOptions={[
+          { value: 'date', label: 'Date' },
+          { value: 'urgency', label: 'Urgency' },
+          { value: 'tradeType', label: 'Trade Type' }
+        ]}
+        selectedSort={sortBy}
+        onSortSelect={(sort) => {
+          setSortBy(sort as SortBy);
+          setShowSortDropdown(false);
+          setCurrentPage(1);
+        }}
+        onSortDropdownClose={() => setShowSortDropdown(false)}
+      />
     </Container>
   );
 }
@@ -682,6 +535,29 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
     fontWeight: theme.fontWeight.medium,
+  },
+  clearAllContainer: {
+    alignItems: 'flex-end',
+    minHeight: 24,
+    marginBottom: theme.spacing.xs,
+  },
+  clearAllButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  clearAllText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.primary,
+    textDecorationLine: 'underline',
+  },
+  resultsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultsCountText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.tertiary,
   },
   clearAllContainer: {
     alignItems: 'flex-end',

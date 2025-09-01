@@ -15,7 +15,7 @@ import { PhotoModal } from '../../components/UI/PhotoModal';
 import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
 import { RequestCard } from '../../components/UI/RequestCard';
 import { ImageViewer } from '../../components/UI/ImageViewer';
-import { Pagination } from '../../components/UI/Pagination';
+import { ResultsHeader } from '../../components/UI/ResultsHeader';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
@@ -160,27 +160,19 @@ export default function CustomerDashboard() {
 
 
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Active Requests ({loading ? '...' : activeRequests.length.toString()})
-            </Text>
-          </View>
+          <Text style={styles.sectionTitle}>
+            Active Requests ({loading ? '...' : activeRequests.length.toString()})
+          </Text>
           
           {!loading && totalActiveRequests > 0 ? (
-            <View style={styles.resultsRow}>
-              <Text style={styles.resultsCountText}>
-                {startIndex + 1}-{Math.min(endIndex, totalActiveRequests)} of {totalActiveRequests} records
-              </Text>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </View>
+            <ResultsHeader
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalActiveRequests}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+            />
           ) : null}
-          
-          <View>
-          </View>
           
           {loading ? (
             <SkeletonLoader type="card" count={2} />
@@ -409,14 +401,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Platform.OS === 'web' ? 20 : 18,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    color: '#111827',    
   },
   resultsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
   resultsCountText: {
     fontSize: theme.fontSize.sm,

@@ -144,7 +144,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
     gap: theme.spacing.xs,
   },
   pageButton: {
