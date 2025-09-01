@@ -164,18 +164,22 @@ export default function CustomerDashboard() {
             <Text style={styles.sectionTitle}>
               Active Requests ({loading ? '...' : activeRequests.length.toString()})
             </Text>
-            {!loading && totalActiveRequests > 0 ? (
-              <View style={styles.resultsRow}>
-                <Text style={styles.resultsCountText}>
-                  Showing {startIndex + 1}-{Math.min(endIndex, totalActiveRequests)} of {totalActiveRequests} records
-                </Text>
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </View>
-            ) : null}
+          </View>
+          
+          {!loading && totalActiveRequests > 0 ? (
+            <View style={styles.resultsRow}>
+              <Text style={styles.resultsCountText}>
+                {startIndex + 1}-{Math.min(endIndex, totalActiveRequests)} of {totalActiveRequests} records
+              </Text>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </View>
+          ) : null}
+          
+          <View>
           </View>
           
           {loading ? (
@@ -400,7 +404,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionHeader: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: Platform.OS === 'web' ? 20 : 18,
@@ -412,6 +416,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   resultsCountText: {
     fontSize: theme.fontSize.sm,

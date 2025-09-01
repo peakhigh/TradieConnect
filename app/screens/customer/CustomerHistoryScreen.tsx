@@ -293,7 +293,7 @@ export default function CustomerHistoryScreen() {
             </View>
             <View style={styles.resultsRow}>
               <Text style={styles.resultsCountText}>
-                Showing {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount} records
+                {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount} records
               </Text>
               <Pagination
                 currentPage={currentPage}
