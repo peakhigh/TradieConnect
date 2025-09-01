@@ -41,7 +41,7 @@ export default function TradieDashboard() {
             <View style={styles.headerContent}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>
-                  <Sparkles size={24} color={theme.colors.primary} /> Welcome back, {user?.firstName || 'Tradie'}!
+                  <Sparkles size={24} color={theme.colors.primary} /> Welcome back{user?.firstName ? `, ${user.firstName}` : ''}!
                 </Text>
                 <Text style={styles.subtitle}>
                   Ready to find your next job opportunity?

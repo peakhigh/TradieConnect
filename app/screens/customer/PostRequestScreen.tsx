@@ -19,6 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
 import { FileUpload } from '../../components/UI/FileUpload';
+import { TradeSelector } from '../../components/UI/TradeSelector';
 
 const POPULAR_TRADES = [
   'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
@@ -52,7 +53,7 @@ export default function PostRequestScreen() {
   const [scrollKey, setScrollKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
-  const [showOtherTrades, setShowOtherTrades] = useState(false);
+
   const [showEarliestDatePicker, setShowEarliestDatePicker] = useState(false);
   const [showLatestDatePicker, setShowLatestDatePicker] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -185,18 +186,7 @@ export default function PostRequestScreen() {
 
 
 
-  const toggleTrade = (trade: string) => {
-    const newTrades = selectedTrades.includes(trade) 
-      ? selectedTrades.filter(t => t !== trade)
-      : [...selectedTrades, trade];
-    
-    setSelectedTrades(newTrades);
-    
-    // Clear trade error if trades are selected
-    if (newTrades.length > 0 && errors.trades) {
-      setErrors(prev => ({...prev, trades: ''}));
-    }
-  };
+
 
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -565,70 +555,19 @@ export default function PostRequestScreen() {
             </Text>
           </View>
           
-          {/* Popular Trades */}
-          <Text style={styles.subLabel}>Popular</Text>
-          <View style={styles.tradeGrid}>
-            {POPULAR_TRADES.map((trade) => (
-              <TouchableOpacity
-                key={trade}
-                style={[
-                  styles.tradeTag,
-                  selectedTrades.includes(trade) && styles.selectedTradeTag
-                ]}
-                onPress={() => toggleTrade(trade)}
-              >
-                <Text style={[
-                  styles.tradeTagText,
-                  selectedTrades.includes(trade) && styles.selectedTradeTagText
-                ]}>
-                  {trade}
-                </Text>
-                {selectedTrades.includes(trade) && (
-                  <X size={14} color="#ffffff" style={styles.removeIcon} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Other Trades Toggle */}
-          <TouchableOpacity
-            style={styles.otherTradesToggle}
-            onPress={() => setShowOtherTrades(!showOtherTrades)}
-          >
-            <Text style={styles.otherTradesText}>
-              {showOtherTrades ? 'Hide' : 'Show'} Other Trades
-            </Text>
-            <Plus size={16} color="#3b82f6" style={{ 
-              transform: [{ rotate: showOtherTrades ? '45deg' : '0deg' }] 
-            }} />
-          </TouchableOpacity>
-
-          {/* Other Trades */}
-          {showOtherTrades && (
-            <View style={styles.tradeGrid}>
-              {OTHER_TRADES.map((trade) => (
-                <TouchableOpacity
-                  key={trade}
-                  style={[
-                    styles.tradeTag,
-                    selectedTrades.includes(trade) && styles.selectedTradeTag
-                  ]}
-                  onPress={() => toggleTrade(trade)}
-                >
-                  <Text style={[
-                    styles.tradeTagText,
-                    selectedTrades.includes(trade) && styles.selectedTradeTagText
-                  ]}>
-                    {trade}
-                  </Text>
-                  {selectedTrades.includes(trade) && (
-                    <X size={14} color="#ffffff" style={styles.removeIcon} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {errors.trades && <Text style={styles.errorText}>{errors.trades}</Text>}
+          <TradeSelector
+            selectedTrades={selectedTrades}
+            onTradesChange={(trades) => {
+              setSelectedTrades(trades);
+              // Clear trade error if trades are selected
+              if (trades.length > 0 && errors.trades) {
+                setTimeout(() => {
+                  setErrors(prev => ({...prev, trades: ''}));
+                }, 0);
+              }
+            }}
+            error={errors.trades}
+          />
         </View>
 
         {/* Notes */}

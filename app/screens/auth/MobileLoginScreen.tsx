@@ -167,8 +167,6 @@ export default function MobileLoginScreen() {
             state: '',
             postcode: ''
           } : {
-            businessName: '',
-            licenseNumber: '',
             insuranceDetails: {
               provider: '',
               policyNumber: '',

@@ -143,16 +143,16 @@ export default function TradieOnboardingScreen() {
         lastName: onboardingData.personalDetails.lastName,
         email: onboardingData.personalDetails.email,
         businessType: onboardingData.personalDetails.businessType,
-        ...(onboardingData.personalDetails.businessType === 'business' && {
-          abn: onboardingData.businessDetails.abn,
-          businessName: onboardingData.businessDetails.businessName,
+        ...(onboardingData.personalDetails.businessType === 'business' ? {
+          abn: onboardingData.businessDetails?.abn || '',
+          businessName: onboardingData.businessDetails?.businessName || '',
           businessAddress: {
-            streetAddress: onboardingData.businessDetails.streetAddress,
-            suburb: onboardingData.businessDetails.suburb,
-            state: onboardingData.businessDetails.state,
-            postcode: onboardingData.businessDetails.postcode,
+            streetAddress: onboardingData.businessDetails?.streetAddress || '',
+            suburb: onboardingData.businessDetails?.suburb || '',
+            state: onboardingData.businessDetails?.state || '',
+            postcode: onboardingData.businessDetails?.postcode || '',
           }
-        }),
+        } : {}),
         licenceDetails: {
           licenceNumber: onboardingData.contractorDetails.licenceNumber,
           nameOnLicence: onboardingData.contractorDetails.nameOnLicence,

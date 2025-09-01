@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { theme } from '../../../theme/theme';
-import { COMMON_TRADES, ALL_TRADES } from '../../../config/trades';
+import { TradeSelector } from '../../../components/UI/TradeSelector';
 
 interface InterestsStepProps {
   formData: any;
@@ -15,8 +15,7 @@ interface InterestsStepProps {
 export default function InterestsStep({ formData, updateFormData, shouldValidate, onNext, onPrev, onSave }: InterestsStepProps) {
   const [newPostcode, setNewPostcode] = useState('');
   const [showErrors, setShowErrors] = useState(false);
-  const [showAllTrades, setShowAllTrades] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+
 
   React.useEffect(() => {
     if (shouldValidate && !showErrors) {
@@ -46,20 +45,7 @@ export default function InterestsStep({ formData, updateFormData, shouldValidate
     });
   };
 
-  const toggleTrade = (trade: string) => {
-    const trades = formData.interestedTrades || [];
-    if (trades.includes(trade)) {
-      updateFormData({ 
-        ...formData,
-        interestedTrades: trades.filter((t: string) => t !== trade) 
-      });
-    } else {
-      updateFormData({ 
-        ...formData,
-        interestedTrades: [...trades, trade] 
-      });
-    }
-  };
+
 
   const handleNext = async () => {
     if (!formData.interestedSuburbs?.length || !formData.interestedTrades?.length) {
@@ -78,9 +64,7 @@ export default function InterestsStep({ formData, updateFormData, shouldValidate
     }
   };
 
-  const filteredTrades = ALL_TRADES.filter(trade => 
-    trade.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
 
   return (
     <ScrollView style={styles.container}>
@@ -91,69 +75,11 @@ export default function InterestsStep({ formData, updateFormData, shouldValidate
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Interested Trades *</Text>
         
-        {/* Common Trades */}
-        <Text style={styles.subSectionTitle}>Common Trades</Text>
-        <View style={styles.tradesGrid}>
-          {COMMON_TRADES.map((trade) => {
-            const isSelected = (formData.interestedTrades || []).includes(trade);
-            return (
-              <TouchableOpacity
-                key={trade}
-                style={[styles.tradeButton, isSelected && styles.tradeButtonSelected]}
-                onPress={() => toggleTrade(trade)}
-              >
-                <Text style={[styles.tradeButtonText, isSelected && styles.tradeButtonTextSelected]}>
-                  {trade}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Selected Non-Common Trades */}
-        {formData.interestedTrades?.filter((trade: string) => !COMMON_TRADES.includes(trade)).length > 0 && (
-          <View>
-            <Text style={styles.subSectionTitle}>Selected Other Trades</Text>
-            <View style={styles.tradesGrid}>
-              {formData.interestedTrades
-                .filter((trade: string) => !COMMON_TRADES.includes(trade))
-                .map((trade: string) => (
-                  <TouchableOpacity
-                    key={trade}
-                    style={[styles.tradeButton, styles.tradeButtonSelected]}
-                    onPress={() => toggleTrade(trade)}
-                  >
-                    <Text style={[styles.tradeButtonText, styles.tradeButtonTextSelected]}>
-                      {trade}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              }
-            </View>
-          </View>
-        )}
-
-        {/* More Trades Button */}
-        <TouchableOpacity 
-          style={styles.moreTradesButton} 
-          onPress={() => {
-            setSearchTerm('');
-            setShowAllTrades(true);
-          }}
-        >
-          <Text style={styles.moreTradesButtonText}>+ More Trades ({ALL_TRADES.length - COMMON_TRADES.length} more)</Text>
-        </TouchableOpacity>
-
-        {/* Selected Trades Count */}
-        {formData.interestedTrades?.length > 0 && (
-          <Text style={styles.selectedCount}>
-            {formData.interestedTrades.length} trade{formData.interestedTrades.length !== 1 ? 's' : ''} selected
-          </Text>
-        )}
-        
-        {showErrors && (!formData.interestedTrades?.length) && (
-          <Text style={styles.errorText}>Please select at least one trade</Text>
-        )}
+        <TradeSelector
+          selectedTrades={formData.interestedTrades || []}
+          onTradesChange={(trades) => updateFormData({ ...formData, interestedTrades: trades })}
+          error={showErrors && (!formData.interestedTrades?.length) ? 'Please select at least one trade' : undefined}
+        />
       </View>
 
       {/* Interested Postcodes */}
@@ -191,42 +117,7 @@ export default function InterestsStep({ formData, updateFormData, shouldValidate
         )}
       </View>
 
-      {/* All Trades Modal */}
-      <Modal visible={showAllTrades} animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Trades</Text>
-            <TouchableOpacity onPress={() => setShowAllTrades(false)}>
-              <Text style={styles.modalClose}>Done</Text>
-            </TouchableOpacity>
-          </View>
 
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search trades..."
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-          />
-
-          <ScrollView style={styles.modalContent}>
-            {filteredTrades.map((trade) => {
-              const isSelected = (formData.interestedTrades || []).includes(trade);
-              return (
-                <TouchableOpacity
-                  key={trade}
-                  style={[styles.tradeListItem, isSelected && styles.tradeListItemSelected]}
-                  onPress={() => toggleTrade(trade)}
-                >
-                  <Text style={[styles.tradeListText, isSelected && styles.tradeListTextSelected]}>
-                    {trade}
-                  </Text>
-                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
