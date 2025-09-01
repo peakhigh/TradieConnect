@@ -219,23 +219,6 @@ export default function CustomerHistoryScreen() {
               pageSize={PAGE_SIZE}
               onPageChange={setCurrentPage}
             />
-            {searchQuery ? (
-              <View style={styles.activeFilters}>
-                <View style={styles.activeFilterTag}>
-                  <Text style={styles.activeFilterText}>Search: {searchQuery}</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      setSearchInput('');
-                      setSearchQuery('');
-                      setCurrentPage(1);
-                    }}
-                    style={styles.activeFilterClose}
-                  >
-                    <X size={14} color={theme.colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : null}
           </View>
           {loading ? (
             <View>
