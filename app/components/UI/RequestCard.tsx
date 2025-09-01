@@ -16,6 +16,7 @@ interface RequestCardProps {
   onCancel?: (requestId: string) => void;
   onPhotoPress?: (photoIndex: number, request: any) => void;
   showEditButton?: boolean;
+  showButtons?: boolean;
 }
 
 export const RequestCard: React.FC<RequestCardProps> = ({
@@ -26,7 +27,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   onViewMessages,
   onCancel,
   onPhotoPress,
-  showEditButton = true
+  showEditButton = true,
+  showButtons = true
 }) => {
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
 
@@ -87,6 +89,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       
       <Text style={styles.postcodeText}>Postcode: {request.postcode}</Text>
       
+      {showButtons && (
       <View style={styles.allIcons}>
         <TouchableOpacity 
           style={[styles.iconButton, selectedIcon === 'photos' && styles.selectedIcon]}
@@ -144,6 +147,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           </TouchableOpacity>
         )}
       </View>
+      )}
       
       {selectedIcon === 'photos' && request.photos && request.photos.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>

@@ -3,9 +3,19 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from '
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Filter, MessageCircle, Star, MapPin } from 'lucide-react-native';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+type TabParamList = {
+  Dashboard: undefined;
+  PostRequest: undefined;
+  History: undefined;
+  Profile: undefined;
+};
+import { Filter, MessageCircle, Star, MapPin, ArrowLeft } from 'lucide-react-native';
+import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { RequestCard } from '../../components/UI/RequestCard';
+import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 
 interface Interest {
   id: string;
@@ -24,12 +34,29 @@ interface Interest {
 
 export default function InterestsScreen() {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { requestId } = route.params as { requestId: string };
   const [interests, setInterests] = useState<Interest[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [request, setRequest] = useState<any>(null);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
 
   useEffect(() => {
+    const fetchRequest = async () => {
+      try {
+        const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
+        if (requestDoc.exists()) {
+          setRequest({
+            id: requestDoc.id,
+            ...requestDoc.data(),
+            createdAt: requestDoc.data().createdAt?.toDate() || new Date(),
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching request:', error);
+      }
+    };
+
     const interestsQuery = query(
       collection(db, 'interests'),
       where('requestId', '==', requestId),
@@ -45,6 +72,7 @@ export default function InterestsScreen() {
       setInterests(interestsData);
     });
 
+    fetchRequest();
     return unsubscribe;
   }, [requestId]);
 
@@ -59,6 +87,24 @@ export default function InterestsScreen() {
   return (
     <Container style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <ArrowLeft size={20} color={theme.colors.text.secondary} />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.cardContainer}>
+          {request && (
+            <RequestCard 
+              request={request} 
+              showButtons={false}
+              onViewDetails={() => setShowRequestDetails(true)}
+            />
+          )}
+        </View>
+        
         <Text style={styles.title}>Interests ({interests.length})</Text>
         
         <View style={styles.filters}>
@@ -122,6 +168,12 @@ export default function InterestsScreen() {
           ))
         )}
       </ScrollView>
+      
+      <RequestDetailsDrawer
+        visible={showRequestDetails}
+        onClose={() => setShowRequestDetails(false)}
+        request={request}
+      />
     </Container>
   );
 }
@@ -135,6 +187,17 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
   },
   title: {
     fontSize: Platform.OS === 'web' ? 24 : 20,
@@ -242,5 +305,8 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#ef4444',
+  },
+  cardContainer: {
+    paddingHorizontal: 20,
   },
 });

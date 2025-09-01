@@ -6,12 +6,22 @@ import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { User, LogOut, Mail, Phone, MapPin, X } from 'lucide-react-native';
+import { User, LogOut, Mail, Phone, MapPin, X, ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+type TabParamList = {
+  Dashboard: undefined;
+  PostRequest: undefined;
+  History: undefined;
+  Profile: undefined;
+};
 
 export default function CustomerProfileScreen() {
   const { user, signOut, setUser } = useAuth();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -92,6 +102,13 @@ export default function CustomerProfileScreen() {
     <Container style={styles.container}>
       <ScrollView>
         <View style={styles.content}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.navigate('Dashboard')}
+          >
+            <ArrowLeft size={20} color={theme.colors.text.secondary} />
+            <Text style={styles.backButtonText}>Back to Dashboard</Text>
+          </TouchableOpacity>
         <View style={styles.header}>
           <View style={styles.avatar}>
             <User size={40} color="#6b7280" />
@@ -318,6 +335,17 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: theme.spacing.xxl,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
   },
   header: {
     alignItems: 'center',

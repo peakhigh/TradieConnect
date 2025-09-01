@@ -15,10 +15,18 @@ import { FilterOverlays } from '../../components/UI/FilterOverlays';
 import { useAuth } from '../../context/AuthContext';
 import { ServiceRequest } from '../../types';
 import { theme } from '../../theme/theme';
-import { X } from 'lucide-react-native';
+import { X, ArrowLeft } from 'lucide-react-native';
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+type TabParamList = {
+  Dashboard: undefined;
+  PostRequest: undefined;
+  History: undefined;
+  Profile: undefined;
+};
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
 type SortBy = 'date' | 'urgency' | 'tradeType';
@@ -27,6 +35,7 @@ const PAGE_SIZE = 5;
 
 export default function CustomerHistoryScreen() {
   const { user } = useAuth();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [searchQuery, setSearchQuery] = useState('');
@@ -146,6 +155,13 @@ export default function CustomerHistoryScreen() {
       <ScrollView>
         <View style={styles.content}>
           <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.navigate('Dashboard')}
+            >
+              <ArrowLeft size={20} color={theme.colors.text.secondary} />
+              <Text style={styles.backButtonText}>Back to Dashboard</Text>
+            </TouchableOpacity>
             <Text style={styles.title}>Request History</Text>
             <Text style={styles.subtitle}>View all your service requests and their status</Text>
           </View>
@@ -323,6 +339,17 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: theme.spacing.lg,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
   },
   title: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.xxl : theme.fontSize.xl,

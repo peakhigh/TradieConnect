@@ -4,10 +4,20 @@ import { Container } from '../../components/UI/Container';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { theme } from '../../theme/theme';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+type TabParamList = {
+  Dashboard: undefined;
+  PostRequest: undefined;
+  History: undefined;
+  Profile: undefined;
+};
 import { useAuth } from '../../context/AuthContext';
-import { Send, Filter } from 'lucide-react-native';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Send, Filter, ArrowLeft } from 'lucide-react-native';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { RequestCard } from '../../components/UI/RequestCard';
+import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 
 interface Message {
   id: string;
@@ -22,15 +32,35 @@ interface Message {
 
 export default function MessagesScreen() {
   const route = useRoute();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { user } = useAuth();
   const { requestId, tradieId } = route.params as { requestId?: string; tradieId?: string };
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [loading, setLoading] = useState(false);
+  const [request, setRequest] = useState<any>(null);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+
+    const fetchRequest = async () => {
+      if (requestId) {
+        try {
+          const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
+          if (requestDoc.exists()) {
+            setRequest({
+              id: requestDoc.id,
+              ...requestDoc.data(),
+              createdAt: requestDoc.data().createdAt?.toDate() || new Date(),
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching request:', error);
+        }
+      }
+    };
 
     let messagesQuery;
     
@@ -68,6 +98,7 @@ export default function MessagesScreen() {
       setMessages(messagesData);
     });
 
+    fetchRequest();
     return unsubscribe;
   }, [user, requestId, tradieId]);
 
@@ -104,6 +135,24 @@ export default function MessagesScreen() {
   return (
     <Container style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <ArrowLeft size={20} color={theme.colors.text.secondary} />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.cardContainer}>
+          {request && (
+            <RequestCard 
+              request={request} 
+              showButtons={false}
+              onViewDetails={() => setShowRequestDetails(true)}
+            />
+          )}
+        </View>
+        
         <Text style={styles.title}>Messages ({messages.length})</Text>
         
         <View style={styles.filters}>
@@ -172,6 +221,12 @@ export default function MessagesScreen() {
           </TouchableOpacity>
         </View>
       )}
+      
+      <RequestDetailsDrawer
+        visible={showRequestDetails}
+        onClose={() => setShowRequestDetails(false)}
+        request={request}
+      />
     </Container>
   );
 }
@@ -185,6 +240,17 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
   },
   title: {
     fontSize: Platform.OS === 'web' ? 24 : 20,
@@ -291,5 +357,8 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
+  },
+  cardContainer: {
+    paddingHorizontal: 20,
   },
 });
