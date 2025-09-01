@@ -4,7 +4,8 @@ import TradieDashboard from '../screens/tradie/TradieDashboard';
 import ServiceRequestExplorer from '../screens/tradie/ServiceRequestExplorer';
 import TradieHistoryScreen from '../screens/tradie/TradieHistoryScreen';
 import TradieProfileScreen from '../screens/tradie/TradieProfileScreen';
-import { Text, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { Home, Search, History, User } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 import { isWebDesktop } from '../utils/platform';
 
@@ -14,22 +15,23 @@ export default function TradieTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: '#374151',
         tabBarLabelStyle: {
           fontSize: isWebDesktop ? theme.fontSize.lg : (Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs),
         },
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          height: Platform.OS === 'web' ? 70 : undefined,
+          paddingBottom: Platform.OS === 'web' ? 10 : undefined,
         },
         headerStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.colors.surface,
+          ...theme.shadows.sm,
         },
         headerTitleStyle: {
-          color: '#1f2937',
-          fontWeight: 'bold',
+          color: theme.colors.text.primary,
+          fontWeight: theme.fontWeight.bold,
+          fontSize: Platform.OS === 'web' ? theme.fontSize.lg : theme.fontSize.md,
         },
       }}
     >
@@ -38,7 +40,7 @@ export default function TradieTabs() {
         component={TradieDashboard}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: Platform.OS === 'web' ? theme.iconSize.lg : size }}>🏠</Text>
+            <Home size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Tradie Dashboard',
         }}
@@ -49,7 +51,7 @@ export default function TradieTabs() {
         component={ServiceRequestExplorer}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: Platform.OS === 'web' ? theme.iconSize.lg : size }}>🔍</Text>
+            <Search size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Service Requests',
         }}
@@ -60,7 +62,7 @@ export default function TradieTabs() {
         component={TradieHistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: Platform.OS === 'web' ? theme.iconSize.lg : size }}>📋</Text>
+            <History size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Job History',
         }}
@@ -71,7 +73,7 @@ export default function TradieTabs() {
         component={TradieProfileScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: Platform.OS === 'web' ? theme.iconSize.lg : size }}>👤</Text>
+            <User size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Profile',
         }}

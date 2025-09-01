@@ -77,16 +77,15 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    // marginBottom: theme.margin.lg,
+    marginBottom: 16,
   },
   labelContainer: {
-    marginBottom: theme.margin.sm,
+    marginBottom: 4,
   },
   label: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text.secondary,
-    marginBottom: theme.margin.md,
     fontFamily: theme.fontFamily.medium,
     letterSpacing: 0,
   },
@@ -135,13 +134,13 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.error,
-    marginTop: theme.margin.xs,
-    marginLeft: theme.margin.xs,
+    marginTop: 2,
+    marginBottom: 0,
   },
   helperText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
-    marginTop: theme.margin.xs,
-    marginLeft: theme.margin.xs,
+    marginTop: 0,
+    marginBottom: 16,
   },
 });

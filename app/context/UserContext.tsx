@@ -68,73 +68,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, [user]);
 
-  // Listen to quotes
+  // Mock data for quotes and messages since collections don't exist yet
   useEffect(() => {
-    if (!user) {
-      setQuotes([]);
-      return;
-    }
-
-    let quotesQuery;
-    
-    if (user.userType === 'customer') {
-      if (serviceRequests.length === 0) {
-        setQuotes([]);
-        return;
-      }
-      quotesQuery = query(
-        collection(db, 'quotes'),
-        where('serviceRequestId', 'in', serviceRequests.map(req => req.id)),
-        orderBy('createdAt', 'desc')
-      );
-    } else if (user.userType === 'tradie') {
-      quotesQuery = query(
-        collection(db, 'quotes'),
-        where('tradieId', '==', user.id),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      setQuotes([]);
-      return;
-    }
-
-    const unsubscribe = onSnapshot(quotesQuery, (snapshot) => {
-      const quotesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Quote[];
-      setQuotes(quotesData);
-    });
-
-    return unsubscribe;
-  }, [user, serviceRequests]);
-
-  // Listen to messages
-  useEffect(() => {
-    if (!user) {
-      setMessages([]);
-      setUnreadMessageCount(0);
-      return;
-    }
-
-    const messagesQuery = query(
-      collection(db, 'messages'),
-      where('receiverId', '==', user.id),
-      orderBy('timestamp', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const messagesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Message[];
-      setMessages(messagesData);
-      
-      const unreadCount = messagesData.filter(msg => !msg.isRead).length;
-      setUnreadMessageCount(unreadCount);
-    });
-
-    return unsubscribe;
+    setQuotes([]);
+    setMessages([]);
+    setUnreadMessageCount(0);
   }, [user]);
 
   const refreshData = () => {

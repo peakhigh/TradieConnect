@@ -11,6 +11,7 @@ import AdminDashboard from '../screens/admin/AdminDashboard';
 import LoadingScreen from '../screens/LoadingScreen';
 import UserTypeSelectionScreen from '../screens/UserTypeSelectionScreen';
 import HomeScreen from '../screens/HomeScreen';
+import TradieOnboardingScreen from '../screens/tradie/TradieOnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -61,7 +62,12 @@ export const AppNavigator: React.FC = () => {
     },
   } : undefined;
 
+  console.log('APPNAVIGATOR - Current user:', user);
+  console.log('APPNAVIGATOR - User type:', user?.userType);
+  console.log('APPNAVIGATOR - Onboarding completed:', user?.onboardingCompleted);
+  
   if (!user) {
+    console.log('APPNAVIGATOR - No user, showing auth screens');
     return (
       <NavigationContainer linking={linking}>
         <Stack.Navigator
@@ -79,6 +85,8 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
+  console.log('APPNAVIGATOR - User authenticated, determining screen...');
+  
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator
@@ -91,7 +99,17 @@ export const AppNavigator: React.FC = () => {
         )}
         
         {user.userType === 'tradie' && (
-          <Stack.Screen name="TradieTabs" component={TradieTabs} />
+          !user.onboardingCompleted ? (
+            (() => {
+              console.log('APPNAVIGATOR - Showing TradieOnboarding');
+              return <Stack.Screen name="TradieOnboarding" component={TradieOnboardingScreen} />;
+            })()
+          ) : (
+            (() => {
+              console.log('APPNAVIGATOR - Showing TradieTabs');
+              return <Stack.Screen name="TradieTabs" component={TradieTabs} />;
+            })()
+          )
         )}
         
         {user.userType === 'admin' && (

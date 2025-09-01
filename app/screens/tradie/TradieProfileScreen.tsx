@@ -1,49 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
-import { Input } from '../../components/UI/Input';
+import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { User, LogOut, Mail, Phone, Building, Award, Wallet, X } from 'lucide-react-native';
+import { User, LogOut, ArrowLeft, Edit3, X } from 'lucide-react-native';
+import { theme } from '../../theme/theme';
+import { ProjectLoader } from '../../components/UI/ProjectLoader';
+import { useNavigation } from '@react-navigation/native';
+import TradieOnboardingScreen from './TradieOnboardingScreen';
 
 export default function TradieProfileScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-    phoneNumber: user?.phoneNumber || '',
-    businessName: user?.businessName || '',
-    licenseNumber: user?.licenseNumber || '',
-  });
-
-  const handleSave = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      await updateDoc(doc(db, 'users', user.id), {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        businessName: formData.businessName,
-        licenseNumber: formData.licenseNumber,
-        updatedAt: new Date(),
-      });
-      
-      Alert.alert('Success', 'Profile updated successfully!');
-      setEditing(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -58,176 +29,279 @@ export default function TradieProfileScreen() {
     }
   };
 
+  if (editing) {
+    return (
+      <Modal visible={editing} animationType="slide" presentationStyle="fullScreen">
+        <View style={styles.editContainer}>
+          <View style={styles.editHeader}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setEditing(false)}
+            >
+              <ArrowLeft size={20} color={theme.colors.text.secondary} />
+              <Text style={styles.backButtonText}>Back to Profile</Text>
+            </TouchableOpacity>
+          </View>
+          <TradieOnboardingScreen />
+        </View>
+      </Modal>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            <User size={40} color="#6b7280" />
+    <Container style={styles.container}>
+      <ScrollView>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View style={styles.avatar}>
+              <User size={40} color="#6b7280" />
+            </View>
+            <Text style={styles.name}>
+              {user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}` : 'Welcome!'}
+            </Text>
+            <Text style={styles.userType}>Tradie</Text>
+            {user?.businessName && (
+              <Text style={styles.businessName}>{user.businessName}</Text>
+            )}
           </View>
-          <Text style={styles.name}>
-            {user?.firstName} {user?.lastName}
-          </Text>
-          <Text style={styles.userType}>Tradie</Text>
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{user?.rating?.toFixed(1) || '0.0'}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{user?.totalJobs || 0}</Text>
-              <Text style={styles.statLabel}>Jobs</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>${user?.walletBalance?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.statLabel}>Wallet</Text>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            
+            <View style={styles.profileView}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>First Name</Text>
+                <Text style={styles.profileValue}>{user?.firstName || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Last Name</Text>
+                <Text style={styles.profileValue}>{user?.lastName || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Email</Text>
+                <Text style={styles.profileValue}>{user?.email || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Phone Number</Text>
+                <Text style={styles.profileValue}>{user?.phoneNumber}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Business Type</Text>
+                <Text style={styles.profileValue}>
+                  {user?.businessType === 'business' ? 'Business Owner' : 'Sole Trader'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <Input
-            label={<><User size={16} color="#4b5563" /> First Name</>}
-            value={formData.firstName}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, firstName: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
-
-          <Input
-            label={<><User size={16} color="#4b5563" /> Last Name</>}
-            value={formData.lastName}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, lastName: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
-
-          <Input
-            label={<><Mail size={16} color="#4b5563" /> Email</>}
-            value={formData.email}
-            editable={false}
-            style={styles.disabledInput}
-          />
-
-          <Input
-            label={<><Phone size={16} color="#4b5563" /> Phone Number</>}
-            value={formData.phoneNumber}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, phoneNumber: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Information</Text>
-          
-          <Input
-            label={<><Building size={16} color="#4b5563" /> Business Name</>}
-            value={formData.businessName}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, businessName: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
-
-          <Input
-            label={<><Award size={16} color="#4b5563" /> License Number</>}
-            value={formData.licenseNumber}
-            onChangeText={(value) => setFormData(prev => ({ ...prev, licenseNumber: value }))}
-            editable={editing}
-            style={!editing && styles.disabledInput}
-          />
-        </View>
-
-        <View style={styles.actions}>
-          {editing ? (
-            <View style={styles.editActions}>
-              <Button
-                title="Cancel"
-                onPress={() => {
-                  setEditing(false);
-                  setFormData({
-                    firstName: user?.firstName || '',
-                    lastName: user?.lastName || '',
-                    email: user?.email || '',
-                    phoneNumber: user?.phoneNumber || '',
-                    businessName: user?.businessName || '',
-                    licenseNumber: user?.licenseNumber || '',
-                  });
-                }}
-                variant="outline"
-                style={styles.actionButton}
-              />
-              <Button
-                title="Save"
-                onPress={handleSave}
-                loading={loading}
-                style={styles.actionButton}
-              />
+          {user?.businessType === 'business' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Business Details</Text>
+              
+              <View style={styles.profileView}>
+                <View style={styles.profileItem}>
+                  <Text style={styles.profileLabel}>ABN</Text>
+                  <Text style={styles.profileValue}>{user?.abn || 'Not set'}</Text>
+                </View>
+                
+                <View style={styles.profileItem}>
+                  <Text style={styles.profileLabel}>Business Name</Text>
+                  <Text style={styles.profileValue}>{user?.businessName || 'Not set'}</Text>
+                </View>
+                
+                <View style={styles.profileItem}>
+                  <Text style={styles.profileLabel}>Business Address</Text>
+                  <Text style={styles.profileValue}>
+                    {user?.businessAddress ? 
+                      `${user.businessAddress.streetAddress}, ${user.businessAddress.suburb}, ${user.businessAddress.state} ${user.businessAddress.postcode}` 
+                      : 'Not set'
+                    }
+                  </Text>
+                </View>
+              </View>
             </View>
-          ) : (
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Licence Details</Text>
+            
+            <View style={styles.profileView}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Licence Number</Text>
+                <Text style={styles.profileValue}>{user?.licenceDetails?.licenceNumber || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Name on Licence</Text>
+                <Text style={styles.profileValue}>{user?.licenceDetails?.nameOnLicence || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Licence Class</Text>
+                <Text style={styles.profileValue}>{user?.licenceDetails?.licenceClass || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Licence Expiry</Text>
+                <Text style={styles.profileValue}>
+                  {user?.licenceDetails?.licenceExpiry ? 
+                    new Date(user.licenceDetails.licenceExpiry).toLocaleDateString() 
+                    : 'Not set'
+                  }
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Insurance Details</Text>
+            
+            <View style={styles.profileView}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Policy Number</Text>
+                <Text style={styles.profileValue}>{user?.insuranceDetails?.policyNumber || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Policy Holder Name</Text>
+                <Text style={styles.profileValue}>{user?.insuranceDetails?.policyHolderName || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Expiry Date</Text>
+                <Text style={styles.profileValue}>
+                  {user?.insuranceDetails?.expiryDate ? 
+                    new Date(user.insuranceDetails.expiryDate).toLocaleDateString() 
+                    : 'Not set'
+                  }
+                </Text>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Liability Limit</Text>
+                <Text style={styles.profileValue}>{user?.insuranceDetails?.liabilityLimit || 'Not set'}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Service Interests</Text>
+            
+            <View style={styles.profileView}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Interested Suburbs</Text>
+                <View style={styles.tagContainer}>
+                  {(user?.interestedSuburbs || []).map((suburb: string) => (
+                    <View key={suburb} style={[styles.tag, styles.suburbTag]}>
+                      <Text style={styles.suburbTagText}>{suburb}</Text>
+                    </View>
+                  ))}
+                  {(!user?.interestedSuburbs || user.interestedSuburbs.length === 0) && (
+                    <Text style={styles.profileValue}>Not set</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Interested Trades</Text>
+                <View style={styles.tagContainer}>
+                  {(user?.interestedTrades || []).map((trade: string) => (
+                    <View key={trade} style={[styles.tag, styles.tradeTag]}>
+                      <Text style={styles.tradeTagText}>{trade}</Text>
+                    </View>
+                  ))}
+                  {(!user?.interestedTrades || user.interestedTrades.length === 0) && (
+                    <Text style={styles.profileValue}>Not set</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.actions}>
             <Button
               title="Edit Profile"
               onPress={() => setEditing(true)}
               style={styles.actionButton}
             />
-          )}
 
-          <Button
-            title="Logout"
-            onPress={handleLogout}
-            variant="outline"
-            style={[styles.actionButton, styles.logoutButton]}
-            leftIcon={<LogOut size={16} color="#dc2626" />}
-          />
-        </View>
+            <Button
+              title="Logout"
+              onPress={handleLogout}
+              variant="outline"
+              style={styles.actionButton}
+            />
+          </View>
 
-        {/* Logout Modal */}
-        <Modal
-          visible={showLogoutModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowLogoutModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Logout</Text>
-                <TouchableOpacity onPress={() => setShowLogoutModal(false)}>
-                  <X size={24} color="#6b7280" />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.modalText}>Are you sure you want to logout?</Text>
-              <View style={styles.modalButtons}>
-                <Button
-                  title="Cancel"
-                  onPress={() => setShowLogoutModal(false)}
-                  variant="outline"
-                  style={styles.modalButton}
-                />
-                <Button
-                  title="Logout"
-                  onPress={confirmLogout}
-                  variant="danger"
-                  style={styles.modalButton}
-                />
+          {/* Logout Modal */}
+          <Modal
+            visible={showLogoutModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowLogoutModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Logout</Text>
+                  <TouchableOpacity onPress={() => setShowLogoutModal(false)}>
+                    <X size={24} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalText}>Are you sure you want to logout?</Text>
+                <View style={styles.modalButtons}>
+                  <Button
+                    title="Cancel"
+                    onPress={() => setShowLogoutModal(false)}
+                    variant="outline"
+                    style={styles.modalButton}
+                  />
+                  <Button
+                    title="Logout"
+                    onPress={confirmLogout}
+                    variant="danger"
+                    style={styles.modalButton}
+                  />
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
-      </View>
-    </ScrollView>
+          </Modal>
+        </View>
+      </ScrollView>
+      {loading && <ProjectLoader message="Updating profile..." />}
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
   },
   content: {
-    padding: 20,
+    padding: theme.spacing.xxl,
+  },
+  editContainer: {
+    flex: 1,
+  },
+  editHeader: {
+    padding: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+    backgroundColor: theme.colors.surface,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
   },
   header: {
     alignItems: 'center',
@@ -251,27 +325,16 @@ const styles = StyleSheet.create({
   userType: {
     fontSize: 16,
     color: '#6b7280',
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#dbeafe',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 16,
   },
-  stats: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+  businessName: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   section: {
     marginBottom: 32,
@@ -282,22 +345,30 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 16,
   },
-  disabledInput: {
-    backgroundColor: '#f3f4f6',
+  profileView: {
+    gap: 16,
+  },
+  profileItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  profileLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#6b7280',
+    marginBottom: 4,
+  },
+  profileValue: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '400',
   },
   actions: {
     gap: 12,
   },
-  editActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   actionButton: {
     flex: 1,
-  },
-  logoutButton: {
-    borderColor: '#dc2626',
   },
   modalOverlay: {
     flex: 1,
@@ -335,5 +406,33 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  suburbTag: {
+    backgroundColor: '#dbeafe',
+  },
+  suburbTagText: {
+    color: '#1e40af',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  tradeTag: {
+    backgroundColor: '#dcfce7',
+  },
+  tradeTagText: {
+    color: '#166534',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

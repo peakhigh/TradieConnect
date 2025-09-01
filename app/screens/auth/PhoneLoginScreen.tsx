@@ -123,7 +123,9 @@ export default function PhoneLoginScreen() {
       id: uid,
       email: email,
       phoneNumber: phone,
-      userType: userType,
+      role: userType, // Use 'role' instead of 'userType'
+      userType: userType, // Keep both for compatibility
+      onboardingCompleted: userType === 'customer', // Customers don't need onboarding
       createdAt: new Date(),
       updatedAt: new Date(),
       ...(userType === 'customer' ? {
@@ -150,7 +152,9 @@ export default function PhoneLoginScreen() {
       })
     };
     
+    console.log('Creating user document:', userData);
     await setDoc(doc(db, 'users', uid), userData);
+    console.log('User document created successfully');
   };
 
   return (

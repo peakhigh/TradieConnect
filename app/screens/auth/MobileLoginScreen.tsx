@@ -24,16 +24,25 @@ const isWeb = Platform.OS === 'web';
 
 export default function MobileLoginScreen() {
   const route = useRoute<LoginScreenRouteProp>();
-  let userType = route.params?.userType || 'customer';
   
-  // Check URL parameters for userType if not in route params
-  if (Platform.OS === 'web' && !route.params?.userType) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlUserType = urlParams.get('userType');
-    if (urlUserType && (urlUserType === 'customer' || urlUserType === 'tradie')) {
-      userType = urlUserType as 'customer' | 'tradie';
+  // Determine userType from route params or URL
+  const getUserType = (): 'customer' | 'tradie' => {
+    if (route.params?.userType) {
+      return route.params.userType;
     }
-  }
+    
+    if (Platform.OS === 'web') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUserType = urlParams.get('userType');
+      if (urlUserType === 'tradie') {
+        return 'tradie';
+      }
+    }
+    
+    return 'customer';
+  };
+  
+  const userType = getUserType();
   
   const { setUser } = useAuth();
   
@@ -146,6 +155,7 @@ export default function MobileLoginScreen() {
           id: firebaseUser.uid,
           phoneNumber: phoneNumber,
           userType: userType,
+          onboardingCompleted: userType === 'customer', // Customers complete onboarding immediately
           createdAt: new Date(),
           updatedAt: new Date(),
           firstName: '',
@@ -178,12 +188,22 @@ export default function MobileLoginScreen() {
 
       } else {
         userData = { id: firebaseUser.uid, ...userDoc.data() };
-
       }
       
-      // The AuthContext will automatically handle the Firebase Auth state change
-
+      console.log('LOGIN SUCCESS - User created/found:', userData);
+      console.log('LOGIN SUCCESS - UserType:', userData.userType);
+      console.log('LOGIN SUCCESS - OnboardingCompleted:', userData.onboardingCompleted);
       
+      // Manually update the AuthContext with the user data
+      setUser(userData);
+      console.log('LOGIN SUCCESS - User set in AuthContext');
+      console.log('LOGIN SUCCESS - User created/found:', userData);
+      console.log('LOGIN SUCCESS - UserType:', userData.userType);
+      console.log('LOGIN SUCCESS - OnboardingCompleted:', userData.onboardingCompleted);
+      
+      // Manually update the AuthContext with the user data
+      setUser(userData);
+      console.log('LOGIN SUCCESS - User set in AuthContext');
     } catch (error) {
       console.error('Error verifying OTP:', error);
       Alert.alert('Error', 'Invalid OTP. Please try again.');

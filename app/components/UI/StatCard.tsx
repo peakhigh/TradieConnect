@@ -19,7 +19,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <CardComponent style={styles.statCard} onPress={onPress}>
       <Text style={[styles.statNumber, { color }]}>
-        {number.toString()}
+        {number?.toString() || '0'}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </CardComponent>
