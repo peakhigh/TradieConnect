@@ -15,6 +15,7 @@ import { PhotoModal } from '../../components/UI/PhotoModal';
 import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
 import { RequestCard } from '../../components/UI/RequestCard';
 import { ImageViewer } from '../../components/UI/ImageViewer';
+import { Pagination } from '../../components/UI/Pagination';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
@@ -30,6 +31,9 @@ export default function CustomerDashboard() {
   const [selectedRequestPhotos, setSelectedRequestPhotos] = useState<string[]>([]);
   const [showDocuments, setShowDocuments] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<{requestId: string, type: string} | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const PAGE_SIZE = 5;
 
 
   
@@ -50,6 +54,13 @@ export default function CustomerDashboard() {
 
   const activeRequests = serviceRequests.filter(req => req.status === 'active');
   const completedRequests = serviceRequests.filter(req => req.status === 'completed');
+  
+  // Pagination for active requests
+  const totalActiveRequests = activeRequests.length;
+  const totalPages = Math.ceil(totalActiveRequests / PAGE_SIZE);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const paginatedActiveRequests = activeRequests.slice(startIndex, endIndex);
 
   const handleViewInterests = (requestId: string) => {
     navigation.navigate('Interests', { requestId });
@@ -149,9 +160,23 @@ export default function CustomerDashboard() {
 
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Active Requests ({loading ? '...' : activeRequests.length.toString()})
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Active Requests ({loading ? '...' : activeRequests.length.toString()})
+            </Text>
+            {!loading && totalActiveRequests > 0 ? (
+              <View style={styles.resultsRow}>
+                <Text style={styles.resultsCountText}>
+                  Showing {startIndex + 1}-{Math.min(endIndex, totalActiveRequests)} of {totalActiveRequests} records
+                </Text>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </View>
+            ) : null}
+          </View>
           
           {loading ? (
             <SkeletonLoader type="card" count={2} />
@@ -162,7 +187,7 @@ export default function CustomerDashboard() {
               </Text>
             </View>
           ) : (
-            activeRequests.map((request) => (
+            paginatedActiveRequests.map((request) => (
               <RequestCard
                 key={request.id}
                 request={request}
@@ -374,11 +399,23 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeader: {
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: Platform.OS === 'web' ? 20 : 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  resultsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultsCountText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.tertiary,
   },
   emptyState: {
     backgroundColor: '#ffffff',

@@ -385,11 +385,15 @@ export default function PostRequestScreen() {
         },
         // Computed search fields for array-contains-any search
         searchKeywords: [
-          ...tradeTypeStr.toLowerCase().split(/[\s,]+/).filter(word => word.length > 2),
-          ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 2),
-          ...selectedTrades.map(trade => trade.toLowerCase()),
+          ...tradeTypeStr.toLowerCase().split(/[\s,]+/).filter(word => word.length > 0),
+          ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
+          tradeTypeStr.toLowerCase(), // Full trade type for exact/partial match
+          descriptionStr.toLowerCase(), // Full description for exact/partial match
           formData.postcode.toLowerCase()
-        ].filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
+        ].filter((word, index, arr) => arr.indexOf(word) === index), // Remove duplicates
+        notesWords: descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
+        tradeTypeLower: tradeTypeStr.toLowerCase(),
+        descriptionLower: descriptionStr.toLowerCase()
       };
 
       console.log('About to upload files and save to Firestore:', serviceRequest);

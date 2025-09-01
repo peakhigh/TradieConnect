@@ -36,8 +36,10 @@ async function migrateSearchKeywords() {
       
       // Create searchKeywords array
       const searchKeywords = [
-        ...tradeType.toLowerCase().split(/[\s,]+/).filter(word => word.length > 2),
-        ...description.toLowerCase().split(/\s+/).filter(word => word.length > 2),
+        ...tradeType.toLowerCase().split(/[\s,]+/).filter(word => word.length > 0),
+        ...description.toLowerCase().split(/\s+/).filter(word => word.length > 0),
+        tradeType.toLowerCase(), // Full trade type
+        description.toLowerCase(), // Full description
         postcode.toLowerCase()
       ].filter((word, index, arr) => arr.indexOf(word) === index && word.length > 0);
       

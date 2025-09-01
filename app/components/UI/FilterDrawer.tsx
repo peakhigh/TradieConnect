@@ -4,7 +4,7 @@ import { Input } from './Input';
 import { SimpleButton as Button } from './SimpleButton';
 import { X, Calendar, Search } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
-import DateTimePicker from 'react-native-ui-datepicker';
+import { SimpleDatePicker } from './SimpleDatePicker';
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
 type SortBy = 'date' | 'urgency' | 'tradeType';
@@ -73,60 +73,39 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             {/* Date Range */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Date Range</Text>
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={onToggleDatePicker}
-              >
-                <Calendar size={16} color={theme.colors.primary} />
-                <Text style={styles.dateButtonText}>
-                  {dateRange.start || dateRange.end 
-                    ? `${dateRange.start?.toLocaleDateString() || 'Start'} - ${dateRange.end?.toLocaleDateString() || 'End'}`
-                    : 'Select date range'
-                  }
-                </Text>
-              </TouchableOpacity>
-              {(dateRange.start || dateRange.end) && (
-                <TouchableOpacity onPress={onClearDateRange} style={styles.clearButton}>
-                  <Text style={styles.clearButtonText}>Clear dates</Text>
+              <View style={styles.dateInputContainer}>
+                <TouchableOpacity 
+                  style={styles.dateButton}
+                  onPress={onToggleDatePicker}
+                >
+                  <Calendar size={16} color={theme.colors.primary} />
+                  <Text style={styles.dateButtonText}>
+                    {dateRange.start || dateRange.end 
+                      ? `${dateRange.start?.toLocaleDateString() || 'Start'} - ${dateRange.end?.toLocaleDateString() || 'End'}`
+                      : 'Select date range'
+                    }
+                  </Text>
                 </TouchableOpacity>
-              )}
+                {(dateRange.start || dateRange.end) && (
+                  <TouchableOpacity 
+                    style={styles.dateClearButton} 
+                    onPress={onClearDateRange}
+                  >
+                    <Text style={styles.dateClearIcon}>×</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               
               {showDatePicker && (
                 <View style={styles.datePickerContainer}>
-                  <DateTimePicker
-                    mode="range"
+                  <SimpleDatePicker
                     startDate={dateRange.start}
                     endDate={dateRange.end}
-                    onChange={(params) => onDateRangeChange({ start: params.startDate, end: params.endDate })}
-                    selectedItemColor={theme.colors.primary}
-                    selectedTextStyle={{ 
-                      color: theme.colors.text.inverse,
-                      fontWeight: 'bold'
-                    }}
-                    headerButtonColor={theme.colors.primary}
-                    calendarTextStyle={{ 
-                      color: theme.colors.text.primary,
-                      fontSize: 16
-                    }}
-                    dayContainerStyle={{
-                      backgroundColor: 'transparent',
-                      borderRadius: 8,
-                      minHeight: 36,
-                      minWidth: 36,
-                      justifyContent: 'center',
-                      alignItems: 'center'
-                    }}
-                    selectedRangeBackgroundColor={theme.colors.primary + '20'}
-                    selectedRangeBorderColor={theme.colors.primary}
-                    todayContainerStyle={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.primary,
-                      borderRadius: 8
-                    }}
+                    onChange={onDateRangeChange}
                   />
                   <View style={styles.datePickerActions}>
                     <Button
-                      title="OK"
+                      title="Done"
                       onPress={onToggleDatePicker}
                       style={styles.dateOkButton}
                     />
@@ -252,13 +231,23 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
   },
-  clearButton: {
-    alignSelf: 'flex-start',
-    marginTop: theme.spacing.sm,
+  dateInputContainer: {
+    position: 'relative',
   },
-  clearButtonText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+  dateClearButton: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateClearIcon: {
+    fontSize: 20,
+    color: theme.colors.text.secondary,
+    fontWeight: 'bold',
   },
   datePickerContainer: {
     backgroundColor: theme.colors.surface,
@@ -268,6 +257,7 @@ const styles = StyleSheet.create({
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.border.light,
   },
+
   datePickerActions: {
     alignItems: 'flex-end',
     marginTop: theme.spacing.md,

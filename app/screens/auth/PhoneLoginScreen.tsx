@@ -57,7 +57,7 @@ export default function PhoneLoginScreen() {
                 } else {
                   result = await signInWithEmailAndPassword(auth, dummyEmail, dummyPassword);
                 }
-                Alert.alert('Success', `${isSignup ? 'Account created' : 'Login'} successful!`);
+                // Navigation will be handled automatically by AuthContext
               } catch (error: any) {
                 if (error.code === 'auth/email-already-in-use' && isSignup) {
                   // Try to sign in instead
@@ -65,7 +65,7 @@ export default function PhoneLoginScreen() {
                     const dummyEmail = `${phoneNumber.replace(/[^0-9]/g, '')}@phone.local`;
                     const dummyPassword = 'phone123';
                     await signInWithEmailAndPassword(auth, dummyEmail, dummyPassword);
-                    Alert.alert('Success', 'Signed in with existing account!');
+                    // Navigation will be handled automatically by AuthContext
                   } catch (signInError: any) {
                     Alert.alert('Error', 'Account exists but password is incorrect');
                   }
@@ -94,10 +94,10 @@ export default function PhoneLoginScreen() {
       if (isSignup) {
         result = await createUserWithEmailAndPassword(auth, email, password);
         await createUserDocument(result.user.uid, phoneNumber, email);
-        Alert.alert('Success', 'Account created successfully!');
+        // Navigation will be handled automatically by AuthContext
       } else {
         result = await signInWithEmailAndPassword(auth, email, password);
-        Alert.alert('Success', 'Login successful!');
+        // Navigation will be handled automatically by AuthContext
       }
     } catch (error: any) {
       console.error('Auth error:', error);

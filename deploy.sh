@@ -18,7 +18,7 @@ case "$1" in
     ;;
     
   "all")
-    echo "🚀 Full deployment: app + functions..."
+    echo "🚀 Full deployment: everything..."
     npx expo export -p web
     firebase deploy
     echo "✅ Everything deployed!"

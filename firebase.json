@@ -8,8 +8,7 @@
       "source": "functions",
       "runtime": "nodejs18",
       "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint",
-        "npm --prefix \"$RESOURCE_DIR\" run build"
+        "cd functions && npx tsc"
       ],
       "codebase": "default",
       "ignore": [

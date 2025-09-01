@@ -61,6 +61,7 @@ export interface ServiceRequest {
   };
   // Computed search fields
   searchKeywords?: string[];
+  notesWords?: string[];
   searchText?: string;
   tradeTypeLower?: string;
   descriptionLower?: string;
