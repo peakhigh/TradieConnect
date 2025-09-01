@@ -11,12 +11,13 @@
     "android:prod": "expo start --android",
     "ios:prod": "expo start --ios",
     "web:prod": "expo start --web",
-    "deploy": "npx expo export -p web && firebase deploy --only hosting,functions",
+    "build:web": "expo export -p web",
+    "deploy": "npm run build:web && firebase deploy --only hosting,functions",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:indexes": "firebase deploy --only firestore:indexes",
-    "deploy:hosting": "npx expo export -p web && firebase deploy --only hosting",
+    "deploy:hosting": "npm run build:web && firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore:rules,storage",
-    "deploy:all": "npx expo export -p web && firebase deploy"
+    "deploy:all": "npm run build:web && firebase deploy"
   },
   "dependencies": {
     "@firebase/app": "^0.14.1",
