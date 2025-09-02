@@ -4,7 +4,7 @@ import { Edit3, Lock, Image as ImageIcon, FileText, Users, MessageCircle, X } fr
 import { theme } from '../../theme/theme';
 import { createTextDecoration, createCursorStyle } from '../../theme/crossPlatform';
 import { isWebDesktop } from '../../utils/platform';
-import { VoicePlayer } from './VoicePlayer';
+import { AudioPlayer } from './AudioPlayer';
 import { ThumbnailImage } from './ThumbnailImage';
 
 interface RequestCardProps {
@@ -83,7 +83,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           </Text>
         )}
         {request.voiceMessage && (
-          <VoicePlayer voiceUrl={request.voiceMessage} compact={true} />
+          <AudioPlayer audioUrl={request.voiceMessage} compact={true} />
         )}
       </View>
       

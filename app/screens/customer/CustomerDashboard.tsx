@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { SkeletonLoader } from '../../components/UI/SkeletonLoader';
 import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
-import { VoicePlayer } from '../../components/UI/VoicePlayer';
+
 import { PhotoModal } from '../../components/UI/PhotoModal';
 import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
 import { RequestCard } from '../../components/UI/RequestCard';

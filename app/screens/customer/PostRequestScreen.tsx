@@ -20,6 +20,7 @@ import { Audio } from 'expo-av';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
 import { FileUpload } from '../../components/UI/FileUpload';
 import { TradeSelector } from '../../components/UI/TradeSelector';
+import { AudioPlayer } from '../../components/UI/AudioPlayer';
 
 const POPULAR_TRADES = [
   'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
@@ -54,8 +55,7 @@ export default function PostRequestScreen() {
   const [loading, setLoading] = useState(false);
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
 
-  const [showEarliestDatePicker, setShowEarliestDatePicker] = useState(false);
-  const [showLatestDatePicker, setShowLatestDatePicker] = useState(false);
+
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   
@@ -64,10 +64,6 @@ export default function PostRequestScreen() {
       description: '',
       postcode: user?.postcode || '',
       urgency: 'medium' as 'low' | 'medium' | 'high',
-      budgetMin: '',
-      budgetMax: '',
-      earliestDate: new Date(),
-      latestDate: new Date(Date.now() + 7 * 60 * 60 * 1000),
       additionalNotes: ''
     }
   });
@@ -83,10 +79,6 @@ export default function PostRequestScreen() {
       description: '',
       postcode: user?.postcode || '',
       urgency: 'medium',
-      budgetMin: '',
-      budgetMax: '',
-      earliestDate: new Date(),
-      latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       additionalNotes: ''
     });
     
@@ -115,15 +107,6 @@ export default function PostRequestScreen() {
         setValue('description', data.description || '');
         setValue('postcode', data.postcode || '');
         setValue('urgency', data.urgency || 'medium');
-        setValue('budgetMin', data.budget?.min?.toString() || '');
-        setValue('budgetMax', data.budget?.max?.toString() || '');
-        
-        // Handle dates - check if they're Firestore timestamps or Date objects
-        const earliestDate = data.preferredDates?.earliest;
-        const latestDate = data.preferredDates?.latest;
-        
-        setValue('earliestDate', earliestDate?.toDate ? earliestDate.toDate() : (earliestDate || new Date()));
-        setValue('latestDate', latestDate?.toDate ? latestDate.toDate() : (latestDate || new Date()));
         
         // Set selected trades
         if (data.tradeType) {
@@ -315,12 +298,6 @@ export default function PostRequestScreen() {
     }
   };
 
-  const playVoiceMessage = async () => {
-    if (!voiceMessage) return;
-    const { sound } = await Audio.Sound.createAsync({ uri: voiceMessage });
-    await sound.playAsync();
-  };
-
   const deleteVoiceMessage = () => {
     setVoiceMessage(null);
   };
@@ -356,7 +333,6 @@ export default function PostRequestScreen() {
       
       const serviceRequest: Omit<ServiceRequest, 'id' | 'createdAt' | 'updatedAt'> = {
         customerId: user!.id,
-        customer: user! as any,
         tradeType: tradeTypeStr,
         description: descriptionStr,
         postcode: formData.postcode,
@@ -365,14 +341,6 @@ export default function PostRequestScreen() {
         photos: selectedFiles.map(file => file.uri),
         documents: selectedFiles.filter(file => file.type === 'document').map(file => file.uri),
         voiceMessage: null,
-        budget: formData.budgetMin && formData.budgetMax ? {
-          min: parseFloat(formData.budgetMin),
-          max: parseFloat(formData.budgetMax)
-        } : null,
-        preferredDates: {
-          earliest: formData.earliestDate,
-          latest: formData.latestDate
-        },
         // Computed search fields for array-contains-any search
         searchKeywords: [
           ...tradeTypeStr.toLowerCase().split(/[\s,]+/).filter(word => word.length > 0),
@@ -466,35 +434,6 @@ export default function PostRequestScreen() {
 
       console.log(isEditMode ? 'Successfully updated request' : 'Successfully saved to Firestore');
       
-      // Add mock service request to localStorage for demo
-      const mockRequest = {
-        id: `req_${Date.now()}`,
-        customerId: user!.id,
-        tradeType: selectedTrades.join(', '),
-        description: formData.description,
-        postcode: formData.postcode,
-        urgency: formData.urgency,
-        status: 'active',
-        createdAt: new Date(),
-        photos: [], // Will be populated after upload
-        documents: [], // Will be populated after upload
-        budget: formData.budgetMin && formData.budgetMax ? {
-          min: parseFloat(formData.budgetMin),
-          max: parseFloat(formData.budgetMax)
-        } : null,
-        preferredDates: {
-          earliest: formData.earliestDate,
-          latest: formData.latestDate
-        }
-      };
-      
-      // Store in localStorage for demo
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const existingRequests = JSON.parse(localStorage.getItem('mock_service_requests') || '[]');
-        existingRequests.push(mockRequest);
-        localStorage.setItem('mock_service_requests', JSON.stringify(existingRequests));
-      }
-      
       // Reset form only if not in edit mode
       if (!isEditMode) {
         setSelectedTrades([]);
@@ -502,10 +441,6 @@ export default function PostRequestScreen() {
           description: '',
           postcode: user?.postcode || '',
           urgency: 'medium',
-          budgetMin: '',
-          budgetMax: '',
-          earliestDate: new Date(),
-          latestDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           additionalNotes: ''
         });
         setSelectedFiles([]);
@@ -605,15 +540,10 @@ export default function PostRequestScreen() {
           </View>
           {voiceMessage && (
             <View style={styles.voiceMessage}>
-              <Text>Voice message recorded</Text>
-              <View style={styles.voiceControls}>
-                <TouchableOpacity style={styles.voiceButton} onPress={playVoiceMessage}>
-                  <Text>Play</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.voiceButton} onPress={deleteVoiceMessage}>
-                  <Text>Delete</Text>
-                </TouchableOpacity>
-              </View>
+              <AudioPlayer audioUrl={voiceMessage} style={styles.audioPlayer} />
+              <TouchableOpacity style={styles.deleteButton} onPress={deleteVoiceMessage}>
+                <X size={16} color="#dc2626" />
+              </TouchableOpacity>
             </View>
           )}
           {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
@@ -976,21 +906,18 @@ const styles = StyleSheet.create({
   voiceMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    padding: 12,
-    borderRadius: 8,
     marginTop: 8,
     gap: 8,
   },
-  voiceControls: {
-    flexDirection: 'row',
-    gap: 8,
+  audioPlayer: {
+    flex: 1,
   },
-  voiceButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

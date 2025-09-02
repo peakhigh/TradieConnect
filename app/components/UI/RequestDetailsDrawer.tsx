@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated } from 'react-native';
 import { X, FileText } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
-import { VoicePlayer } from './VoicePlayer';
+import { AudioPlayer } from './AudioPlayer';
 import { PhotoModal } from './PhotoModal';
 import { ThumbnailImage } from './ThumbnailImage';
 
@@ -78,7 +78,7 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Details</Text>
             {request.voiceMessage ? (
-              <VoicePlayer voiceUrl={request.voiceMessage} />
+              <AudioPlayer audioUrl={request.voiceMessage} />
             ) : (
               <Text style={styles.description}>{request.description}</Text>
             )}

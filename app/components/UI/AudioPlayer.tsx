@@ -38,17 +38,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       setSound(newSound);
       
-      // Get duration
-      const status = await newSound.getStatusAsync();
-      if (status.isLoaded) {
-        setDuration(status.durationMillis || 0);
-      }
-      
-      // Set up position updates
+      // Set up position updates first
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded) {
           setPosition(status.positionMillis || 0);
           setIsPlaying(status.isPlaying || false);
+          
+          // Set duration when available
+          if (status.durationMillis && duration === 0) {
+            setDuration(status.durationMillis);
+          }
           
           if (status.didJustFinish) {
             setIsPlaying(false);
@@ -57,17 +56,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       });
       
+      // Wait a bit for the audio to be fully loaded
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Get duration after loading
+      const status = await newSound.getStatusAsync();
+      if (status.isLoaded && status.durationMillis) {
+        setDuration(status.durationMillis);
+      }
+      
+      setIsLoading(false);
+      return newSound;
+      
     } catch (error) {
       console.error('Error loading audio:', error);
-    } finally {
       setIsLoading(false);
+      return null;
     }
   };
 
   const togglePlayback = async () => {
     try {
       if (!sound) {
-        await loadAudio();
+        const newSound = await loadAudio();
+        if (newSound) {
+          await newSound.playAsync();
+        }
         return;
       }
 
@@ -93,6 +107,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const formatTime = (milliseconds: number) => {
+    if (!milliseconds || milliseconds === 0 || !isFinite(milliseconds)) {
+      return '0:00';
+    }
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -145,14 +162,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </View>
       </View>
       
-      {isPlaying && (
-        <TouchableOpacity 
-          style={styles.stopButton}
-          onPress={stopPlayback}
-        >
-          <Text style={styles.stopText}>Stop</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.controlsContainer}>
+        {isPlaying && (
+          <TouchableOpacity 
+            style={styles.stopButton}
+            onPress={stopPlayback}
+          >
+            <Text style={styles.stopText}>Stop</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -195,6 +214,10 @@ const styles = StyleSheet.create({
   progressContainer: {
     flex: 1,
   },
+  controlsContainer: {
+    width: 60,
+    alignItems: 'flex-end',
+  },
   progressBar: {
     height: 4,
     backgroundColor: '#e5e7eb',
@@ -219,6 +242,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     backgroundColor: '#dc2626',
     borderRadius: 4,
+    minWidth: 40,
+    alignItems: 'center',
   },
   stopText: {
     color: '#ffffff',
