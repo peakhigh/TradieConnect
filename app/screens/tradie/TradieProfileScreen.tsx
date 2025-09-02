@@ -8,9 +8,10 @@ import { theme } from '../../theme/theme';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
 import { useNavigation } from '@react-navigation/native';
 import TradieOnboardingScreen from './TradieOnboardingScreen';
+import { formatDate } from '../../utils/dateUtils';
 
 export default function TradieProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -29,6 +30,11 @@ export default function TradieProfileScreen() {
     }
   };
 
+  const handleEditComplete = async () => {
+    await refreshUser();
+    setEditing(false);
+  };
+
   if (editing) {
     return (
       <Modal visible={editing} animationType="slide" presentationStyle="fullScreen">
@@ -42,7 +48,11 @@ export default function TradieProfileScreen() {
               <Text style={styles.backButtonText}>Back to Profile</Text>
             </TouchableOpacity>
           </View>
-          <TradieOnboardingScreen />
+          <TradieOnboardingScreen 
+            isEditMode={true}
+            existingData={user}
+            onComplete={handleEditComplete}
+          />
         </View>
       </Modal>
     );
@@ -127,7 +137,7 @@ export default function TradieProfileScreen() {
           )}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Licence Details</Text>
+            <Text style={styles.sectionTitle}>Contractor Details</Text>
             
             <View style={styles.profileView}>
               <View style={styles.profileItem}>
@@ -148,10 +158,7 @@ export default function TradieProfileScreen() {
               <View style={styles.profileItem}>
                 <Text style={styles.profileLabel}>Licence Expiry</Text>
                 <Text style={styles.profileValue}>
-                  {user?.licenceDetails?.licenceExpiry ? 
-                    new Date(user.licenceDetails.licenceExpiry).toLocaleDateString() 
-                    : 'Not set'
-                  }
+                  {formatDate(user?.licenceDetails?.licenceExpiry)}
                 </Text>
               </View>
             </View>
@@ -174,10 +181,7 @@ export default function TradieProfileScreen() {
               <View style={styles.profileItem}>
                 <Text style={styles.profileLabel}>Expiry Date</Text>
                 <Text style={styles.profileValue}>
-                  {user?.insuranceDetails?.expiryDate ? 
-                    new Date(user.insuranceDetails.expiryDate).toLocaleDateString() 
-                    : 'Not set'
-                  }
+                  {formatDate(user?.insuranceDetails?.expiryDate)}
                 </Text>
               </View>
               

@@ -11,6 +11,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   setUser: (user: User | null) => void;
+  refreshUser: () => Promise<void>;
   showSuccessMessage: (message: string) => void;
   successMessage: string | null;
   clearSuccessMessage: () => void;
@@ -129,12 +130,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuccessMessage(null);
   };
 
+  const refreshUser = async () => {
+    if (firebaseUser) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
+          setUser(userData);
+          
+          if (Platform.OS === 'web') {
+            localStorage.setItem('tradieapp_user', JSON.stringify(userData));
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+      }
+    }
+  };
+
   const value: AuthContextType = {
     user,
     firebaseUser,
     loading,
     signOut,
     setUser: setUserWithPersistence(setUser),
+    refreshUser,
     showSuccessMessage,
     successMessage,
     clearSuccessMessage,

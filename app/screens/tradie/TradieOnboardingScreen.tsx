@@ -53,41 +53,96 @@ const steps = [
   { id: 5, title: 'Interests', shortTitle: 'Interests' },
 ];
 
-export default function TradieOnboardingScreen() {
+interface TradieOnboardingScreenProps {
+  isEditMode?: boolean;
+  existingData?: any;
+  onComplete?: () => void;
+}
+
+export default function TradieOnboardingScreen({ 
+  isEditMode = false, 
+  existingData = null, 
+  onComplete 
+}: TradieOnboardingScreenProps) {
   const navigation = useNavigation();
   const [currentStep, setCurrentStep] = useState(1);
-  const [onboardingData, setOnboardingData] = useState<OnboardingData>({
-    personalDetails: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      businessType: 'sole_trader'
-    },
-    businessDetails: {
-      abn: '',
-      businessName: '',
-      streetAddress: '',
-      suburb: '',
-      state: '',
-      postcode: ''
-    },
-    contractorDetails: {
-      licenceNumber: '',
-      nameOnLicence: '',
-      licenceClass: '',
-      licenceExpiry: new Date()
-    },
-    insuranceDetails: {
-      policyNumber: '',
-      policyHolderName: '',
-      expiryDate: new Date(),
-      liabilityLimit: ''
-    },
-    interests: {
-      interestedSuburbs: [],
-      interestedTrades: []
+  
+  // Initialize with existing data if in edit mode
+  const getInitialData = (): OnboardingData => {
+    if (isEditMode && existingData) {
+      return {
+        personalDetails: {
+          firstName: existingData.firstName || '',
+          lastName: existingData.lastName || '',
+          email: existingData.email || '',
+          businessType: existingData.businessType || 'sole_trader'
+        },
+        businessDetails: {
+          abn: existingData.abn || '',
+          businessName: existingData.businessName || '',
+          streetAddress: existingData.businessAddress?.streetAddress || '',
+          suburb: existingData.businessAddress?.suburb || '',
+          state: existingData.businessAddress?.state || '',
+          postcode: existingData.businessAddress?.postcode || ''
+        },
+        contractorDetails: {
+          licenceNumber: existingData.licenceDetails?.licenceNumber || '',
+          nameOnLicence: existingData.licenceDetails?.nameOnLicence || '',
+          licenceClass: existingData.licenceDetails?.licenceClass || '',
+          licenceExpiry: existingData.licenceDetails?.licenceExpiry ? 
+            (existingData.licenceDetails.licenceExpiry.toDate ? existingData.licenceDetails.licenceExpiry.toDate() : new Date(existingData.licenceDetails.licenceExpiry)) 
+            : new Date()
+        },
+        insuranceDetails: {
+          policyNumber: existingData.insuranceDetails?.policyNumber || '',
+          policyHolderName: existingData.insuranceDetails?.policyHolderName || '',
+          expiryDate: existingData.insuranceDetails?.expiryDate ? 
+            (existingData.insuranceDetails.expiryDate.toDate ? existingData.insuranceDetails.expiryDate.toDate() : new Date(existingData.insuranceDetails.expiryDate)) 
+            : new Date(),
+          liabilityLimit: existingData.insuranceDetails?.liabilityLimit || ''
+        },
+        interests: {
+          interestedSuburbs: existingData.interestedSuburbs || [],
+          interestedTrades: existingData.interestedTrades || []
+        }
+      };
     }
-  });
+    
+    return {
+      personalDetails: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        businessType: 'sole_trader'
+      },
+      businessDetails: {
+        abn: '',
+        businessName: '',
+        streetAddress: '',
+        suburb: '',
+        state: '',
+        postcode: ''
+      },
+      contractorDetails: {
+        licenceNumber: '',
+        nameOnLicence: '',
+        licenceClass: '',
+        licenceExpiry: new Date()
+      },
+      insuranceDetails: {
+        policyNumber: '',
+        policyHolderName: '',
+        expiryDate: new Date(),
+        liabilityLimit: ''
+      },
+      interests: {
+        interestedSuburbs: [],
+        interestedTrades: []
+      }
+    };
+  };
+  
+  const [onboardingData, setOnboardingData] = useState<OnboardingData>(getInitialData());
 
   const updateData = React.useCallback((stepData: Partial<OnboardingData>) => {
     setOnboardingData(prev => ({ ...prev, ...stepData }));
@@ -110,6 +165,10 @@ export default function TradieOnboardingScreen() {
     // Save data if on step 5
     if (currentStep === 5) {
       await saveOnboardingData();
+      if (isEditMode && onComplete) {
+        onComplete();
+        return;
+      }
     }
 
     // Reset validation trigger when moving to next step
@@ -124,7 +183,7 @@ export default function TradieOnboardingScreen() {
 
   const [validationTrigger, setValidationTrigger] = useState(0);
 
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   
   const saveOnboardingData = async () => {
     if (!user) {
@@ -174,6 +233,9 @@ export default function TradieOnboardingScreen() {
       console.log('Update data:', updateData);
       await updateDoc(userDocRef, updateData);
       console.log('Onboarding data saved successfully');
+      
+      // Refresh user data in context
+      await refreshUser();
     } catch (error) {
       console.error('Error saving onboarding data:', error);
     }
