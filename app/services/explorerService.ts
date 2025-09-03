@@ -17,6 +17,27 @@ import { db } from './firebase';
 import { EnrichedServiceRequest, DataFilters, IntelligenceFilters, QuoteAggregation, MarketIntelligence } from '../types/explorer';
 import { secureLog, secureError } from '../utils/logger';
 
+// Calculate distance between two points using Haversine formula
+function calculateDistance(
+  request: any, 
+  tradieLocation?: { lat: number; lng: number }
+): number {
+  if (!tradieLocation || !request.location?.lat || !request.location?.lng) {
+    return Math.round(Math.random() * 20 * 10) / 10; // Fallback to random
+  }
+  
+  const R = 6371; // Earth's radius in km
+  const dLat = (request.location.lat - tradieLocation.lat) * Math.PI / 180;
+  const dLng = (request.location.lng - tradieLocation.lng) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(tradieLocation.lat * Math.PI / 180) * Math.cos(request.location.lat * Math.PI / 180) *
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  
+  return Math.round(distance * 10) / 10; // Round to 1 decimal
+}
+
 // Calculate quote aggregation from quotes array
 function calculateQuoteAggregation(quotes: any[]): QuoteAggregation {
   if (quotes.length === 0) {
@@ -73,14 +94,38 @@ function calculateQuoteAggregation(quotes: any[]): QuoteAggregation {
 function calculateMarketIntelligence(requestId: string, quotes: any[]): MarketIntelligence {
   const aggregation = calculateQuoteAggregation(quotes);
   const priceSpread = aggregation.priceRange.max - aggregation.priceRange.min;
+  const avgPrice = aggregation.priceRange.average;
+  
+  // Calculate opportunity score based on market conditions
+  let opportunityScore = 50; // Base score
+  
+  // Competition factor (40% weight)
+  if (aggregation.totalQuotes === 0) opportunityScore += 40;
+  else if (aggregation.totalQuotes < 3) opportunityScore += 30;
+  else if (aggregation.totalQuotes < 5) opportunityScore += 20;
+  else if (aggregation.totalQuotes < 8) opportunityScore += 10;
+  else opportunityScore -= 10; // High competition
+  
+  // Price spread factor (30% weight)
+  const spreadPercentage = avgPrice > 0 ? (priceSpread / avgPrice) * 100 : 0;
+  if (spreadPercentage > 50) opportunityScore += 30; // High price variance = opportunity
+  else if (spreadPercentage > 25) opportunityScore += 20;
+  else if (spreadPercentage > 10) opportunityScore += 10;
+  
+  // Budget factor (20% weight) - higher budgets = better opportunity
+  if (avgPrice > 2000) opportunityScore += 20;
+  else if (avgPrice > 1000) opportunityScore += 15;
+  else if (avgPrice > 500) opportunityScore += 10;
+  
+  // Time factor (10% weight) - newer requests = better opportunity
+  const hoursOld = (Date.now() - new Date(requestId).getTime()) / (1000 * 60 * 60);
+  if (hoursOld < 2) opportunityScore += 10;
+  else if (hoursOld < 6) opportunityScore += 5;
+  else if (hoursOld > 24) opportunityScore -= 5;
   
   return {
     requestId,
-    opportunityScore: Math.min(100, Math.max(20, 
-      (priceSpread > 200 ? 30 : 0) + 
-      (aggregation.totalQuotes < 5 ? 40 : 20) + 
-      (Math.random() * 30 + 20)
-    )),
+    opportunityScore: Math.min(100, Math.max(10, Math.round(opportunityScore))),
     competitivePosition: aggregation.totalQuotes < 3 ? 'strong' : 
                        aggregation.totalQuotes < 7 ? 'moderate' : 'weak',
     recommendedPriceRange: {
@@ -106,7 +151,8 @@ export async function fetchServiceRequests(
   intelligenceFilters: IntelligenceFilters,
   sortBy: string = 'newest',
   limitCount: number = 10,
-  lastDoc: DocumentSnapshot | null = null
+  lastDoc: DocumentSnapshot | null = null,
+  tradieLocation?: { lat: number; lng: number }
 ): Promise<{ requests: EnrichedServiceRequest[]; hasMore: boolean; lastDoc: DocumentSnapshot | null }> {
   secureLog('🔍 Fetching service requests:', { 
     filters: { dataFilters, intelligenceFilters }, 
@@ -251,7 +297,7 @@ export async function fetchServiceRequests(
           quotes: fallbackIntelligence,
           intelligence: fallbackIntelligence,
           isUnlocked: false,
-          distance: Math.round(Math.random() * 20 * 10) / 10
+          distance: calculateDistance(request, tradieLocation)
         });
         continue;
       }
@@ -278,7 +324,7 @@ export async function fetchServiceRequests(
           quotes: intelligence,
           intelligence,
           isUnlocked: false,
-          distance: Math.round(Math.random() * 20 * 10) / 10
+          distance: calculateDistance(request, tradieLocation)
         });
       } else {
         secureLog(`❌ Filtered out request ${request.id}: ${filterReasons.join(', ')}`);
@@ -290,6 +336,12 @@ export async function fetchServiceRequests(
       enrichedRequests.sort((a, b) => b.intelligence.opportunityScore - a.intelligence.opportunityScore);
     } else if (sortBy === 'closest') {
       enrichedRequests.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    } else if (sortBy === 'budget') {
+      enrichedRequests.sort((a, b) => {
+        const budgetA = a.budget?.max || a.intelligence.recommendedPriceRange.max || 0;
+        const budgetB = b.budget?.max || b.intelligence.recommendedPriceRange.max || 0;
+        return budgetB - budgetA; // Highest first
+      });
     }
 
     const hasMore = requestsSnapshot.docs.length === limitCount;

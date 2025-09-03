@@ -65,16 +65,16 @@ export default function ServiceRequestCard({
       <View style={styles.header}>
         <View style={styles.tradeInfo}>
           <View style={styles.tradeTypeRow}>
-            {sequenceNumber && (
-              <View style={styles.sequenceNumber}>
-                <Text style={styles.sequenceText}>#{sequenceNumber}</Text>
-              </View>
-            )}
             <Text style={styles.tradeType}>
               {(request.trades || []).map(t => t.toUpperCase()).join(' • ')}
             </Text>
           </View>
           <View style={styles.locationRow}>
+            {sequenceNumber && (
+              <View style={styles.sequenceNumber}>
+                <Text style={styles.sequenceText}>#{sequenceNumber}</Text>
+              </View>
+            )}
             <MapPin size={12} color="#6b7280" />
             <Text style={styles.location}>
               {request.suburb} ({request.postcode})

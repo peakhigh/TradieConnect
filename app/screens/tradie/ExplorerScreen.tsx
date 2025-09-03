@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
 import { Container } from '../../components/UI/Container';
-import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp } from 'lucide-react-native';
+import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import ServiceRequestCard from '../../components/explorer/ServiceRequestCard';
 import FilterDrawer from '../../components/explorer/FilterDrawer';
@@ -41,7 +41,8 @@ export default function ExplorerScreen() {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [flatListRef, setFlatListRef] = useState<any>(null);
   const [savedRequests, setSavedRequests] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState<FilterState>({
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
     data: {
       trades: [],
       location: { postcode: '', radius: 10 },
@@ -56,10 +57,12 @@ export default function ExplorerScreen() {
       priceGap: 'all'
     }
   });
+  const [tempFilters, setTempFilters] = useState<FilterState>(appliedFilters);
+  const [totalResults, setTotalResults] = useState(0);
 
   useEffect(() => {
     loadRequests(true);
-  }, [activeSort, filters]);
+  }, [activeSort, appliedFilters]);
 
   const loadRequests = async (reset = false) => {
     try {
@@ -86,8 +89,8 @@ export default function ExplorerScreen() {
       }
 
       const { requests: fetchedRequests, hasMore: moreAvailable, lastDoc: newLastDoc } = await fetchServiceRequests(
-        filters.data,
-        filters.intelligence,
+        appliedFilters.data,
+        appliedFilters.intelligence,
         activeSort,
         10,
         reset ? null : lastDoc
@@ -97,11 +100,13 @@ export default function ExplorerScreen() {
         secureLog(`🆕 Setting ${fetchedRequests.length} requests (reset)`);
         setRequests(fetchedRequests);
         setItemsLoadedInCurrentBatch(fetchedRequests.length);
+        setTotalResults(fetchedRequests.length);
       } else {
         secureLog(`➕ Adding ${fetchedRequests.length} requests to existing ${requests.length}`);
         setRequests(prev => {
           const newRequests = [...prev, ...fetchedRequests];
           secureLog(`📊 Total requests after merge: ${newRequests.length}`);
+          setTotalResults(newRequests.length);
           return newRequests;
         });
         const newBatchCount = itemsLoadedInCurrentBatch + fetchedRequests.length;
@@ -205,73 +210,207 @@ export default function ExplorerScreen() {
     setShowScrollToTop(offsetY > 500);
   };
 
+  const getActiveFilterTags = () => {
+    const tags = [];
+    
+    // Data filters
+    if (appliedFilters.data.trades.length > 0) {
+      tags.push(...appliedFilters.data.trades.map(trade => trade.charAt(0).toUpperCase() + trade.slice(1)));
+    }
+    if (appliedFilters.data.location.postcode) {
+      tags.push(`${appliedFilters.data.location.postcode} (${appliedFilters.data.location.radius}km)`);
+    }
+    if (appliedFilters.data.budget.min > 0 || appliedFilters.data.budget.max < 5000) {
+      tags.push(`$${appliedFilters.data.budget.min}-$${appliedFilters.data.budget.max}`);
+    }
+    if (appliedFilters.data.urgency.length > 0) {
+      tags.push(...appliedFilters.data.urgency.map(u => u.charAt(0).toUpperCase() + u.slice(1)));
+    }
+    if (appliedFilters.data.postedWithin < 24) {
+      tags.push(`${appliedFilters.data.postedWithin}h ago`);
+    }
+    
+    // Intelligence filters
+    if (appliedFilters.intelligence.competitionLevel !== 'all') {
+      tags.push(`${appliedFilters.intelligence.competitionLevel.charAt(0).toUpperCase() + appliedFilters.intelligence.competitionLevel.slice(1)} competition`);
+    }
+    if (appliedFilters.intelligence.winRateThreshold > 0) {
+      tags.push(`${appliedFilters.intelligence.winRateThreshold}%+ win rate`);
+    }
+    if (appliedFilters.intelligence.opportunityScore.min > 0 || appliedFilters.intelligence.opportunityScore.max < 100) {
+      tags.push(`${appliedFilters.intelligence.opportunityScore.min}-${appliedFilters.intelligence.opportunityScore.max}% opportunity`);
+    }
+    if (appliedFilters.intelligence.priceGap !== 'all') {
+      tags.push(`${appliedFilters.intelligence.priceGap.charAt(0).toUpperCase() + appliedFilters.intelligence.priceGap.slice(1)} price gap`);
+    }
+    
+    return tags;
+  };
+
+  const clearFilter = (tagIndex: number) => {
+    const tags = getActiveFilterTags();
+    const tagToRemove = tags[tagIndex];
+    
+    // Reset specific filter based on tag content
+    const newFilters = { ...appliedFilters };
+    
+    // Check data filters
+    if (appliedFilters.data.trades.some(trade => tagToRemove.includes(trade.charAt(0).toUpperCase() + trade.slice(1)))) {
+      newFilters.data.trades = appliedFilters.data.trades.filter(trade => 
+        !tagToRemove.includes(trade.charAt(0).toUpperCase() + trade.slice(1))
+      );
+    } else if (tagToRemove.includes('km)')) {
+      newFilters.data.location = { postcode: '', radius: 10 };
+    } else if (tagToRemove.startsWith('$')) {
+      newFilters.data.budget = { min: 0, max: 5000 };
+    } else if (appliedFilters.data.urgency.some(u => tagToRemove.includes(u.charAt(0).toUpperCase() + u.slice(1)))) {
+      newFilters.data.urgency = appliedFilters.data.urgency.filter(u => 
+        !tagToRemove.includes(u.charAt(0).toUpperCase() + u.slice(1))
+      );
+    } else if (tagToRemove.includes('h ago')) {
+      newFilters.data.postedWithin = 24;
+    }
+    // Check intelligence filters
+    else if (tagToRemove.includes('competition')) {
+      newFilters.intelligence.competitionLevel = 'all';
+    } else if (tagToRemove.includes('win rate')) {
+      newFilters.intelligence.winRateThreshold = 0;
+    } else if (tagToRemove.includes('opportunity')) {
+      newFilters.intelligence.opportunityScore = { min: 0, max: 100 };
+    } else if (tagToRemove.includes('price gap')) {
+      newFilters.intelligence.priceGap = 'all';
+    }
+    
+    setAppliedFilters(newFilters);
+    setTempFilters(newFilters);
+  };
+
+  const clearAllFilters = () => {
+    const defaultFilters = {
+      data: {
+        trades: [],
+        location: { postcode: '', radius: 10 },
+        budget: { min: 0, max: 5000 },
+        urgency: [],
+        postedWithin: 24
+      },
+      intelligence: {
+        competitionLevel: 'all',
+        winRateThreshold: 0,
+        opportunityScore: { min: 0, max: 100 },
+        priceGap: 'all'
+      }
+    };
+    setAppliedFilters(defaultFilters);
+    setTempFilters(defaultFilters);
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters(tempFilters);
+    setShowFilterDrawer(false);
+  };
+
+  const handleFilterDrawerClose = () => {
+    setTempFilters(appliedFilters); // Reset temp filters to applied state
+    setShowFilterDrawer(false);
+  };
+
+  const activeFilterTags = getActiveFilterTags();
+
   return (
     <Container style={styles.container} scrollable={false}>
       {/* Header with Sort & Filter */}
       <View style={styles.header}>
-        <Text style={styles.title}>Service Requests</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Service Requests</Text>
+          <Text style={styles.resultCount}>{totalResults} results</Text>
+        </View>
         
-        {/* Compact Sort Bar */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.sortContainer}
-        >
-          {SORT_OPTIONS.map((option) => {
-            const IconComponent = option.icon;
-            return (
-              <TouchableOpacity
-                key={option.key}
-                style={[
-                  styles.sortChip,
-                  activeSort === option.key && styles.activeSortChip
-                ]}
-                onPress={() => setActiveSort(option.key)}
-              >
-                <IconComponent 
-                  size={14} 
-                  color={activeSort === option.key ? '#ffffff' : '#6b7280'} 
-                />
-                <Text style={[
-                  styles.sortText,
-                  activeSort === option.key && styles.activeSortText
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {/* Filter and Sort Row */}
+        <View style={styles.filterSortRow}>
+          {/* Filter Button */}
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilterTags.length > 0 && styles.activeFilterButton]}
+            onPress={() => setShowFilterDrawer(true)}
+          >
+            <Filter size={16} color={activeFilterTags.length > 0 ? "#3b82f6" : "#6b7280"} />
+            <Text style={[styles.filterButtonText, activeFilterTags.length > 0 && styles.activeFilterButtonText]}>
+              Filters {activeFilterTags.length > 0 && `(${activeFilterTags.length})`}
+            </Text>
+          </TouchableOpacity>
 
-        {/* Filter Toggle */}
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterDrawer(true)}
-        >
-          <Filter size={16} color="#6b7280" />
-          <Text style={styles.filterButtonText}>
-            Filters
-          </Text>
-        </TouchableOpacity>
+          {/* Sort Dropdown */}
+          <View style={styles.sortDropdownContainer}>
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={() => setShowSortDropdown(!showSortDropdown)}
+            >
+              <Text style={styles.sortButtonText}>
+                {SORT_OPTIONS.find(opt => opt.key === activeSort)?.label || 'Sort'}
+              </Text>
+              <ChevronDown size={16} color="#6b7280" />
+            </TouchableOpacity>
+            
+            {showSortDropdown && (
+              <View style={styles.sortDropdown}>
+                {SORT_OPTIONS.map((option) => {
+                  const IconComponent = option.icon;
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[
+                        styles.sortOption,
+                        activeSort === option.key && styles.activeSortOption
+                      ]}
+                      onPress={() => {
+                        setActiveSort(option.key);
+                        setShowSortDropdown(false);
+                      }}
+                    >
+                      <IconComponent 
+                        size={14} 
+                        color={activeSort === option.key ? '#3b82f6' : '#6b7280'} 
+                      />
+                      <Text style={[
+                        styles.sortOptionText,
+                        activeSort === option.key && styles.activeSortOptionText
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </View>
       </View>
+
+
 
       {/* Filter Drawer */}
       <FilterDrawer
         visible={showFilterDrawer}
-        onClose={() => setShowFilterDrawer(false)}
-        filters={filters}
-        onFiltersChange={setFilters}
+        onClose={handleFilterDrawerClose}
+        filters={tempFilters}
+        onFiltersChange={setTempFilters}
+        totalResults={totalResults}
+        onApply={applyFilters}
       />
+
+      {/* Sort Dropdown Backdrop */}
+      {showSortDropdown && (
+        <TouchableOpacity
+          style={styles.sortBackdrop}
+          onPress={() => setShowSortDropdown(false)}
+          activeOpacity={1}
+        />
+      )}
 
       {/* Request List */}
       {loading && requests.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading service requests...</Text>
-        </View>
-      ) : requests.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No service requests found</Text>
-          <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+          <Text style={styles.loadingText}>Loading requests...</Text>
         </View>
       ) : (
         <FlatList
@@ -287,18 +426,18 @@ export default function ExplorerScreen() {
               sequenceNumber={index + 1}
             />
           )}
-          style={styles.listContainer}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshing={loading}
-          onRefresh={() => loadRequests(true)}
-          onEndReached={showLoadMoreButton ? undefined : handleAutoLoadMore}
+          onEndReached={handleAutoLoadMore}
           onEndReachedThreshold={0.1}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
           ListFooterComponent={() => (
-            showLoadMoreButton ? (
-              <View style={styles.loadMoreContainer}>
+            <View style={styles.footer}>
+              {loadingMore && (
+                <Text style={styles.loadingText}>Loading more...</Text>
+              )}
+              {showLoadMoreButton && (
                 <TouchableOpacity
                   style={styles.loadMoreButton}
                   onPress={handleLoadMore}
@@ -308,12 +447,11 @@ export default function ExplorerScreen() {
                     {loadingMore ? 'Loading...' : 'Load More Items'}
                   </Text>
                 </TouchableOpacity>
-              </View>
-            ) : loadingMore ? (
-              <View style={styles.loadingMore}>
-                <Text style={styles.loadingMoreText}>Loading more...</Text>
-              </View>
-            ) : null
+              )}
+              {!hasMore && requests.length > 0 && (
+                <Text style={styles.endText}>No more requests available</Text>
+              )}
+            </View>
           )}
         />
       )}
@@ -339,132 +477,182 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    zIndex: 1003,
+    position: 'relative',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 12,
   },
-  sortContainer: {
-    marginBottom: 12,
-  },
-  sortChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  activeSortChip: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  sortText: {
-    fontSize: 12,
-    fontWeight: '500',
+  resultCount: {
+    fontSize: 14,
     color: '#6b7280',
-    marginLeft: 4,
   },
-  activeSortText: {
-    color: '#ffffff',
+  filterSortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  activeFilterButton: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#3b82f6',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.2,
   },
   filterButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#6b7280',
-    marginLeft: 4,
+    marginLeft: 8,
   },
-  listContainer: {
+  activeFilterButtonText: {
+    color: '#ffffff',
+  },
+
+  sortDropdownContainer: {
+    position: 'relative',
+    zIndex: 1001,
+    alignItems: 'flex-end',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sortButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  sortDropdown: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 1002,
+    marginTop: 8,
+    minWidth: 200,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  activeSortOption: {
+    backgroundColor: '#eff6ff',
+  },
+  sortOptionText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginLeft: 16,
     flex: 1,
+  },
+  activeSortOptionText: {
+    color: '#3b82f6',
+    fontWeight: '500',
   },
   listContent: {
     padding: 16,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  emptySubtext: {
     fontSize: 14,
     color: '#6b7280',
+    textAlign: 'center',
+    marginVertical: 16,
   },
-  loadMoreContainer: {
-    padding: 20,
+  footer: {
     alignItems: 'center',
+    paddingVertical: 16,
   },
   loadMoreButton: {
     backgroundColor: '#3b82f6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    minWidth: 150,
-    alignItems: 'center',
+    marginTop: 8,
   },
   loadMoreText: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+    color: '#ffffff',
   },
-  loadingMore: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  loadingMoreText: {
-    color: '#6b7280',
+  endText: {
     fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
-
+  sortBackdrop: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
   scrollToTopButton: {
     position: 'absolute',
     bottom: 20,
     right: 20,
+    backgroundColor: '#3b82f6',
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
