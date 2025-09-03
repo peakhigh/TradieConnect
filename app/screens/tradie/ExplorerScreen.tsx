@@ -328,65 +328,99 @@ export default function ExplorerScreen() {
         
         {/* Filter and Sort Row */}
         <View style={styles.filterSortRow}>
-          {/* Filter Button */}
-          <TouchableOpacity
-            style={[styles.filterButton, activeFilterTags.length > 0 && styles.activeFilterButton]}
-            onPress={() => setShowFilterDrawer(true)}
-          >
-            <Filter size={16} color={activeFilterTags.length > 0 ? "#3b82f6" : "#6b7280"} />
-            <Text style={[styles.filterButtonText, activeFilterTags.length > 0 && styles.activeFilterButtonText]}>
-              Filters {activeFilterTags.length > 0 && `(${activeFilterTags.length})`}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Sort Dropdown */}
-          <View style={styles.sortDropdownContainer}>
+          {/* Filter Section */}
+          <View style={styles.filterSection}>
             <TouchableOpacity
-              style={styles.sortButton}
-              onPress={() => setShowSortDropdown(!showSortDropdown)}
+              style={[styles.filterButton, activeFilterTags.length > 0 && styles.activeFilterButton]}
+              onPress={() => setShowFilterDrawer(true)}
             >
-              <Text style={styles.sortButtonText}>
-                {SORT_OPTIONS.find(opt => opt.key === activeSort)?.label || 'Sort'}
+              <Filter size={16} color={activeFilterTags.length > 0 ? "#ffffff" : "#6b7280"} />
+              <Text style={[styles.filterButtonText, activeFilterTags.length > 0 && styles.activeFilterButtonText]}>
+                Filters {activeFilterTags.length > 0 && `(${activeFilterTags.length})`}
               </Text>
-              <ChevronDown size={16} color="#6b7280" />
             </TouchableOpacity>
+          </View>
+
+          {/* Sort Section */}
+          <View style={styles.sortSection}>
+            <View style={styles.sortDropdownContainer}>
+              <TouchableOpacity
+                style={styles.sortButton}
+                onPress={() => setShowSortDropdown(!showSortDropdown)}
+              >
+                <Text style={styles.sortButtonText}>
+                  {SORT_OPTIONS.find(opt => opt.key === activeSort)?.label || 'Sort'}
+                </Text>
+                <ChevronDown size={16} color="#6b7280" />
+              </TouchableOpacity>
             
-            {showSortDropdown && (
-              <View style={styles.sortDropdown}>
-                {SORT_OPTIONS.map((option) => {
-                  const IconComponent = option.icon;
-                  return (
-                    <TouchableOpacity
-                      key={option.key}
-                      style={[
-                        styles.sortOption,
-                        activeSort === option.key && styles.activeSortOption
-                      ]}
-                      onPress={() => {
-                        setActiveSort(option.key);
-                        setShowSortDropdown(false);
-                      }}
-                    >
-                      <IconComponent 
-                        size={14} 
-                        color={activeSort === option.key ? '#3b82f6' : '#6b7280'} 
-                      />
-                      <Text style={[
-                        styles.sortOptionText,
-                        activeSort === option.key && styles.activeSortOptionText
-                      ]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+              {showSortDropdown && (
+                <View style={styles.sortDropdown}>
+                  {SORT_OPTIONS.map((option) => {
+                    const IconComponent = option.icon;
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={[
+                          styles.sortOption,
+                          activeSort === option.key && styles.activeSortOption
+                        ]}
+                        onPress={() => {
+                          setActiveSort(option.key);
+                          setShowSortDropdown(false);
+                        }}
+                      >
+                        <IconComponent 
+                          size={14} 
+                          color={activeSort === option.key ? '#3b82f6' : '#6b7280'} 
+                        />
+                        <Text style={[
+                          styles.sortOptionText,
+                          activeSort === option.key && styles.activeSortOptionText
+                        ]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </View>
-
-
+      
+      {/* Active Filter Tags */}
+      {activeFilterTags.length > 0 && (
+        <View style={styles.filterTagsContainer}>
+          <View style={styles.tagsScrollContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTagsScroll}>
+              {activeFilterTags.map((tag, index) => (
+                <View key={index} style={styles.filterTag}>
+                  <Text style={styles.filterTagText}>{tag}</Text>
+                  <TouchableOpacity onPress={() => clearFilter(index)} style={styles.filterTagClose}>
+                    <X size={12} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+            {activeFilterTags.length > 3 && (
+              <View style={styles.scrollIndicator}>
+                <View style={styles.scrollDot} />
+                <View style={styles.scrollDot} />
+                <View style={styles.scrollDot} />
+              </View>
+            )}
+          </View>
+          <View style={styles.separator} />
+          <TouchableOpacity 
+            style={styles.clearAllTagButton}
+            onPress={clearAllFilters}
+          >
+            <Text style={styles.clearAllTagText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Filter Drawer */}
       <FilterDrawer
@@ -502,8 +536,46 @@ const styles = StyleSheet.create({
   filterSortRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginBottom: 12,
+  },
+  filterSection: {
+    alignItems: 'flex-start',
+  },
+  sortSection: {
+    alignItems: 'flex-end',
+  },
+  clearAllButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+    marginLeft: 8,
+  },
+  clearAllButtonDisabled: {
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
+  clearAllLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  clearAllLabelActive: {
+    color: '#dc2626',
+  },
+  clearAllLabelDisabled: {
+    color: '#9ca3af',
+  },
+  sortLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: 8,
+    marginRight: 16,
   },
   filterButton: {
     flexDirection: 'row',
@@ -535,6 +607,76 @@ const styles = StyleSheet.create({
   activeFilterButtonText: {
     color: '#ffffff',
   },
+  filterTagsContainer: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagsScrollContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  filterTagsScroll: {
+    flex: 1,
+  },
+  scrollIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    gap: 2,
+  },
+  scrollDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#9ca3af',
+  },
+  separator: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 12,
+  },
+  clearAllTagButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  clearAllTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  filterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+  },
+  filterTagText: {
+    fontSize: 12,
+    color: '#3b82f6',
+    marginRight: 4,
+  },
+  filterTagClose: {
+    padding: 2,
+  },
+
 
   sortDropdownContainer: {
     position: 'relative',

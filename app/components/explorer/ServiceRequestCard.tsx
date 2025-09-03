@@ -180,7 +180,7 @@ export default function ServiceRequestCard({
           style={styles.unlockButton}
           onPress={() => onUnlock(request.id)}
         >
-          <Lock size={16} color="#ffffff" />
+          <Lock size={16} color="#3b82f6" />
           <Text style={styles.unlockText}>Unlock for $0.50</Text>
         </TouchableOpacity>
       ) : (
@@ -362,14 +362,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
     paddingVertical: 12,
     borderRadius: 8,
   },
   unlockText: {
     fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#ffffff',
+    fontWeight: '500' as const,
+    color: '#3b82f6',
     marginLeft: 6,
   },
   unlockedSection: {

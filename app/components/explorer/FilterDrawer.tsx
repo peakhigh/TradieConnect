@@ -104,8 +104,8 @@ export default function FilterDrawer({ visible, onClose, filters, onFiltersChang
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
-          <View style={styles.content}>
+          {/* Scrollable Content */}
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {activeTab === 'data' ? (
               <DataFilters
                 filters={filters.data}
@@ -121,89 +121,92 @@ export default function FilterDrawer({ visible, onClose, filters, onFiltersChang
                 }
               />
             )}
-          </View>
+          </ScrollView>
 
-          {/* Active Filters Section */}
-          {activeFilterTags.length > 0 && (
-            <View style={styles.activeFiltersFooter}>
-              <View style={styles.activeFiltersHeader}>
-                <Tag size={14} color="#3b82f6" />
-                <Text style={styles.activeFiltersTitle}>Active Filters ({activeFilterTags.length})</Text>
-                <TouchableOpacity onPress={() => {
-                  const defaultFilters = {
-                    data: {
-                      trades: [],
-                      location: { postcode: '', radius: 10 },
-                      budget: { min: 0, max: 5000 },
-                      urgency: [],
-                      postedWithin: 24
-                    },
-                    intelligence: {
-                      competitionLevel: 'all',
-                      winRateThreshold: 0,
-                      opportunityScore: { min: 0, max: 100 },
-                      priceGap: 'all'
-                    }
-                  };
-                  onFiltersChange(defaultFilters);
-                }}>
-                  <Text style={styles.clearAllFiltersText}>Clear All</Text>
+          {/* Fixed Bottom Section */}
+          <View style={styles.bottomSection}>
+            {/* Active Filters Section */}
+            {activeFilterTags.length > 0 && (
+              <View style={styles.activeFiltersFooter}>
+                <View style={styles.activeFiltersHeader}>
+                  <Tag size={14} color="#3b82f6" />
+                  <Text style={styles.activeFiltersTitle}>Active Filters ({activeFilterTags.length})</Text>
+                  <TouchableOpacity onPress={() => {
+                    const defaultFilters = {
+                      data: {
+                        trades: [],
+                        location: { postcode: '', radius: 10 },
+                        budget: { min: 0, max: 5000 },
+                        urgency: [],
+                        postedWithin: 24
+                      },
+                      intelligence: {
+                        competitionLevel: 'all',
+                        winRateThreshold: 0,
+                        opportunityScore: { min: 0, max: 100 },
+                        priceGap: 'all'
+                      }
+                    };
+                    onFiltersChange(defaultFilters);
+                  }}>
+                    <Text style={styles.clearAllFiltersText}>Clear All</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
+                  {activeFilterTags.map((tag, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.activeFilterChip}
+                      onPress={() => {
+                        // Remove this specific filter
+                        const newFilters = { ...filters };
+                        
+                        // Logic to remove specific filter based on tag content
+                        if (filters.data.trades.some(trade => tag.includes(trade.charAt(0).toUpperCase() + trade.slice(1)))) {
+                          newFilters.data.trades = filters.data.trades.filter(trade => 
+                            !tag.includes(trade.charAt(0).toUpperCase() + trade.slice(1))
+                          );
+                        } else if (tag.includes('km)')) {
+                          newFilters.data.location = { postcode: '', radius: 10 };
+                        } else if (tag.startsWith('$')) {
+                          newFilters.data.budget = { min: 0, max: 5000 };
+                        } else if (filters.data.urgency.some(u => tag.includes(u.charAt(0).toUpperCase() + u.slice(1)))) {
+                          newFilters.data.urgency = filters.data.urgency.filter(u => 
+                            !tag.includes(u.charAt(0).toUpperCase() + u.slice(1))
+                          );
+                        } else if (tag.includes('h ago')) {
+                          newFilters.data.postedWithin = 24;
+                        } else if (tag.includes('competition')) {
+                          newFilters.intelligence.competitionLevel = 'all';
+                        } else if (tag.includes('win rate')) {
+                          newFilters.intelligence.winRateThreshold = 0;
+                        } else if (tag.includes('opportunity')) {
+                          newFilters.intelligence.opportunityScore = { min: 0, max: 100 };
+                        } else if (tag.includes('price gap')) {
+                          newFilters.intelligence.priceGap = 'all';
+                        }
+                        
+                        onFiltersChange(newFilters);
+                      }}
+                    >
+                      <Text style={styles.activeFilterChipText}>{tag}</Text>
+                      <X size={12} color="#3b82f6" style={styles.activeFilterChipClose} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <View style={styles.footerButtons}>
+                <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.applyButton} onPress={onApply}>
+                  <Text style={styles.applyButtonText}>Apply Filters</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
-                {activeFilterTags.map((tag, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    style={styles.activeFilterChip}
-                    onPress={() => {
-                      // Remove this specific filter
-                      const newFilters = { ...filters };
-                      
-                      // Logic to remove specific filter based on tag content
-                      if (filters.data.trades.some(trade => tag.includes(trade.charAt(0).toUpperCase() + trade.slice(1)))) {
-                        newFilters.data.trades = filters.data.trades.filter(trade => 
-                          !tag.includes(trade.charAt(0).toUpperCase() + trade.slice(1))
-                        );
-                      } else if (tag.includes('km)')) {
-                        newFilters.data.location = { postcode: '', radius: 10 };
-                      } else if (tag.startsWith('$')) {
-                        newFilters.data.budget = { min: 0, max: 5000 };
-                      } else if (filters.data.urgency.some(u => tag.includes(u.charAt(0).toUpperCase() + u.slice(1)))) {
-                        newFilters.data.urgency = filters.data.urgency.filter(u => 
-                          !tag.includes(u.charAt(0).toUpperCase() + u.slice(1))
-                        );
-                      } else if (tag.includes('h ago')) {
-                        newFilters.data.postedWithin = 24;
-                      } else if (tag.includes('competition')) {
-                        newFilters.intelligence.competitionLevel = 'all';
-                      } else if (tag.includes('win rate')) {
-                        newFilters.intelligence.winRateThreshold = 0;
-                      } else if (tag.includes('opportunity')) {
-                        newFilters.intelligence.opportunityScore = { min: 0, max: 100 };
-                      } else if (tag.includes('price gap')) {
-                        newFilters.intelligence.priceGap = 'all';
-                      }
-                      
-                      onFiltersChange(newFilters);
-                    }}
-                  >
-                    <Text style={styles.activeFilterChipText}>{tag}</Text>
-                    <X size={12} color="#3b82f6" style={styles.activeFilterChipClose} />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <View style={styles.footerButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.applyButton} onPress={onApply}>
-                <Text style={styles.applyButtonText}>Apply Filters</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -258,9 +261,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   activeFiltersFooter: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     backgroundColor: '#f8fafc',
   },
   activeFiltersHeader: {
@@ -333,12 +336,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
+  },
+  bottomSection: {
+    backgroundColor: '#ffffff',
   },
   footer: {
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
   },
   footerButtons: {
     flexDirection: 'row',
