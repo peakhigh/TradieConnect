@@ -11,6 +11,7 @@ import { collection, query, where, orderBy, limit, getDocs, startAfter, QueryDoc
 import { db } from '../../services/firebase';
 import { ServiceRequest } from '../../types/ServiceRequest';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
+import { secureLog, secureError } from '../../utils/logger';
 
 export default function ServiceRequestExplorer() {
   const { user } = useAuth();
@@ -91,7 +92,7 @@ export default function ServiceRequestExplorer() {
       setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
       setHasMore(querySnapshot.docs.length === 10);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      secureError('Error fetching requests:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,9 +114,9 @@ export default function ServiceRequestExplorer() {
     try {
       // Mock unlock logic
       setWalletBalance(prev => prev - 0.50);
-      console.log('Unlocked request:', requestId);
+      secureLog('Unlocked request:', requestId);
     } catch (error) {
-      console.error('Error unlocking request:', error);
+      secureError('Error unlocking request:', error);
     }
   };
 

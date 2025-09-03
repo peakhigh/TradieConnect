@@ -419,6 +419,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignItems: 'center',
+    marginTop: 24,
   },
   emptyStateText: {
     color: '#6b7280',

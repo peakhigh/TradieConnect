@@ -12,6 +12,7 @@ interface InputProps extends TextInputProps {
   isRequired?: boolean;
   isDisabled?: boolean;
   isReadOnly?: boolean;
+  containerStyle?: any;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -23,11 +24,12 @@ export const Input: React.FC<InputProps> = ({
   isRequired = false,
   isDisabled = false,
   isReadOnly = false,
+  containerStyle,
   style,
   ...props
 }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {label && (
         <View style={styles.labelContainer}>
           <Text style={styles.label}>

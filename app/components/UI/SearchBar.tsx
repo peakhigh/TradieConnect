@@ -27,6 +27,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           value={searchInput}
           onChangeText={onSearchInputChange}
           onSubmitEditing={onSearch}
+          containerStyle={{ marginBottom: 0 }}
           style={styles.searchInputWithIcon}
         />
         {searchInput ? (
@@ -54,7 +55,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   searchInputWithIcon: {
-    marginBottom: 0,
     paddingRight: 40,
   },
   clearIconButton: {
@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchButton: {
-    width: 44,
-    height: 44,
+    width: theme.minHeight.input,
+    height: theme.minHeight.input,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.borderRadius.md,

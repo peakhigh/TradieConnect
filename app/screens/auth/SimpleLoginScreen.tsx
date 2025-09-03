@@ -8,6 +8,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase';
 import { useRoute, RouteProp } from '@react-navigation/native';
+import { secureLog, secureError } from '../../utils/logger';
 
 type RootStackParamList = {
   Login: { userType: 'customer' | 'tradie' };
@@ -55,7 +56,7 @@ export default function SimpleLoginScreen() {
     };
     
     await setDoc(doc(db, 'users', uid), userData);
-    console.log('User document saved:', userData.userType, uid);
+    secureLog('User document saved:', userData.userType, uid);
     return userData;
   };
 
@@ -72,21 +73,21 @@ export default function SimpleLoginScreen() {
       if (isSignup) {
         result = await createUserWithEmailAndPassword(auth, email, password);
         await createUserDocument(result.user.uid);
-        console.log('Account created for:', userType, result.user.uid);
+        secureLog('Account created for:', userType, result.user.uid);
       } else {
         result = await signInWithEmailAndPassword(auth, email, password);
-        console.log('Signed in:', result.user.uid);
+        secureLog('Signed in:', result.user.uid);
         
         // Check if user document exists, create if not
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         if (!userDoc.exists()) {
-          console.log('Creating user document for existing auth user');
+          secureLog('Creating user document for existing auth user');
           await createUserDocument(result.user.uid);
-          console.log('User document created successfully');
+          secureLog('User document created successfully');
         }
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
+      secureError('Auth error:', error);
       if (error.code === 'auth/email-already-in-use') {
         Alert.alert(
           'Account Exists', 

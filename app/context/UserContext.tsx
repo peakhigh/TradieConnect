@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 import { ServiceRequest, Quote, Message } from '../types';
+import { secureLog, secureError } from '../utils/logger';
 
 interface UserContextType {
   serviceRequests: ServiceRequest[];
@@ -36,7 +37,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    console.log('Setting up service requests listener for user:', user.id);
+    secureLog('Setting up service requests listener for user:', user.id);
     
     const requestsQuery = query(
       collection(db, 'serviceRequests'),
@@ -59,9 +60,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }) as ServiceRequest[];
       setServiceRequests(requests);
-      console.log('Loaded service requests from Firestore:', requests.length);
+      secureLog('Loaded service requests from Firestore:', requests.length);
     }, (error) => {
-      console.error('Error loading service requests:', error);
+      secureError('Error loading service requests:', error);
       setServiceRequests([]);
     });
 

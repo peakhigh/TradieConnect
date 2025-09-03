@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 
 interface PaginationProps {
@@ -68,7 +68,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         onPress={() => onPageChange(1)}
         disabled={currentPage === 1}
       >
-        <Text style={[styles.pageButtonText, currentPage === 1 && styles.disabledText]}>First</Text>
+        <ChevronsLeft size={16} color={currentPage === 1 ? theme.colors.text.secondary : theme.colors.primary} />
       </TouchableOpacity>
       
       {/* Previous */}
@@ -133,7 +133,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         onPress={() => onPageChange(totalPages)}
         disabled={currentPage === totalPages}
       >
-        <Text style={[styles.pageButtonText, currentPage === totalPages && styles.disabledText]}>Last</Text>
+        <ChevronsRight size={16} color={currentPage === totalPages ? theme.colors.text.secondary : theme.colors.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   pageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
     paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.border.light,
     backgroundColor: theme.colors.surface,
-    minWidth: 44,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
   },
   disabledButton: {
@@ -203,4 +203,5 @@ const styles = StyleSheet.create({
     color: theme.colors.text.tertiary,
     paddingHorizontal: theme.spacing.xs,
   },
+
 });

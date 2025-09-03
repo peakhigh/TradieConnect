@@ -21,6 +21,7 @@ import { ProjectLoader } from '../../components/UI/ProjectLoader';
 import { FileUpload } from '../../components/UI/FileUpload';
 import { TradeSelector } from '../../components/UI/TradeSelector';
 import { AudioPlayer } from '../../components/UI/AudioPlayer';
+import { secureLog, secureError } from '../../utils/logger';
 
 const POPULAR_TRADES = [
   'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
@@ -101,7 +102,7 @@ export default function PostRequestScreen() {
       const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
       if (requestDoc.exists()) {
         const data = requestDoc.data();
-        console.log('Loading request data:', data);
+        secureLog('Loading request data:', data);
         
         // Set form values
         setValue('description', data.description || '');
@@ -130,21 +131,21 @@ export default function PostRequestScreen() {
           })));
         }
         setSelectedFiles(files);
-        console.log('Loaded files:', files);
+        secureLog('Loaded files:', files);
         
         // Set voice message
         if (data.voiceMessage) {
           setVoiceMessage(data.voiceMessage);
-          console.log('Loaded voice message:', data.voiceMessage);
+          secureLog('Loaded voice message:', data.voiceMessage);
         }
         
-        console.log('Data loaded successfully');
+        secureLog('Data loaded successfully');
       } else {
-        console.log('Request document not found');
+        secureLog('Request document not found');
         Alert.alert('Error', 'Request not found');
       }
     } catch (error) {
-      console.error('Error loading request data:', error);
+      secureError('Error loading request data:', error);
       Alert.alert('Error', 'Failed to load request data');
     }
   };
@@ -259,7 +260,7 @@ export default function PostRequestScreen() {
         setSelectedFiles(prev => [...prev, ...files]);
       }
     } catch (error) {
-      console.error('Error picking document:', error);
+      secureError('Error picking document:', error);
     }
   };
 
@@ -303,9 +304,9 @@ export default function PostRequestScreen() {
   };
 
   const onSubmit = async () => {
-    console.log('Form submission started');
-    console.log('Selected trades:', selectedTrades);
-    console.log('Form data:', formData);
+    secureLog('Form submission started');
+    secureLog('Selected trades:', selectedTrades);
+    secureLog('Form data:', formData);
     
     // Validate form
     const newErrors: {[key: string]: string} = {};
@@ -325,7 +326,7 @@ export default function PostRequestScreen() {
       return;
     }
 
-    console.log('Validation passed, starting submission');
+    secureLog('Validation passed, starting submission');
     setLoading(true);
     try {
       const tradeTypeStr = selectedTrades.join(', ');
@@ -354,7 +355,7 @@ export default function PostRequestScreen() {
         descriptionLower: descriptionStr.toLowerCase()
       };
 
-      console.log('About to upload files and save to Firestore:', serviceRequest);
+      secureLog('About to upload files and save to Firestore:', serviceRequest);
       
       // Upload files to Firebase Storage
       const uploadedPhotos = [];
@@ -387,7 +388,7 @@ export default function PostRequestScreen() {
             uploadedDocuments.push(downloadURL);
           }
         } catch (error) {
-          console.error('Error uploading file:', file.name, error);
+          secureError('Error uploading file:', file.name, error);
         }
       }
       
@@ -407,7 +408,7 @@ export default function PostRequestScreen() {
             uploadedVoiceMessage = await getDownloadURL(storageRef);
           }
         } catch (error) {
-          console.error('Error uploading voice message:', error);
+          secureError('Error uploading voice message:', error);
         }
       }
       
@@ -432,7 +433,7 @@ export default function PostRequestScreen() {
         });
       }
 
-      console.log(isEditMode ? 'Successfully updated request' : 'Successfully saved to Firestore');
+      secureLog(isEditMode ? 'Successfully updated request' : 'Successfully saved to Firestore');
       
       // Reset form only if not in edit mode
       if (!isEditMode) {
@@ -448,14 +449,14 @@ export default function PostRequestScreen() {
       }
 
       // Navigate to Dashboard and show success message
-      console.log('About to navigate and show success message');
+      secureLog('About to navigate and show success message');
       showSuccessMessage(isEditMode ? 'Service request updated successfully!' : 'Service request posted successfully!');
-      console.log('Success message set, now navigating');
+      secureLog('Success message set, now navigating');
       navigation.navigate('Dashboard');
-      console.log('Navigation triggered');
+      secureLog('Navigation triggered');
 
     } catch (error) {
-      console.error('Error posting service request:', error);
+      secureError('Error posting service request:', error);
       Alert.alert('Error', 'Failed to post service request. Please try again.');
     } finally {
       setLoading(false);

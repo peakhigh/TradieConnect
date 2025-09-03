@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import TradieDashboard from '../screens/tradie/TradieDashboard';
-import ServiceRequestExplorer from '../screens/tradie/ServiceRequestExplorer';
+import ExplorerScreen from '../screens/tradie/ExplorerScreen';
 import TradieHistoryScreen from '../screens/tradie/TradieHistoryScreen';
 import TradieProfileScreen from '../screens/tradie/TradieProfileScreen';
 import { Platform } from 'react-native';
@@ -48,12 +48,13 @@ export default function TradieTabs() {
       
       <Tab.Screen
         name="Explorer"
-        component={ServiceRequestExplorer}
+        component={ExplorerScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Search size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Service Requests',
+          headerShown: false,
         }}
       />
       

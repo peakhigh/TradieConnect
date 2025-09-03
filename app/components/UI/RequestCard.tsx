@@ -6,6 +6,7 @@ import { createTextDecoration, createCursorStyle } from '../../theme/crossPlatfo
 import { isWebDesktop } from '../../utils/platform';
 import { AudioPlayer } from './AudioPlayer';
 import { ThumbnailImage } from './ThumbnailImage';
+import { secureLog } from '../../utils/logger';
 
 interface RequestCardProps {
   request: any;
@@ -174,7 +175,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   window.open(doc, '_blank');
                 } else {
                   // For mobile, you could use Linking.openURL(doc) or a document viewer
-                  console.log('Open document:', doc);
+                  // For mobile, you could use Linking.openURL(doc) or a document viewer
                 }
               }}
             >

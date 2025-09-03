@@ -129,6 +129,8 @@ setup:
   - enable React Navigation with bottom tabs + stack navigation
   - integrate Tailwind/NativeWind + Gluestack UI
   - scaffold AuthContext for login/session management
+  - implement progressive batch infinite scrolling for ExplorerScreen
+  - use pre-computed market intelligence via Cloud Functions
 
 ai-rules:
   - always generate TypeScript code
@@ -137,3 +139,102 @@ ai-rules:
   - create screens as placeholders if logic not yet implemented
   - always include role-based navigation flow (Customer, Tradie, Admin)
   - prefer modular + reusable architecture
+
+reusability-rules:
+  cross-platform-mandatory:
+    - ALL code must work on iOS native, Android native, and web
+    - ALL UI must be responsive and cross-platform compatible
+    - use Platform.OS checks for platform-specific code only when absolutely necessary
+    - test on all three platforms before considering feature complete
+  
+  ui-component-standards:
+    - ALWAYS use Gluestack UI or Styled Components for UI elements
+    - NEVER use platform-specific UI libraries (no react-native-elements, native-base, etc)
+    - build reusable components in /app/components/UI/ that work across projects
+    - components must accept theme props for customization
+    - support both light and dark themes
+    - ensure components are accessible (screen readers, keyboard navigation)
+  
+  reusable-architecture:
+    - design every component for reuse in other marketplace projects
+    - abstract business logic from UI components using hooks and services
+    - create generic patterns, not TradieConnect-specific solutions
+    - use configuration objects to customize behavior instead of hardcoding
+    - document component APIs with TypeScript interfaces and usage examples
+  
+  backend-reusability:
+    - build Firebase Cloud Functions as reusable modules in /functions/src/modules/
+    - create generic auth, chat, notification, and payment systems
+    - use environment variables for app-specific configuration
+    - design Firestore schemas to be adaptable across different marketplace types
+    - implement security rules as templates that can be customized
+  
+  module-structure:
+    - organize code by feature modules: /app/modules/auth/, /app/modules/chat/, etc
+    - each module should be self-contained and exportable
+    - include module-specific types, hooks, components, and services
+    - provide clear module APIs for integration
+    - maintain backward compatibility when updating modules
+
+architecture-decisions:
+  market-intelligence:
+    approach: "compute on quote creation (option 2)"
+    rationale: "90% cost reduction ($0.13 vs $1.32 per 1M page loads) with 20x performance improvement (100-200ms vs 2-5s)"
+    detailed-approach:
+      problem: "calculating market intelligence on every page load is expensive and slow"
+      rejected-options:
+        - "option-1: compute on page load - 220 reads per page, 2-5s load time"
+        - "option-3: compute every 15 minutes - unnecessary overhead, stale data"
+      chosen-solution:
+        - "Firebase Cloud Functions trigger on quote create/update/delete events"
+        - "aggregate quotes → calculate intelligence → store in requestIntelligence collection"
+        - "page load: simple read from pre-computed data (11 reads vs 220 reads)"
+      cost-breakdown:
+        - "current: 10 requests × 20 quotes = 200+ reads = $1.32/1M loads"
+        - "optimized: 10 requests + 1 batch read = 11 reads = $0.13/1M loads"
+      performance: "from 2-5 seconds to 100-200ms load time"
+    implementation:
+      - "onQuoteCreated/Updated/Deleted Cloud Functions"
+      - "requestIntelligence collection with pre-computed data"
+      - "real-time updates when quotes change"
+    benefits:
+      - real-time accuracy
+      - fast page loads
+      - 90% cost reduction
+      - scalable architecture
+  
+  infinite-scrolling:
+    pattern: "progressive batch loading with user control"
+    detailed-behavior:
+      initial: "load 10 items on screen open"
+      auto-scroll: "user scrolls → load 10 more → continue until 50 items in batch"
+      user-control: "after 50 items, show 'Load More Items' button, stop auto-loading"
+      batch-reset: "user clicks button → reset counter → load next 10 → resume auto-scroll"
+      cycle: "items 1-50 → button → items 51-100 → button → repeat until done"
+    rationale:
+      - "smooth scrolling within batches"
+      - "prevents mindless infinite scrolling"
+      - "user control over data consumption"
+      - "limits memory usage and costs"
+    technical-details:
+      page-size: 10
+      batch-size: 50
+      state-tracking: "itemsLoadedInCurrentBatch counter"
+      scroll-trigger: "onEndReached only if counter < 50 and no button shown"
+      button-logic: "appears when batch reaches 50 items and hasMore = true"
+    
+  data-architecture:
+    collections:
+      - serviceRequests: basic request data
+      - quotes: individual tradie quotes
+      - requestIntelligence: pre-computed market intelligence (quotes aggregation + intelligence)
+      - unlockTransactions: tradie unlock records
+    intelligence-updates: "real-time via Cloud Functions on quote changes"
+    caching-strategy: "pre-computed intelligence stored in separate collection"
+    
+  ui-patterns:
+    explorer-screen:
+      - "filter drawer slides from right (not inline panel)"
+      - "scroll-to-top button appears after 500px scroll"
+      - "progressive batch infinite scrolling"
+      - "market intelligence displayed on all request cards"

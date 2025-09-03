@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase';
 import { useRoute, RouteProp } from '@react-navigation/native';
+import { secureLog, secureError } from '../../utils/logger';
 
 type RootStackParamList = {
   Login: { userType: 'customer' | 'tradie' };
@@ -100,7 +101,7 @@ export default function PhoneLoginScreen() {
         // Navigation will be handled automatically by AuthContext
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
+      secureError('Auth error:', error);
       if (error.code === 'auth/email-already-in-use') {
         Alert.alert(
           'Account Exists', 
@@ -152,9 +153,9 @@ export default function PhoneLoginScreen() {
       })
     };
     
-    console.log('Creating user document:', userData);
+    secureLog('Creating user document:', userData);
     await setDoc(doc(db, 'users', uid), userData);
-    console.log('User document created successfully');
+    secureLog('User document created successfully');
   };
 
   return (

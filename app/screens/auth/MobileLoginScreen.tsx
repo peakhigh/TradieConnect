@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { View, Text, StyleSheet, Alert, Platform, Dimensions } from 'react-native';
+import { secureLog, secureError } from '../../utils/logger';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
@@ -113,7 +114,7 @@ export default function MobileLoginScreen() {
       setOtpSent(true);
       Alert.alert('OTP Sent', 'Please check your phone for the verification code');
     } catch (error) {
-      console.error('Error sending OTP:', error);
+      secureError('Error sending OTP:', error);
       Alert.alert('Error', 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
@@ -188,22 +189,15 @@ export default function MobileLoginScreen() {
         userData = { id: firebaseUser.uid, ...userDoc.data() };
       }
       
-      console.log('LOGIN SUCCESS - User created/found:', userData);
-      console.log('LOGIN SUCCESS - UserType:', userData.userType);
-      console.log('LOGIN SUCCESS - OnboardingCompleted:', userData.onboardingCompleted);
+      secureLog('LOGIN SUCCESS - User created/found:', userData);
+      secureLog('LOGIN SUCCESS - UserType:', userData.userType);
+      secureLog('LOGIN SUCCESS - OnboardingCompleted:', userData.onboardingCompleted);
       
       // Manually update the AuthContext with the user data
       setUser(userData);
-      console.log('LOGIN SUCCESS - User set in AuthContext');
-      console.log('LOGIN SUCCESS - User created/found:', userData);
-      console.log('LOGIN SUCCESS - UserType:', userData.userType);
-      console.log('LOGIN SUCCESS - OnboardingCompleted:', userData.onboardingCompleted);
-      
-      // Manually update the AuthContext with the user data
-      setUser(userData);
-      console.log('LOGIN SUCCESS - User set in AuthContext');
+      secureLog('LOGIN SUCCESS - User set in AuthContext');
     } catch (error) {
-      console.error('Error verifying OTP:', error);
+      secureError('Error verifying OTP:', error);
       Alert.alert('Error', 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
