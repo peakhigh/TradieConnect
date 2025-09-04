@@ -52,8 +52,7 @@ export default function CustomerDashboard() {
     }
   }, [successMessage, clearSuccessMessage]);
 
-  const activeRequests = serviceRequests.filter(req => req.status === 'active');
-  const completedRequests = serviceRequests.filter(req => req.status === 'completed');
+  const activeRequests = serviceRequests.filter(req => req.status === 'new');
   
   // Pagination for active requests
   const totalActiveRequests = activeRequests.length;
@@ -161,7 +160,7 @@ export default function CustomerDashboard() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Active Requests ({loading ? '...' : activeRequests.length.toString()})
+            New Requests ({loading ? '...' : activeRequests.length.toString()})
           </Text>
           
           {!loading && totalActiveRequests > 0 ? (
@@ -179,7 +178,7 @@ export default function CustomerDashboard() {
           ) : activeRequests.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                No active requests. Post a new request to get started!
+                No new requests. Post a new request to get started!
               </Text>
             </View>
           ) : (
@@ -241,42 +240,7 @@ export default function CustomerDashboard() {
         )}
 
 
-        {completedRequests.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Completed Requests ({completedRequests.length.toString()})
-            </Text>
-            
-            {completedRequests.slice(0, 3).map((request) => (
-              <View key={request.id} style={styles.completedCard}>
-                <Text style={styles.completedTitle}>
-                  {request.tradeType}
-                </Text>
-                <Text style={styles.completedDescription}>
-                  {request.description}
-                </Text>
-                <Text style={styles.completedMeta}>
-                  Postcode: {request.postcode || 'Not set'} • Completed on {request.updatedAt instanceof Date ? request.updatedAt.toDateString() : 'Unknown date'}
-                </Text>
-                
-                {request.preferredDates && (
-                  <Text style={styles.completedMeta}>
-                    Preferred: {request.preferredDates.earliest instanceof Date ? request.preferredDates.earliest.toDateString() : 'Not set'} - {request.preferredDates.latest instanceof Date ? request.preferredDates.latest.toDateString() : 'Not set'}
-                  </Text>
-                )}
-                
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity style={styles.cardButton}>
-                    <Text style={styles.cardButtonText}>View Details</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.cardButton}>
-                    <Text style={styles.cardButtonText}>Repost</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
+
       </View>
       
 

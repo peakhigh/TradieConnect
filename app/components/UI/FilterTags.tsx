@@ -39,7 +39,13 @@ export const FilterTags: React.FC<FilterTagsProps> = ({
     { value: 'date', label: 'Date' },
     { value: 'urgency', label: 'Urgency' },
     { value: 'tradeType', label: 'Trade Type' }
-  ]
+  ],
+  showStatusDropdown = false,
+  showSortDropdown = false,
+  onStatusSelect,
+  onSortSelect,
+  onStatusDropdownClose,
+  onSortDropdownClose
 }) => {
   const getStatusLabel = () => {
     const option = statusOptions.find(opt => opt.value === filterStatus);
@@ -103,6 +109,7 @@ export const FilterTags: React.FC<FilterTagsProps> = ({
           </View>
           <Text style={styles.filterTagValue}>{getStatusLabel()}</Text>
         </View>
+
       </TouchableOpacity>
 
       {/* Sort Filter Tag */}
@@ -120,8 +127,11 @@ export const FilterTags: React.FC<FilterTagsProps> = ({
           </View>
           <Text style={styles.filterTagValue}>{getSortLabel()}</Text>
         </View>
+
       </TouchableOpacity>
       </View>
+      
+
     </View>
   );
 };
@@ -188,5 +198,56 @@ const styles = StyleSheet.create({
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    zIndex: 9998,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 9999,
+    marginTop: 8,
+    minWidth: 150,
+    maxHeight: 300,
+  },
+  rightAligned: {
+    left: 'auto',
+    right: 0,
+  },
+  dropdownOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  activeDropdownOption: {
+    backgroundColor: '#eff6ff',
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  activeDropdownOptionText: {
+    color: '#3b82f6',
+    fontWeight: '500',
   },
 });

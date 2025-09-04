@@ -43,10 +43,10 @@ export const RequestCard: React.FC<RequestCardProps> = ({
         <TouchableOpacity onPress={() => onViewDetails?.(request)} style={styles.titleContainer}>
           <View style={styles.titleWithIcon}>
             <Text style={[styles.requestTitle, styles.tradeLink]}>
-              {request.tradeType}
+              {request.trades ? request.trades.join(', ') : request.tradeType || 'No trade type'}
             </Text>
             {showEditButton && (
-              request.status === 'active' ? (
+              request.status === 'new' ? (
                 <TouchableOpacity 
                   style={styles.editIcon}
                   onPress={() => onEdit?.(request.id)}
@@ -136,7 +136,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           <Text style={styles.iconLabel}>Messages</Text>
         </TouchableOpacity>
         
-        {request.status === 'active' && onCancel && (
+        {request.status === 'new' && onCancel && (
           <TouchableOpacity 
             onPress={() => onCancel(request.id)}
             style={styles.iconButton}

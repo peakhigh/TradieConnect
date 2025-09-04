@@ -28,7 +28,7 @@ type TabParamList = {
   Profile: undefined;
 };
 
-type FilterStatus = 'all' | 'active' | 'completed' | 'cancelled';
+type FilterStatus = 'all' | 'new' | 'quoted' | 'assigned' | 'completed' | 'cancelled' | 'expired';
 type SortBy = 'date' | 'urgency' | 'tradeType';
 
 const PAGE_SIZE = 5;
@@ -94,7 +94,8 @@ export default function CustomerHistoryScreen() {
           q = query(q, orderBy('urgency', 'desc'));
           break;
         case 'tradeType':
-          q = query(q, orderBy('tradeType', 'asc'));
+          // Sort by first trade in the array, fallback to legacy tradeType
+          q = query(q, orderBy('trades', 'asc'));
           break;
       }
       
@@ -198,6 +199,29 @@ export default function CustomerHistoryScreen() {
                 setSortBy('date');
                 setCurrentPage(1);
               }}
+              statusOptions={[
+                { value: 'all', label: 'All' },
+                { value: 'new', label: 'New' },
+                { value: 'quoted', label: 'Quoted' },
+                { value: 'assigned', label: 'Assigned' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' },
+                { value: 'expired', label: 'Expired' }
+              ]}
+              showStatusDropdown={showStatusDropdown}
+              showSortDropdown={showSortDropdown}
+              onStatusSelect={(status) => {
+                setFilterStatus(status as FilterStatus);
+                setShowStatusDropdown(false);
+                setCurrentPage(1);
+              }}
+              onSortSelect={(sort) => {
+                setSortBy(sort as SortBy);
+                setShowSortDropdown(false);
+                setCurrentPage(1);
+              }}
+              onStatusDropdownClose={() => setShowStatusDropdown(false)}
+              onSortDropdownClose={() => setShowSortDropdown(false)}
             />
 
             <SearchBar
@@ -284,9 +308,12 @@ export default function CustomerHistoryScreen() {
         showStatusDropdown={showStatusDropdown}
         statusOptions={[
           { value: 'all', label: 'All' },
-          { value: 'active', label: 'Active' },
+          { value: 'new', label: 'New' },
+          { value: 'quoted', label: 'Quoted' },
+          { value: 'assigned', label: 'Assigned' },
           { value: 'completed', label: 'Completed' },
-          { value: 'cancelled', label: 'Cancelled' }
+          { value: 'cancelled', label: 'Cancelled' },
+          { value: 'expired', label: 'Expired' }
         ]}
         selectedStatus={filterStatus}
         onStatusSelect={(status) => {

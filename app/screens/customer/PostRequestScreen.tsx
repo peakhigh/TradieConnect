@@ -110,8 +110,16 @@ export default function PostRequestScreen() {
         setValue('urgency', data.urgency || 'medium');
         
         // Set selected trades
-        if (data.tradeType) {
-          setSelectedTrades(data.tradeType.split(', '));
+        if (data.trades && Array.isArray(data.trades)) {
+          setSelectedTrades(data.trades);
+        } else if (data.tradeType) {
+          // Handle both array and string formats
+          if (Array.isArray(data.tradeType)) {
+            setSelectedTrades(data.tradeType);
+          } else {
+            // Fallback for old string format
+            setSelectedTrades(data.tradeType.split(', '));
+          }
         }
         
         // Set files (photos and documents)
@@ -329,29 +337,26 @@ export default function PostRequestScreen() {
     secureLog('Validation passed, starting submission');
     setLoading(true);
     try {
-      const tradeTypeStr = selectedTrades.join(', ');
       const descriptionStr = formData.description;
       
       const serviceRequest: Omit<ServiceRequest, 'id' | 'createdAt' | 'updatedAt'> = {
         customerId: user!.id,
-        tradeType: tradeTypeStr,
+        trades: selectedTrades,
         description: descriptionStr,
         postcode: formData.postcode,
         urgency: formData.urgency,
-        status: 'active',
+        status: 'new',
         photos: selectedFiles.map(file => file.uri),
         documents: selectedFiles.filter(file => file.type === 'document').map(file => file.uri),
         voiceMessage: null,
         // Computed search fields for array-contains-any search
         searchKeywords: [
-          ...tradeTypeStr.toLowerCase().split(/[\s,]+/).filter(word => word.length > 0),
+          ...selectedTrades.map(trade => trade.toLowerCase()),
           ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
-          tradeTypeStr.toLowerCase(), // Full trade type for exact/partial match
           descriptionStr.toLowerCase(), // Full description for exact/partial match
           formData.postcode.toLowerCase()
         ].filter((word, index, arr) => arr.indexOf(word) === index), // Remove duplicates
         notesWords: descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
-        tradeTypeLower: tradeTypeStr.toLowerCase(),
         descriptionLower: descriptionStr.toLowerCase()
       };
 

@@ -67,7 +67,7 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
             onPress={(e) => e.stopPropagation()}
           >
         <View style={styles.header}>
-          <Text style={styles.title}>{request.tradeType}</Text>
+          <Text style={styles.title}>{request.trades ? request.trades.join(', ') : request.tradeType || 'Service Request'}</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X size={24} color="#374151" />
           </TouchableOpacity>

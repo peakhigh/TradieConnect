@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { EnrichedServiceRequest } from '../../types/explorer';
+import { StatusBadge } from '../UI/StatusBadge';
 import { 
   MapPin, 
   Clock, 
@@ -63,37 +64,35 @@ export default function ServiceRequestCard({
     <View style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.tradeInfo}>
-          <View style={styles.tradeTypeRow}>
-            <Text style={styles.tradeType}>
-              {(request.trades || []).map(t => t.toUpperCase()).join(' • ')}
-            </Text>
-          </View>
-          <View style={styles.locationRow}>
-            {sequenceNumber && (
-              <View style={styles.sequenceNumber}>
-                <Text style={styles.sequenceText}>#{sequenceNumber}</Text>
-              </View>
-            )}
-            <MapPin size={12} color="#6b7280" />
-            <Text style={styles.location}>
-              {request.suburb} ({request.postcode})
-            </Text>
-            {request.distance && (
-              <Text style={styles.distance}>• {request.distance}km</Text>
-            )}
-          </View>
+        <View style={styles.leftInfo}>
+          <Text style={styles.tradeType}>
+            {sequenceNumber && `#${sequenceNumber}. `}
+            {request.trades && request.trades.length > 0
+              ? request.trades.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')
+              : request.tradeType && Array.isArray(request.tradeType)
+                ? request.tradeType.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')
+                : request.tradeType && typeof request.tradeType === 'string'
+                  ? request.tradeType.charAt(0).toUpperCase() + request.tradeType.slice(1)
+                  : 'General Service'
+            }
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={() => onSave(request.id)}
-        >
-          <Heart 
-            size={16} 
-            color={isSaved ? "#dc2626" : "#6b7280"}
-            fill={isSaved ? "#dc2626" : "none"}
-          />
-        </TouchableOpacity>
+        <View style={styles.rightInfo}>
+          <StatusBadge status={request.status} userType="tradie" size="small" />
+          <Text style={styles.location}>
+            {request.postcode} • {request.distance.toFixed(1)}km
+          </Text>
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={() => onSave(request.id)}
+          >
+            <Heart 
+              size={16} 
+              color={isSaved ? "#dc2626" : "#6b7280"}
+              fill={isSaved ? "#dc2626" : "none"}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Description Preview */}
@@ -232,47 +231,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
-    alignItems: 'flex-start' as const,
+    alignItems: 'center' as const,
     marginBottom: 8,
   },
-  tradeInfo: {
+  leftInfo: {
     flex: 1,
   },
-  tradeTypeRow: {
+  rightInfo: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    marginBottom: 4,
-  },
-  sequenceNumber: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 8,
-  },
-  sequenceText: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-    color: '#ffffff',
+    gap: 8,
   },
   tradeType: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#3b82f6',
   },
-  locationRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  },
   location: {
     fontSize: 12,
     color: '#6b7280',
-    marginLeft: 4,
-  },
-  distance: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 4,
   },
   saveButton: {
     padding: 4,

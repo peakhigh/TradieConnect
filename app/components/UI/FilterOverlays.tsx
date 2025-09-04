@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 import { SimpleButton as Button } from './SimpleButton';
 import { SimpleDatePicker } from './SimpleDatePicker';
 import { theme } from '../../theme/theme';
@@ -81,17 +81,19 @@ export const FilterOverlays: React.FC<FilterOverlaysProps> = ({
         <View style={styles.overlay}>
           <TouchableOpacity style={styles.overlayBackground} onPress={onStatusDropdownClose} />
           <View style={styles.dropdownOverlay}>
-            {statusOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.dropdownItem, selectedStatus === option.value && styles.dropdownItemSelected]}
-                onPress={() => onStatusSelect(option.value)}
-              >
-                <Text style={[styles.dropdownItemText, selectedStatus === option.value && styles.dropdownItemTextSelected]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {statusOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.dropdownItem, selectedStatus === option.value && styles.dropdownItemSelected]}
+                  onPress={() => onStatusSelect(option.value)}
+                >
+                  <Text style={[styles.dropdownItemText, selectedStatus === option.value && styles.dropdownItemTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       ) : null}
@@ -101,17 +103,19 @@ export const FilterOverlays: React.FC<FilterOverlaysProps> = ({
         <View style={styles.overlay}>
           <TouchableOpacity style={styles.overlayBackground} onPress={onSortDropdownClose} />
           <View style={styles.dropdownOverlay}>
-            {sortOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.dropdownItem, selectedSort === option.value && styles.dropdownItemSelected]}
-                onPress={() => onSortSelect(option.value)}
-              >
-                <Text style={[styles.dropdownItemText, selectedSort === option.value && styles.dropdownItemTextSelected]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.dropdownItem, selectedSort === option.value && styles.dropdownItemSelected]}
+                  onPress={() => onSortSelect(option.value)}
+                >
+                  <Text style={[styles.dropdownItemText, selectedSort === option.value && styles.dropdownItemTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       ) : null}
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border.light,
     ...theme.shadows.lg,
     overflow: 'hidden',
-    maxHeight: 200,
+    maxHeight: 300,
   },
   dropdownItem: {
     paddingHorizontal: theme.spacing.lg,

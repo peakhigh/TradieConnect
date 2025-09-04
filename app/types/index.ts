@@ -40,7 +40,8 @@ export interface ServiceRequest {
   id: string;
   customerId: string;
   customer: Customer;
-  tradeType: string;
+  trades: string[];
+  tradeType?: string; // Legacy field for backward compatibility
   description: string;
   voiceMessage?: string;
   photos: string[];
