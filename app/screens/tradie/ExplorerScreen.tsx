@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
 import { Container } from '../../components/UI/Container';
-import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown } from 'lucide-react-native';
+import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown, HelpCircle } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import ServiceRequestCard from '../../components/explorer/ServiceRequestCard';
 import FilterDrawer from '../../components/explorer/FilterDrawer';
+import { RequestCardSkeleton } from '../../components/UI/Skeleton';
+import { HelpDrawer } from '../../components/UI/HelpDrawer';
 import { EnrichedServiceRequest, DataFilters as DataFiltersType, IntelligenceFilters as IntelligenceFiltersType } from '../../types/explorer';
 import { fetchServiceRequests, unlockServiceRequest } from '../../services/explorerService';
 import { secureLog, secureError } from '../../utils/logger';
@@ -59,6 +61,9 @@ export default function ExplorerScreen() {
   });
   const [tempFilters, setTempFilters] = useState<FilterState>(appliedFilters);
   const [totalResults, setTotalResults] = useState(0);
+  const [totalAvailable, setTotalAvailable] = useState(0);
+  const [showHelpDrawer, setShowHelpDrawer] = useState(false);
+  const [helpSection, setHelpSection] = useState<'statuses' | 'intelligence' | 'unlock' | 'filters'>('statuses');
 
   useEffect(() => {
     loadRequests(true);
@@ -101,6 +106,8 @@ export default function ExplorerScreen() {
         setRequests(fetchedRequests);
         setItemsLoadedInCurrentBatch(fetchedRequests.length);
         setTotalResults(fetchedRequests.length);
+        // For demo purposes, assume total available is 3x what we loaded initially
+        setTotalAvailable(Math.max(fetchedRequests.length * 3, 100));
       } else {
         secureLog(`➕ Adding ${fetchedRequests.length} requests to existing ${requests.length}`);
         setRequests(prev => {
@@ -286,7 +293,7 @@ export default function ExplorerScreen() {
   };
 
   const clearAllFilters = () => {
-    const defaultFilters = {
+    const defaultFilters: FilterState = {
       data: {
         trades: [],
         location: { postcode: '', radius: 10 },
@@ -295,10 +302,10 @@ export default function ExplorerScreen() {
         postedWithin: 24
       },
       intelligence: {
-        competitionLevel: 'all',
+        competitionLevel: 'all' as const,
         winRateThreshold: 0,
         opportunityScore: { min: 0, max: 100 },
-        priceGap: 'all'
+        priceGap: 'all' as const
       }
     };
     setAppliedFilters(defaultFilters);
@@ -322,23 +329,54 @@ export default function ExplorerScreen() {
       {/* Header with Sort & Filter */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Service Requests</Text>
-          <Text style={styles.resultCount}>{totalResults} results</Text>
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Service Requests</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setHelpSection('statuses');
+                setShowHelpDrawer(true);
+              }}
+              style={styles.helpButton}
+            >
+              <HelpCircle size={16} color="#3b82f6" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.resultCount}>
+            {loading && requests.length === 0 
+              ? 'Loading...' 
+              : totalResults === 0 
+                ? '0 results'
+                : totalResults < 10
+                  ? `${totalResults} of ${totalAvailable}`
+                  : `${Math.max(1, totalResults - 9)} to ${totalResults} of ${totalAvailable}`
+            }
+          </Text>
         </View>
         
         {/* Filter and Sort Row */}
         <View style={styles.filterSortRow}>
           {/* Filter Section */}
           <View style={styles.filterSection}>
-            <TouchableOpacity
-              style={[styles.filterButton, activeFilterTags.length > 0 && styles.activeFilterButton]}
-              onPress={() => setShowFilterDrawer(true)}
-            >
-              <Filter size={16} color={activeFilterTags.length > 0 ? "#ffffff" : "#6b7280"} />
-              <Text style={[styles.filterButtonText, activeFilterTags.length > 0 && styles.activeFilterButtonText]}>
-                Filters {activeFilterTags.length > 0 && `(${activeFilterTags.length})`}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.filterRow}>
+              <TouchableOpacity
+                style={[styles.filterButton, activeFilterTags.length > 0 && styles.activeFilterButton]}
+                onPress={() => setShowFilterDrawer(true)}
+              >
+                <Filter size={16} color={activeFilterTags.length > 0 ? "#ffffff" : "#6b7280"} />
+                <Text style={[styles.filterButtonText, activeFilterTags.length > 0 && styles.activeFilterButtonText]}>
+                  Filters {activeFilterTags.length > 0 && `(${activeFilterTags.length})`}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setHelpSection('filters');
+                  setShowHelpDrawer(true);
+                }}
+                style={styles.filterHelpButton}
+              >
+                <HelpCircle size={14} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Sort Section */}
@@ -432,6 +470,13 @@ export default function ExplorerScreen() {
         onApply={applyFilters}
       />
 
+      {/* Help Drawer */}
+      <HelpDrawer
+        visible={showHelpDrawer}
+        onClose={() => setShowHelpDrawer(false)}
+        section={helpSection}
+      />
+
       {/* Sort Dropdown Backdrop */}
       {showSortDropdown && (
         <TouchableOpacity
@@ -443,8 +488,10 @@ export default function ExplorerScreen() {
 
       {/* Request List */}
       {loading && requests.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading requests...</Text>
+        <View style={styles.skeletonContainer}>
+          <RequestCardSkeleton />
+          <RequestCardSkeleton />
+          <RequestCardSkeleton />
         </View>
       ) : (
         <FlatList
@@ -456,6 +503,10 @@ export default function ExplorerScreen() {
               request={item}
               onUnlock={handleUnlock}
               onSave={handleSave}
+              onHelp={(section) => {
+                setHelpSection(section);
+                setShowHelpDrawer(true);
+              }}
               isSaved={savedRequests.has(item.id)}
               sequenceNumber={index + 1}
             />
@@ -524,10 +575,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  titleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 20,
     fontWeight: '600',
     color: '#111827',
+  },
+  helpButton: {
+    marginLeft: 6,
+    padding: 4,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
   },
   resultCount: {
     fontSize: 14,
@@ -541,6 +602,16 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     alignItems: 'flex-start',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterHelpButton: {
+    padding: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
   },
   sortSection: {
     alignItems: 'flex-end',
@@ -746,6 +817,10 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
+  skeletonContainer: {
+    flex: 1,
+    padding: 16,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -780,7 +855,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sortBackdrop: {
-    position: 'fixed',
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,

@@ -49,16 +49,46 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 export function RequestCardSkeleton() {
   return (
     <View style={styles.cardContainer}>
+      {/* Header with trade type and status */}
       <View style={styles.cardHeader}>
-        <Skeleton width="60%" height={20} />
-        <Skeleton width={80} height={24} borderRadius={12} />
+        <Skeleton width="60%" height={18} />
+        <View style={styles.headerRight}>
+          <Skeleton width={70} height={20} borderRadius={10} />
+          <Skeleton width={60} height={14} />
+          <Skeleton width={16} height={16} borderRadius={8} />
+        </View>
       </View>
-      <Skeleton width="100%" height={16} style={{ marginVertical: theme.spacing.xs }} />
-      <Skeleton width="80%" height={16} style={{ marginBottom: theme.spacing.sm }} />
-      <View style={styles.cardFooter}>
-        <Skeleton width={60} height={14} />
-        <Skeleton width={100} height={14} />
+      
+      {/* Description */}
+      <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
+      <Skeleton width="75%" height={16} style={{ marginBottom: 12 }} />
+      
+      {/* Urgency and time */}
+      <View style={styles.metaRow}>
+        <Skeleton width={60} height={18} borderRadius={9} />
+        <Skeleton width={80} height={14} />
       </View>
+      
+      {/* Market Intelligence section */}
+      <View style={styles.intelligenceSection}>
+        <View style={styles.intelligenceHeader}>
+          <Skeleton width={16} height={16} borderRadius={8} />
+          <Skeleton width={120} height={14} />
+        </View>
+        <View style={styles.intelligenceGrid}>
+          <Skeleton width={80} height={12} />
+          <Skeleton width={90} height={12} />
+          <Skeleton width={70} height={12} />
+          <Skeleton width={100} height={12} />
+        </View>
+        <View style={styles.opportunityRow}>
+          <Skeleton width={16} height={16} borderRadius={8} />
+          <Skeleton width={150} height={12} />
+        </View>
+      </View>
+      
+      {/* Unlock button */}
+      <Skeleton width="100%" height={40} borderRadius={8} />
     </View>
   );
 }
@@ -79,11 +109,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
   },
-  cardFooter: {
+  headerRight: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  intelligenceSection: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  intelligenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  intelligenceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  opportunityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 });

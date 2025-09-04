@@ -11,13 +11,15 @@ import {
   Lock, 
   Unlock,
   Heart,
-  BarChart3
+  BarChart3,
+  HelpCircle
 } from 'lucide-react-native';
 
 interface ServiceRequestCardProps {
   request: EnrichedServiceRequest;
   onUnlock: (requestId: string) => void;
   onSave: (requestId: string) => void;
+  onHelp: (section: 'statuses' | 'intelligence' | 'unlock') => void;
   isSaved?: boolean;
   sequenceNumber?: number;
 }
@@ -26,6 +28,7 @@ export default function ServiceRequestCard({
   request, 
   onUnlock, 
   onSave, 
+  onHelp,
   isSaved = false,
   sequenceNumber 
 }: ServiceRequestCardProps) {
@@ -78,7 +81,15 @@ export default function ServiceRequestCard({
           </Text>
         </View>
         <View style={styles.rightInfo}>
-          <StatusBadge status={request.status} userType="tradie" size="small" />
+          <View style={styles.statusRow}>
+            <StatusBadge status={request.status} userType="tradie" size="small" />
+            <TouchableOpacity
+              onPress={() => onHelp('statuses')}
+              style={styles.helpIcon}
+            >
+              <HelpCircle size={12} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.location}>
             {request.postcode} • {request.distance.toFixed(1)}km
           </Text>
@@ -121,6 +132,12 @@ export default function ServiceRequestCard({
         <View style={styles.intelligenceHeader}>
           <BarChart3 size={14} color="#3b82f6" />
           <Text style={styles.intelligenceTitle}>Market Intelligence</Text>
+          <TouchableOpacity
+            onPress={() => onHelp('intelligence')}
+            style={styles.helpIcon}
+          >
+            <HelpCircle size={12} color="#6b7280" />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.intelligenceGrid}>
@@ -175,13 +192,21 @@ export default function ServiceRequestCard({
 
       {/* Unlock Section */}
       {!request.isUnlocked ? (
-        <TouchableOpacity
-          style={styles.unlockButton}
-          onPress={() => onUnlock(request.id)}
-        >
-          <Lock size={16} color="#3b82f6" />
-          <Text style={styles.unlockText}>Unlock for $0.50</Text>
-        </TouchableOpacity>
+        <View style={styles.unlockRow}>
+          <TouchableOpacity
+            style={styles.unlockButton}
+            onPress={() => onUnlock(request.id)}
+          >
+            <Lock size={16} color="#3b82f6" />
+            <Text style={styles.unlockText}>Unlock for $0.50</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onHelp('unlock')}
+            style={styles.unlockHelpButton}
+          >
+            <HelpCircle size={14} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={styles.unlockedSection}>
           <View style={styles.unlockedHeader}>
@@ -242,6 +267,14 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     gap: 8,
   },
+  statusRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+  },
+  helpIcon: {
+    padding: 2,
+  },
   tradeType: {
     fontSize: 14,
     fontWeight: '600' as const,
@@ -293,6 +326,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     marginBottom: 8,
+    flex: 1,
   },
   intelligenceTitle: {
     fontSize: 12,
@@ -335,6 +369,11 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginLeft: 4,
   },
+  unlockRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
   unlockButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -344,6 +383,14 @@ const styles = StyleSheet.create({
     borderColor: '#3b82f6',
     paddingVertical: 12,
     borderRadius: 8,
+    flex: 1,
+  },
+  unlockHelpButton: {
+    padding: 8,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   unlockText: {
     fontSize: 14,

@@ -2,31 +2,30 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ServiceRequestStatus, getStatusConfig } from '../../types/serviceRequestStatus';
 import { 
-  Clock, FileText, UserCheck, Tool, CheckCircle, XCircle, 
-  Target, Trophy, Hammer, Archive, ClockX 
+  Clock, FileText, UserCheck, CheckCircle, XCircle, 
+  Target, Hammer, Archive 
 } from 'lucide-react-native';
 
 interface StatusBadgeProps {
   status: ServiceRequestStatus;
   userType: 'customer' | 'tradie';
   size?: 'small' | 'medium' | 'large';
+  fixedWidth?: boolean;
 }
 
 const ICON_MAP = {
   clock: Clock,
   'file-text': FileText,
   'user-check': UserCheck,
-  tool: Tool,
   'check-circle': CheckCircle,
   'x-circle': XCircle,
   target: Target,
-  trophy: Trophy,
   hammer: Hammer,
   archive: Archive,
-  'clock-x': ClockX
+  'clock-x': Clock // Fallback to Clock for clock-x
 };
 
-export function StatusBadge({ status, userType, size = 'medium' }: StatusBadgeProps) {
+export function StatusBadge({ status, userType, size = 'medium', fixedWidth = false }: StatusBadgeProps) {
   const config = getStatusConfig(status, userType);
   const IconComponent = ICON_MAP[config.icon as keyof typeof ICON_MAP];
   
@@ -41,9 +40,15 @@ export function StatusBadge({ status, userType, size = 'medium' }: StatusBadgePr
   return (
     <View style={[
       styles.badge,
-      { backgroundColor: config.color + '20', borderColor: config.color, padding }
+      { 
+        backgroundColor: config.color + '15', 
+        borderColor: config.color, 
+        padding,
+        minWidth: fixedWidth ? 100 : undefined,
+        justifyContent: fixedWidth ? 'center' : undefined
+      }
     ]}>
-      <IconComponent size={iconSize} color={config.color} />
+      {IconComponent && <IconComponent size={iconSize} color={config.color} />}
       <Text style={[styles.text, { color: config.color, fontSize }]}>
         {config.label}
       </Text>

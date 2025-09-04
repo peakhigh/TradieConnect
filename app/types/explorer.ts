@@ -1,3 +1,5 @@
+import { ServiceRequestStatus } from './serviceRequestStatus';
+
 // Service Request Types
 export interface ServiceRequest {
   id: string;
@@ -8,7 +10,7 @@ export interface ServiceRequest {
   description: string;
   photos: string[];
   urgency: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'open' | 'quoted' | 'assigned' | 'completed';
+  status: ServiceRequestStatus;
   createdAt: Date;
   budget?: {
     min?: number;

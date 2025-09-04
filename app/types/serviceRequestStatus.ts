@@ -54,20 +54,20 @@ export const CUSTOMER_STATUS_CONFIG: Record<ServiceRequestStatus, StatusDisplay>
 
 export const TRADIE_STATUS_CONFIG: Record<ServiceRequestStatus, StatusDisplay> = {
   new: {
-    label: 'Available',
-    color: '#16a34a',
+    label: 'New',
+    color: '#059669',
     icon: 'target',
-    description: 'Can submit quote'
+    description: 'New request - you can submit a quote'
   },
   quoted: {
     label: 'Quoted',
     color: '#f59e0b',
     icon: 'clock',
-    description: 'Quote submitted, awaiting response'
+    description: 'You have submitted a quote, awaiting customer response'
   },
   assigned: {
-    label: 'Active Job',
-    color: '#10b981',
+    label: 'Assigned',
+    color: '#3b82f6',
     icon: 'hammer',
     description: 'Your quote was accepted, work in progress'
   },
@@ -81,13 +81,13 @@ export const TRADIE_STATUS_CONFIG: Record<ServiceRequestStatus, StatusDisplay> =
     label: 'Cancelled',
     color: '#dc2626',
     icon: 'x-circle',
-    description: 'Customer cancelled request'
+    description: 'Customer cancelled the request'
   },
   expired: {
     label: 'Expired',
     color: '#6b7280',
     icon: 'archive',
-    description: 'Opportunity expired'
+    description: 'Request expired due to inactivity'
   }
 };
 
