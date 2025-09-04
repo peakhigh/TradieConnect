@@ -30,6 +30,13 @@ const SORT_OPTIONS: SortOption[] = [
   { key: 'budget', label: 'Highest Budget', icon: DollarSign },
 ];
 
+// Pagination Configuration
+const PAGINATION_CONFIG = {
+  ITEMS_PER_LOAD: 15,        // Number of items to load per auto-scroll
+  LOAD_MORE_BATCH_SIZE: 10,  // Number of items to load when "Load More" clicked
+  LOAD_MORE_THRESHOLD: 30,   // Show "Load More" button after this many items
+};
+
 export default function ExplorerScreen() {
   const [activeSort, setActiveSort] = useState('newest');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
@@ -69,7 +76,7 @@ export default function ExplorerScreen() {
     loadRequests(true);
   }, [activeSort, appliedFilters]);
 
-  const loadRequests = async (reset = false) => {
+  const loadRequests = async (reset = false, isManualLoadMore = false) => {
     try {
       secureLog(`🔄 loadRequests called:`, {
         reset,
@@ -93,11 +100,14 @@ export default function ExplorerScreen() {
         setLoadingMore(true);
       }
 
+      // Use different batch sizes for auto-load vs manual Load More
+      const batchSize = isManualLoadMore ? PAGINATION_CONFIG.LOAD_MORE_BATCH_SIZE : PAGINATION_CONFIG.ITEMS_PER_LOAD;
+      
       const { requests: fetchedRequests, hasMore: moreAvailable, lastDoc: newLastDoc } = await fetchServiceRequests(
         appliedFilters.data,
         appliedFilters.intelligence,
         activeSort,
-        10,
+        batchSize,
         reset ? null : lastDoc
       );
 
@@ -106,8 +116,7 @@ export default function ExplorerScreen() {
         setRequests(fetchedRequests);
         setItemsLoadedInCurrentBatch(fetchedRequests.length);
         setTotalResults(fetchedRequests.length);
-        // For demo purposes, assume total available is 3x what we loaded initially
-        setTotalAvailable(Math.max(fetchedRequests.length * 3, 100));
+
       } else {
         secureLog(`➕ Adding ${fetchedRequests.length} requests to existing ${requests.length}`);
         setRequests(prev => {
@@ -124,14 +133,14 @@ export default function ExplorerScreen() {
       setHasMore(moreAvailable);
       setLastDoc(newLastDoc);
       
-      // Show "Load More" button after every 50 items in current batch
+      // Show "Load More" button after threshold items in current batch
       const currentBatchCount = reset ? fetchedRequests.length : itemsLoadedInCurrentBatch + fetchedRequests.length;
-      const shouldShowButton = moreAvailable && currentBatchCount >= 50;
+      const shouldShowButton = moreAvailable && currentBatchCount >= PAGINATION_CONFIG.LOAD_MORE_THRESHOLD;
       secureLog(`🔘 Load More Button Logic:`, {
         currentBatchCount,
         moreAvailable,
         shouldShowButton,
-        threshold: 50
+        threshold: PAGINATION_CONFIG.LOAD_MORE_THRESHOLD
       });
       setShowLoadMoreButton(shouldShowButton);
       
@@ -157,7 +166,7 @@ export default function ExplorerScreen() {
       secureLog('✅ Proceeding with load more - resetting batch counter');
       setShowLoadMoreButton(false);
       setItemsLoadedInCurrentBatch(0); // Reset batch counter BEFORE loading
-      loadRequests(false);
+      loadRequests(false, true); // true = manual Load More
     } else {
       secureLog('❌ Load more blocked:', { loadingMore, hasMore });
     }
@@ -165,7 +174,7 @@ export default function ExplorerScreen() {
 
   const handleAutoLoadMore = () => {
     // Auto-load more when scrolling, but only if button is not shown
-    const canAutoLoad = !loadingMore && hasMore && !showLoadMoreButton && itemsLoadedInCurrentBatch < 50;
+    const canAutoLoad = !loadingMore && hasMore && !showLoadMoreButton && itemsLoadedInCurrentBatch < PAGINATION_CONFIG.LOAD_MORE_THRESHOLD;
     
     secureLog(`🔄 handleAutoLoadMore triggered:`, {
       loadingMore,
@@ -177,7 +186,7 @@ export default function ExplorerScreen() {
     
     if (canAutoLoad) {
       secureLog('✅ Auto-loading more items');
-      loadRequests(false);
+      loadRequests(false, false); // false = auto-load
     }
   };
 
@@ -344,11 +353,11 @@ export default function ExplorerScreen() {
           <Text style={styles.resultCount}>
             {loading && requests.length === 0 
               ? 'Loading...' 
-              : totalResults === 0 
+              : requests.length === 0 
                 ? '0 results'
-                : totalResults < 10
-                  ? `${totalResults} of ${totalAvailable}`
-                  : `${Math.max(1, totalResults - 9)} to ${totalResults} of ${totalAvailable}`
+                : hasMore
+                  ? `${requests.length}+ results`
+                  : `${requests.length} results`
             }
           </Text>
         </View>
@@ -466,7 +475,7 @@ export default function ExplorerScreen() {
         onClose={handleFilterDrawerClose}
         filters={tempFilters}
         onFiltersChange={setTempFilters}
-        totalResults={totalResults}
+        totalResults={requests.length}
         onApply={applyFilters}
       />
 
