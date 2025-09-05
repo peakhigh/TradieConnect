@@ -36,7 +36,7 @@ const trades = ['plumbing', 'electrical', 'carpentry', 'painting', 'tiling', 'ro
 const suburbs = ['Bondi Beach', 'Manly', 'Surry Hills', 'Paddington', 'Newtown', 'Glebe', 'Balmain', 'Mosman'];
 const postcodes = ['2026', '2095', '2010', '2021', '2042', '2037', '2041', '2088'];
 const urgencyLevels = ['low', 'medium', 'high', 'urgent'];
-const statuses = ['open', 'quoted', 'assigned'];
+const statuses = ['new', 'quoted', 'assigned'];
 
 const descriptions = [
   'Kitchen tap is leaking and needs urgent repair',
@@ -66,7 +66,7 @@ function randomDate(days = 7) {
 }
 
 async function createServiceRequests() {
-  console.log('Creating service requests...');
+  console.log('Creating service requests with embedded intelligence...');
   const requests = [];
   
   for (let i = 0; i < 50; i++) {
@@ -77,11 +77,31 @@ async function createServiceRequests() {
     const tradeType = randomChoice(trades);
     const description = randomChoice(descriptions);
     
+    // Generate quotes first to calculate intelligence
+    const numQuotes = randomNumber(0, 12);
+    const quotes = [];
+    
+    for (let j = 0; j < numQuotes; j++) {
+      const materialsCost = randomNumber(50, 500);
+      const laborCost = randomNumber(100, 800);
+      quotes.push({
+        totalPrice: materialsCost + laborCost,
+        materialsCost,
+        laborCost,
+        timelineDays: randomNumber(1, 14),
+        createdAt: Timestamp.fromDate(new Date(createdAt.getTime() + randomNumber(1, 48) * 60 * 60 * 1000))
+      });
+    }
+    
+    // Calculate intelligence from quotes
+    const intelligence = calculateIntelligence(quotes);
+    
     const request = {
-      customerId: `customer_${randomNumber(1, 20)}`,
-      tradeType,
-      description,
+      customerId: 'L4uj8MTCfhWhoMpWWwj8y6LzcZs2',
+      trades: [tradeType], // Updated to array format
+      suburb,
       postcode,
+      description,
       urgency: randomChoice(urgencyLevels),
       status: randomChoice(statuses),
       photos: Math.random() > 0.5 ? [randomChoice(SAMPLE_PHOTOS)] : [],
@@ -95,6 +115,7 @@ async function createServiceRequests() {
       notesWords: description.toLowerCase().split(/\s+/).filter(word => word.length > 0),
       tradeTypeLower: tradeType.toLowerCase(),
       descriptionLower: description.toLowerCase(),
+      intelligence, // Embed intelligence directly
       mock: true,
       createdAt: Timestamp.fromDate(createdAt),
       updatedAt: Timestamp.fromDate(createdAt)
@@ -102,8 +123,8 @@ async function createServiceRequests() {
     
     try {
       const docRef = await addDoc(collection(db, 'serviceRequests'), request);
-      requests.push({ id: docRef.id, ...request });
-      console.log(`Created service request ${i + 1}/50`);
+      requests.push({ id: docRef.id, ...request, quotes });
+      console.log(`Created service request ${i + 1}/50 with ${numQuotes} quotes`);
     } catch (error) {
       console.error('Error creating service request:', error);
     }
@@ -260,45 +281,24 @@ function calculateIntelligence(quotes) {
   };
 }
 
-async function createRequestIntelligence(requestQuotes) {
-  console.log('Creating request intelligence...');
-  
-  for (const [requestId, quotes] of Object.entries(requestQuotes)) {
-    const intelligence = calculateIntelligence(quotes);
-    
-    const intelligenceData = {
-      requestId,
-      ...intelligence,
-      mock: true,
-      updatedAt: Timestamp.now()
-    };
-    
-    try {
-      await addDoc(collection(db, 'requestIntelligence'), intelligenceData);
-      console.log(`Created intelligence for request ${requestId}`);
-    } catch (error) {
-      console.error('Error creating intelligence:', error);
-    }
-  }
-}
+// Intelligence is now embedded in serviceRequests, so this function is no longer needed
+// async function createRequestIntelligence(requestQuotes) { ... }
 
 async function main() {
   try {
-    console.log('Starting Firestore population...');
+    console.log('Starting Firestore population with combined structure...');
     
     // Clean existing mock data first
     await cleanMockData();
     
-    // Create service requests
+    // Create service requests with embedded intelligence
     const serviceRequests = await createServiceRequests();
     
-    // Create quotes for service requests
+    // Create separate quotes for unlock functionality
     const requestQuotes = await createQuotes(serviceRequests);
     
-    // Create request intelligence
-    await createRequestIntelligence(requestQuotes);
-    
     console.log('✅ Firestore population completed successfully!');
+    console.log(`Created ${serviceRequests.length} service requests with embedded intelligence`);
     
   } catch (error) {
     console.error('❌ Error populating Firestore:', error);

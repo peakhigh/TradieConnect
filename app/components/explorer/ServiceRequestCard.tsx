@@ -193,19 +193,22 @@ export default function ServiceRequestCard({
       {/* Unlock Section */}
       {!request.isUnlocked ? (
         <View style={styles.unlockRow}>
-          <TouchableOpacity
-            style={styles.unlockButton}
-            onPress={() => onUnlock(request.id)}
-          >
-            <Lock size={16} color="#3b82f6" />
-            <Text style={styles.unlockText}>Unlock for $0.50</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => onHelp('unlock')}
-            style={styles.unlockHelpButton}
-          >
-            <HelpCircle size={14} color="#6b7280" />
-          </TouchableOpacity>
+          <Text style={styles.unlockNote}>Unlock full details and submit quote</Text>
+          <View style={styles.unlockActions}>
+            <TouchableOpacity
+              onPress={() => onHelp('unlock')}
+              style={styles.unlockHelpButton}
+            >
+              <HelpCircle size={12} color="#6b7280" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.unlockButton}
+              onPress={() => onUnlock(request.id)}
+            >
+              <Lock size={12} color="#3b82f6" />
+              <Text style={styles.unlockText}>Unlock $0.50</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <View style={styles.unlockedSection}>
@@ -372,31 +375,41 @@ const styles = StyleSheet.create({
   unlockRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
+    justifyContent: 'space-between' as const,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  unlockNote: {
+    fontSize: 12,
+    color: '#6b7280',
+    flex: 1,
+  },
+  unlockActions: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
   },
   unlockButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    justifyContent: 'center' as const,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#3b82f6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
   unlockHelpButton: {
-    padding: 8,
+    padding: 4,
     backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderRadius: 4,
   },
   unlockText: {
-    fontSize: 14,
-    fontWeight: '500' as const,
+    fontSize: 12,
+    fontWeight: '600' as const,
     color: '#3b82f6',
-    marginLeft: 6,
+    marginLeft: 4,
   },
   unlockedSection: {
     borderTopWidth: 1,

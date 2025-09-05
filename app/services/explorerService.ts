@@ -163,7 +163,7 @@ export async function fetchServiceRequests(
   });
   
   try {
-    // Build query for service requests
+    // Build query for service requests (now with embedded intelligence)
     let q = query(collection(db, 'serviceRequests'));
 
     // Apply sorting only
@@ -182,125 +182,35 @@ export async function fetchServiceRequests(
       secureLog(`📄 First doc ID: ${requestsSnapshot.docs[0].id}, Last doc ID: ${requestsSnapshot.docs[requestsSnapshot.docs.length - 1].id}`);
     }
     
-    const requests = requestsSnapshot.docs.map(doc => {
+    // Build enriched requests directly from serviceRequests collection
+    const enrichedRequests: EnrichedServiceRequest[] = [];
+
+    for (const doc of requestsSnapshot.docs) {
       const data = doc.data();
-      return {
+      const request = {
         id: doc.id,
         ...data,
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now())
       };
-    });
 
-    // Get request IDs for batch intelligence fetch
-    const requestIds = requests.map(r => r.id);
-    
-    // Batch fetch pre-computed intelligence (handle empty array and 30+ limit)
-    let intelligenceSnapshot: any;
-    if (requestIds.length === 0) {
-      intelligenceSnapshot = { docs: [] };
-    } else if (requestIds.length <= 30) {
-      const intelligenceQuery = query(
-        collection(db, 'requestIntelligence'),
-        where('requestId', 'in', requestIds)
-      );
-      intelligenceSnapshot = await getDocs(intelligenceQuery);
-    } else {
-      // Handle more than 30 items by chunking
-      const chunks = [];
-      for (let i = 0; i < requestIds.length; i += 30) {
-        chunks.push(requestIds.slice(i, i + 30));
-      }
-      
-      const allDocs: any[] = [];
-      for (const chunk of chunks) {
-        const chunkQuery = query(
-          collection(db, 'requestIntelligence'),
-          where('requestId', 'in', chunk)
-        );
-        const chunkSnapshot = await getDocs(chunkQuery);
-        allDocs.push(...chunkSnapshot.docs);
-      }
-      intelligenceSnapshot = { docs: allDocs };
-    }
-    
-    const intelligenceMap = new Map();
-    intelligenceSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      intelligenceMap.set(data.requestId, {
-        totalQuotes: data.totalQuotes,
-        priceRange: {
-          min: Math.round(data.priceRange.min * 100) / 100,
-          max: Math.round(data.priceRange.max * 100) / 100,
-          average: Math.round(data.priceRange.average * 100) / 100
-        },
-        timelineRange: {
-          minDays: data.timelineRange.minDays,
-          maxDays: data.timelineRange.maxDays,
-          averageDays: Math.round(data.timelineRange.averageDays * 10) / 10
-        },
+      // Extract intelligence data (now embedded in the same document)
+      const intelligence = data.intelligence || {
+        totalQuotes: 0,
+        priceRange: { min: 0, max: 0, average: 0 },
+        timelineRange: { minDays: 0, maxDays: 0, averageDays: 0 },
         breakdown: {
-          materials: {
-            min: Math.round(data.breakdown.materials.min * 100) / 100,
-            max: Math.round(data.breakdown.materials.max * 100) / 100,
-            average: Math.round(data.breakdown.materials.average * 100) / 100
-          },
-          labor: {
-            min: Math.round(data.breakdown.labor.min * 100) / 100,
-            max: Math.round(data.breakdown.labor.max * 100) / 100,
-            average: Math.round(data.breakdown.labor.average * 100) / 100
-          }
+          materials: { min: 0, max: 0, average: 0 },
+          labor: { min: 0, max: 0, average: 0 }
         },
-        competitionLevel: data.competitionLevel,
-        opportunityScore: Math.round(data.opportunityScore * 100) / 100,
-        competitivePosition: data.competitivePosition,
-        recommendedPriceRange: {
-          min: Math.round(data.recommendedPriceRange.min * 100) / 100,
-          max: Math.round(data.recommendedPriceRange.max * 100) / 100,
-          optimal: Math.round(data.recommendedPriceRange.optimal * 100) / 100
-        },
-        winProbability: Math.round(data.winProbability * 100) / 100,
-        marketTrends: data.marketTrends,
-        lastQuoteAt: data.lastQuoteAt?.toDate ? data.lastQuoteAt.toDate() : new Date()
-      });
-    });
-
-    secureLog(`💰 Found intelligence for ${intelligenceMap.size}/${requests.length} requests`);
-
-    // Build enriched requests
-    const enrichedRequests: EnrichedServiceRequest[] = [];
-
-    for (const request of requests) {
-      const intelligence = intelligenceMap.get(request.id);
-      
-      if (!intelligence) {
-        // Fallback for requests without intelligence
-        const fallbackIntelligence = {
-          totalQuotes: 0,
-          priceRange: { min: 0, max: 0, average: 0 },
-          timelineRange: { minDays: 0, maxDays: 0, averageDays: 0 },
-          breakdown: {
-            materials: { min: 0, max: 0, average: 0 },
-            labor: { min: 0, max: 0, average: 0 }
-          },
-          competitionLevel: 'low' as const,
-          opportunityScore: 80,
-          competitivePosition: 'strong' as const,
-          recommendedPriceRange: { min: 0, max: 0, optimal: 0 },
-          winProbability: 0.8,
-          marketTrends: { priceDirection: 'stable' as const, demandLevel: 'low' as const },
-          lastQuoteAt: new Date()
-        };
-        
-        enrichedRequests.push({
-          ...request,
-          quotes: fallbackIntelligence,
-          intelligence: fallbackIntelligence,
-          isUnlocked: false,
-          distance: calculateDistance(request, tradieLocation)
-        });
-        continue;
-      }
+        competitionLevel: 'low' as const,
+        opportunityScore: 80,
+        competitivePosition: 'strong' as const,
+        recommendedPriceRange: { min: 0, max: 0, optimal: 0 },
+        winProbability: 0.8,
+        marketTrends: { priceDirection: 'stable' as const, demandLevel: 'low' as const },
+        lastQuoteAt: new Date()
+      };
 
       // Apply intelligence filters
       let includeRequest = true;
