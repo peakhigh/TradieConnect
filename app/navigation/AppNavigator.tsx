@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import MobileLoginScreen from '../screens/auth/MobileLoginScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import CustomerTabs from './CustomerTabs';
 import TradieTabs from './TradieTabs';
@@ -78,7 +78,7 @@ export const AppNavigator: React.FC = () => {
         >
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="UserTypeSelection" component={UserTypeSelectionScreen} />
-          <Stack.Screen name="Login" component={MobileLoginScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
         </Stack.Navigator>
       </NavigationContainer>
