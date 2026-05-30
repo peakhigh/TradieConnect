@@ -1,0 +1,2176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradieConnect Docs</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 280px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 24px 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 20px;
+      padding: 0 24px 20px;
+      color: #fff;
+      border-bottom: 1px solid #2a2a4a;
+      margin-bottom: 12px;
+    }
+    .sidebar a {
+      display: block;
+      padding: 10px 24px;
+      color: #b0b0c8;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+    }
+    .sidebar a:hover { background: #2a2a4a; color: #fff; }
+    .sidebar a.active {
+      background: #2a2a4a;
+      color: #6c9fff;
+      border-left-color: #6c9fff;
+      font-weight: 600;
+    }
+    .content {
+      margin-left: 280px;
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 960px;
+    }
+    .content h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e0e4ea;
+    }
+    .content h2 { font-size: 24px; margin-top: 32px; margin-bottom: 12px; color: #1a1a2e; }
+    .content h3 { font-size: 18px; margin-top: 24px; margin-bottom: 8px; color: #333; }
+    .content h4 { font-size: 16px; margin-top: 20px; margin-bottom: 6px; color: #444; }
+    .content p { line-height: 1.7; margin-bottom: 12px; color: #444; }
+    .content ul, .content ol { margin: 8px 0 16px 24px; line-height: 1.7; }
+    .content li { margin-bottom: 4px; color: #444; }
+    .content code {
+      background: #eef1f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .content pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      padding: 16px 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 12px 0 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .content pre code { background: none; padding: 0; color: inherit; }
+    .content table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+    .content th {
+      background: #eef1f6;
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      border-bottom: 2px solid #d0d5dd;
+    }
+    .content td { padding: 8px 12px; border-bottom: 1px solid #e8ebf0; color: #444; }
+    .content tr:hover td { background: #f8f9fb; }
+    .content hr { border: none; border-top: 1px solid #e0e4ea; margin: 28px 0; }
+    .content strong { color: #1a1a2e; }
+    .content blockquote {
+      border-left: 4px solid #6c9fff;
+      padding: 8px 16px;
+      margin: 12px 0;
+      background: #f0f4ff;
+      color: #555;
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; position: relative; }
+      .content { margin-left: 0; padding: 20px; }
+      .layout { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar">
+      <h1>🔧 TradieConnect Docs</h1>
+      <a data-doc="overview" class="active">Project Overview</a>
+      <a data-doc="process">The Process</a>
+      <a data-doc="database">Database Structure</a>
+      <a data-doc="customer-screens">Customer Screens</a>
+      <a data-doc="tradie-screens">Tradie Screens</a>
+      <a data-doc="admin-screens">Admin Screens</a>
+      <a data-doc="flows">User Flows</a>
+      <a data-doc="cloud-functions">Cloud Functions</a>
+      <a data-doc="notifications">Notifications</a>
+      <a data-doc="data-examples">Data Examples & Queries</a>
+      <a data-doc="intelligence-algorithm">Intelligence Algorithm</a>
+    </nav>
+    <main class="content" id="content"></main>
+  </div>
+  <script id="md-overview" type="text/markdown">
+# TradieConnect — Project Overview
+
+TradieConnect is a two-sided marketplace connecting Australian customers with licensed tradespeople. Customers post service requests for free; tradies pay $0.50 AUD to unlock request details and submit quotes.
+
+## Business Model
+
+| Concept | Value |
+|---------|-------|
+| Customer cost | Free |
+| Unlock cost (tradie) | $0.50 AUD per request |
+| Signup bonus (tradie) | $10 AUD credit |
+| Minimum wallet recharge | $5 AUD |
+| Commission rate | 5% on completed jobs |
+
+## User Roles
+
+### Customer
+- Posts service requests (description, photos, voice messages, preferred dates)
+- Receives and compares quotes from multiple tradies
+- Accepts a quote → shares address and phone with chosen tradie
+- Rates tradie after job completion
+
+### Tradie
+- Browses active service requests in the Explorer
+- Pays $0.50 to unlock full request details
+- Submits detailed quotes (materials, labor, timeline)
+- Manages wallet balance (recharge via payment)
+- Builds reputation through ratings and completed jobs
+
+### Admin
+- Manages users (view, suspend, verify)
+- Monitors platform finances (transactions, revenue)
+- Oversees platform health and disputes
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native + Expo (iOS, Android, Web) |
+| Language | TypeScript (strict) |
+| Navigation | React Navigation (Stack + Bottom Tabs) |
+| UI | Gluestack UI + NativeWind (Tailwind) |
+| Backend | Firebase (Auth, Firestore, Storage, Cloud Functions) |
+| Auth | Phone OTP via Firebase Auth |
+| Payments | Wallet-based (Stripe integration point) |
+
+## Platform Targets
+
+All code runs on **iOS**, **Android**, and **Web** from a single codebase.
+  </script>
+  <script id="md-process" type="text/markdown">
+# The Process — How TradieConnect Works
+
+## High-Level Flow
+
+```
+Customer posts request → Tradies see summary in Explorer → Tradie pays $0.50 to unlock
+→ Tradie submits quote → Customer compares quotes → Customer accepts one
+→ Address & phone shared → Job completed → Customer rates tradie
+```
+
+## Step-by-Step Breakdown
+
+### 1. Customer Posts a Service Request
+
+- Customer opens the app and taps "Post a Request"
+- Fills in: trade type (e.g. Plumbing, Electrical), suburb, description
+- Optionally attaches photos and/or a voice message
+- Selects preferred date range for the job
+- Submits → request goes live immediately with status `active`
+
+### 2. Tradies Browse the Explorer
+
+- Tradies see a feed of active requests filtered by their registered trades and suburbs
+- Each card shows: trade type, suburb, date posted, brief description preview
+- **Full details are hidden** — tradie sees enough to decide if it's worth unlocking
+- Market intelligence data shows competition level and price ranges (if quotes exist)
+
+### 3. Tradie Unlocks a Request ($0.50)
+
+- Tradie taps "Unlock" on a request card
+- System checks wallet balance ≥ $0.50
+- If sufficient: deducts $0.50, records transaction, reveals full details
+- If insufficient: prompts to recharge wallet
+- Once unlocked, tradie can see: full description, all photos, voice message, customer's preferred dates
+
+### 4. Tradie Submits a Quote
+
+- After unlocking, tradie can submit a quote with:
+  - Materials cost breakdown
+  - Labor cost breakdown
+  - Total price
+  - Estimated start date
+  - Estimated completion date
+  - Timeline in days
+  - Notes/comments
+- Quote is saved with status `pending`
+- Customer receives a push notification: "New quote received"
+
+### 5. Customer Compares Quotes
+
+- Customer sees all received quotes on their request detail screen
+- Each quote shows: tradie name, rating, total price, timeline, breakdown
+- Customer can view tradie profiles (rating, total jobs, trades)
+
+### 6. Customer Accepts a Quote
+
+- Customer taps "Accept" on their preferred quote
+- System updates:
+  - Quote status → `accepted`
+  - All other quotes for this request → `rejected`
+  - Service request status → `in-progress`
+  - Customer's address and phone are shared with the accepted tradie
+- Accepted tradie receives notification: "Your quote was accepted!"
+- Rejected tradies receive notification: "Another quote was accepted"
+
+### 7. Job Completion
+
+- Once work is done, customer marks the request as `completed`
+- Customer rates the tradie (1-5 stars)
+- Tradie's rating and totalJobs count are updated
+- Service request status → `completed`
+
+## Edge Cases
+
+- **No quotes received**: Request stays active until customer cancels
+- **Customer cancels**: Status → `cancelled`, no refunds to tradies who unlocked
+- **Tradie unlocks but doesn't quote**: That's their choice, $0.50 is non-refundable
+- **Multiple tradies unlock same request**: Each pays independently, competition drives better quotes
+  </script>
+  <script id="md-database" type="text/markdown">
+# Database Structure
+
+## Firestore Collections
+
+### `users`
+
+User profiles for all roles (customer, tradie, admin).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Firebase Auth UID (doc ID) |
+| `userType` | `'customer' \| 'tradie' \| 'admin'` | Role |
+| `displayName` | string | Full name |
+| `phone` | string | Phone number (used for OTP auth) |
+| `email` | string | Optional |
+| `profilePhoto` | string | Storage URL, optional |
+| `walletBalance` | number | Tradie only, in AUD (starts at $10 bonus) |
+| `rating` | number | Tradie only, 0-5 average |
+| `totalRatings` | number | Tradie only, count of ratings received |
+| `totalJobs` | number | Tradie only, completed jobs count |
+| `onboardingCompleted` | boolean | Tradie only |
+| `trades` | string[] | Tradie only — registered trade types |
+| `suburbs` | string[] | Tradie only — service areas |
+| `businessName` | string | Tradie only |
+| `licenseNumber` | string | Tradie only |
+| `insuranceDetails` | string | Tradie only |
+| `fcmToken` | string | For push notifications |
+| `status` | `'active' \| 'suspended'` | Account status |
+| `createdAt` | Timestamp | |
+| `updatedAt` | Timestamp | |
+
+---
+
+### `serviceRequests`
+
+Customer job postings — the core entity of the marketplace.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `customerId` | string | Ref to users |
+| `customerName` | string | Denormalized for display |
+| `trades` | string[] | e.g. `['Plumbing']` |
+| `suburb` | string | Job location suburb |
+| `description` | string | Full job description |
+| `photos` | string[] | Firebase Storage URLs |
+| `voiceMessage` | string | Storage URL, optional |
+| `preferredDateStart` | Timestamp | Customer's preferred start |
+| `preferredDateEnd` | Timestamp | Customer's preferred end |
+| `status` | `'active' \| 'in-progress' \| 'completed' \| 'cancelled'` | |
+| `acceptedQuoteId` | string | Set when a quote is accepted |
+| `acceptedTradieId` | string | Set when a quote is accepted |
+| `customerAddress` | string | Shared only after quote acceptance |
+| `customerPhone` | string | Shared only after quote acceptance |
+| `totalQuotes` | number | Denormalized count |
+| `totalUnlocks` | number | Denormalized count |
+| `createdAt` | Timestamp | |
+| `updatedAt` | Timestamp | |
+
+---
+
+### `quotes`
+
+Tradie submissions for service requests.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `serviceRequestId` | string | Ref to serviceRequests |
+| `tradieId` | string | Ref to users |
+| `tradieName` | string | Denormalized |
+| `tradieRating` | number | Denormalized at time of quote |
+| `totalPrice` | number | Materials + labor |
+| `materialsCost` | number | Breakdown |
+| `laborCost` | number | Breakdown |
+| `timelineDays` | number | Estimated duration |
+| `estimatedStartDate` | Timestamp | |
+| `estimatedCompletionDate` | Timestamp | |
+| `notes` | string | Additional comments |
+| `status` | `'pending' \| 'accepted' \| 'rejected'` | |
+| `createdAt` | Timestamp | |
+| `acceptedAt` | Timestamp | Set when accepted |
+
+---
+
+### `unlockTransactions`
+
+Records of tradies unlocking service requests.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `tradieId` | string | Who unlocked |
+| `serviceRequestId` | string | What was unlocked |
+| `amount` | number | Always 0.50 |
+| `status` | `'completed'` | |
+| `createdAt` | Timestamp | |
+
+---
+
+### `walletTransactions`
+
+All wallet movements — recharges, unlocks, bonuses, refunds.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `userId` | string | Tradie's UID |
+| `type` | `'recharge' \| 'unlock' \| 'bonus' \| 'refund'` | |
+| `amount` | number | Positive = credit, negative = debit |
+| `description` | string | Human-readable description |
+| `referenceId` | string | Related serviceRequestId or payment ID |
+| `status` | `'completed' \| 'pending' \| 'failed'` | |
+| `createdAt` | Timestamp | |
+
+---
+
+### `requestIntelligence`
+
+Pre-computed market data per request. Updated by Cloud Functions when quotes change.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `requestId` | string | Doc ID = serviceRequest ID |
+| `totalQuotes` | number | |
+| `totalUnlocks` | number | |
+| `priceRange` | `{ min, max, average }` | In AUD |
+| `timelineRange` | `{ minDays, maxDays, averageDays }` | |
+| `breakdown` | `{ materials: {min,max,avg}, labor: {min,max,avg} }` | |
+| `competitionLevel` | `'low' \| 'medium' \| 'high'` | Based on quote count |
+| `opportunityScore` | number | 0-100 |
+| `winProbability` | number | 0-1 |
+| `recommendedPriceRange` | `{ min, max, optimal }` | |
+| `marketTrends` | `{ priceDirection, demandLevel }` | |
+| `updatedAt` | Timestamp | |
+
+---
+
+### `notifications`
+
+In-app and push notification records.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `userId` | string | Recipient |
+| `title` | string | |
+| `message` | string | |
+| `type` | string | e.g. `'new_quote'`, `'quote_accepted'`, `'quote_rejected'` |
+| `referenceId` | string | Related entity ID |
+| `read` | boolean | |
+| `createdAt` | Timestamp | |
+
+---
+
+### `ratings`
+
+Individual rating records (for audit trail and detailed views).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto-generated doc ID |
+| `serviceRequestId` | string | |
+| `customerId` | string | Who rated |
+| `tradieId` | string | Who was rated |
+| `score` | number | 1-5 |
+| `comment` | string | Optional review text |
+| `createdAt` | Timestamp | |
+
+---
+
+## Indexing Strategy
+
+Composite indexes needed for common queries:
+
+| Collection | Fields | Purpose |
+|-----------|--------|---------|
+| `serviceRequests` | `status` + `createdAt` | Explorer feed (active, newest first) |
+| `serviceRequests` | `customerId` + `status` | Customer's own requests |
+| `serviceRequests` | `trades` (array-contains) + `status` + `createdAt` | Filter by trade type |
+| `quotes` | `serviceRequestId` + `status` | Quotes for a request |
+| `quotes` | `tradieId` + `createdAt` | Tradie's quote history |
+| `unlockTransactions` | `tradieId` + `serviceRequestId` | Check if already unlocked |
+| `walletTransactions` | `userId` + `createdAt` | Wallet history |
+| `notifications` | `userId` + `read` + `createdAt` | Unread notifications |
+| `ratings` | `tradieId` + `createdAt` | Tradie's ratings |
+
+---
+
+## Security Rules Summary
+
+| Collection | Create | Read | Update | Delete |
+|-----------|--------|------|--------|--------|
+| `users` | Auth (own doc) | Owner or Admin | Owner or Admin | Admin only |
+| `serviceRequests` | Customer | Authenticated | Owner or Cloud Function | Owner (if active) |
+| `quotes` | Cloud Function | Request owner or quote owner | Cloud Function | Never |
+| `unlockTransactions` | Cloud Function | Owner or Admin | Never | Never |
+| `walletTransactions` | Cloud Function | Owner or Admin | Never | Never |
+| `requestIntelligence` | Cloud Function | Authenticated | Cloud Function | Never |
+| `notifications` | Cloud Function | Owner | Owner (mark read) | Owner |
+| `ratings` | Cloud Function | Authenticated | Never | Never |
+  </script>
+  <script id="md-customer-screens" type="text/markdown">
+# Customer Screens
+
+## Navigation Structure
+
+Bottom Tab Navigator with 5 tabs:
+
+| Tab | Screen | Icon | Purpose |
+|-----|--------|------|---------|
+| Dashboard | CustomerDashboard | Home | Overview of active requests and stats |
+| Post | PostRequestScreen | PlusCircle | Create new service request |
+| History | CustomerHistoryScreen | Clock | Past and completed requests |
+| Messages | CustomerMessagesScreen | MessageCircle | Chat with tradies |
+| Profile | CustomerProfileScreen | User | Account settings |
+
+---
+
+## CustomerDashboard
+
+The home screen for customers. Shows at-a-glance status of their requests.
+
+### Content
+- **Stats row**: Active requests count, Quotes received count, Completed jobs count
+- **Active Requests list**: Cards showing each active request with:
+  - Trade type and suburb
+  - Date posted
+  - Number of quotes received
+  - Status badge (active, in-progress)
+  - Tap → RequestDetailScreen
+
+### Empty State
+- First-time users see: "No requests yet. Post your first request to get quotes from local tradies!"
+- CTA button → PostRequestScreen
+
+---
+
+## PostRequestScreen
+
+Multi-step form for creating a service request.
+
+### Steps
+1. **Trade Selection** — pick one or more trade types (Plumbing, Electrical, Carpentry, etc.)
+2. **Location** — enter suburb (autocomplete from Australian suburbs list)
+3. **Description** — text area for job details
+4. **Media** — attach photos (camera or gallery) and/or record a voice message
+5. **Dates** — select preferred date range for the job
+6. **Review & Submit** — preview all details before posting
+
+### Validation
+- Trade type: required (at least one)
+- Suburb: required
+- Description: required, min 20 characters
+- Photos: optional, max 5
+- Voice message: optional, max 2 minutes
+- Dates: optional but recommended
+
+### On Submit
+- Upload photos/voice to Firebase Storage
+- Create `serviceRequests` document
+- Navigate to Dashboard with success toast
+
+---
+
+## RequestDetailScreen
+
+Detailed view of a single service request (accessed from Dashboard or History).
+
+### Sections
+- **Request Info**: trade, suburb, description, photos, voice player, dates
+- **Quotes Section** (if any):
+  - List of received quotes
+  - Each shows: tradie name, rating, price, timeline
+  - "View Details" expands to show full breakdown
+  - "Accept Quote" button on each
+- **Status Actions**:
+  - Active: "Cancel Request" button
+  - In-progress: "Mark Complete" button
+  - Completed: Rating form (if not yet rated)
+
+---
+
+## CustomerHistoryScreen
+
+List of all past requests (completed and cancelled).
+
+### Features
+- Filter by status (completed, cancelled)
+- Sort by date (newest first)
+- Each card shows: trade, suburb, date, final price (if completed), rating given
+- Tap → RequestDetailScreen (read-only)
+
+---
+
+## CustomerMessagesScreen
+
+Chat list showing conversations with tradies.
+
+### Content
+- List of active conversations
+- Each shows: tradie name, last message preview, timestamp, unread badge
+- Tap → ChatScreen (1:1 with tradie)
+
+### When Chats Start
+- A chat is created when a tradie's quote is accepted
+- Only the accepted tradie can chat with the customer
+
+---
+
+## CustomerProfileScreen
+
+Account management for customers.
+
+### Sections
+- **Personal Info**: name, phone, email (editable)
+- **Address Book**: saved addresses for quick request posting
+- **Notification Preferences**: push notification toggles
+- **Support**: help, FAQ, contact support
+- **Account Actions**: logout, delete account
+  </script>
+  <script id="md-tradie-screens" type="text/markdown">
+# Tradie Screens
+
+## Navigation Structure
+
+Bottom Tab Navigator with 5 tabs:
+
+| Tab | Screen | Icon | Purpose |
+|-----|--------|------|---------|
+| Dashboard | TradieDashboard | Home | Overview of activity and wallet |
+| Explorer | ExplorerScreen | Search | Browse and unlock service requests |
+| History | TradieHistoryScreen | Clock | Past quotes and completed jobs |
+| Messages | TradieMessagesScreen | MessageCircle | Chat with customers |
+| Profile | TradieProfileScreen | User | Business profile and settings |
+
+---
+
+## TradieDashboard
+
+Home screen for tradies. Shows key metrics and recent activity.
+
+### Content
+- **Wallet Balance**: prominent display with "Recharge" button
+- **Stats row**: Active quotes, Jobs won, Total earnings, Rating
+- **Recent Activity**: latest unlocks, quotes submitted, quotes accepted/rejected
+- **Quick Actions**: "Browse Requests" → Explorer, "Recharge Wallet" → payment
+
+### First-Time (Post-Onboarding)
+- Welcome message with $10 bonus confirmation
+- Guided prompt to browse the Explorer
+
+---
+
+## TradieOnboardingScreen
+
+Multi-step onboarding for new tradies (shown once after signup).
+
+### Steps
+1. **Personal Info** — name, email
+2. **Business Details** — business name, ABN (optional)
+3. **Trade Selection** — pick trade types they offer (multi-select)
+4. **Service Areas** — select suburbs they cover (multi-select)
+5. **Credentials** — license number, insurance details (optional but encouraged)
+
+### On Complete
+- User doc updated with `onboardingCompleted: true`
+- Wallet credited with $10 signup bonus
+- Navigate to TradieDashboard
+
+---
+
+## ExplorerScreen
+
+The core screen where tradies find work. Shows active service requests.
+
+### Layout
+- **Filter bar** at top: trade type, suburb, date range, competition level
+- **Results list**: ServiceRequestCards in a scrollable feed
+- **Filter drawer**: slides from right with advanced filters
+
+### ServiceRequestCard (Locked)
+Shows limited info to entice unlock:
+- Trade type badge
+- Suburb
+- Date posted
+- Description preview (first 50 chars + "...")
+- Competition level indicator (low/medium/high)
+- Number of quotes already submitted
+- **"Unlock $0.50" button**
+
+### ServiceRequestCard (Unlocked)
+Full details revealed:
+- Complete description
+- All photos (tappable gallery)
+- Voice message player
+- Preferred dates
+- Market intelligence (price range, recommended price)
+- **"Submit Quote" button**
+
+### Progressive Batch Scrolling
+- Load 10 items initially
+- Auto-load next 10 on scroll (up to 50)
+- After 50: show "Load More" button
+- Reset batch counter on tap
+
+---
+
+## SubmitQuoteScreen
+
+Form for submitting a quote on an unlocked request.
+
+### Fields
+- Materials cost (AUD)
+- Labor cost (AUD)
+- Total price (auto-calculated, editable)
+- Estimated start date
+- Estimated completion date
+- Timeline in days (auto-calculated)
+- Notes/comments
+
+### Market Intelligence Panel
+- Shows price range of existing quotes (if any)
+- Recommended price range
+- Competition level
+- Win probability estimate
+
+### On Submit
+- Calls `submitQuote` Cloud Function
+- Navigates back to Explorer with success toast
+- Customer receives push notification
+
+---
+
+## TradieHistoryScreen
+
+All past quotes and completed jobs.
+
+### Tabs
+- **Quotes**: all submitted quotes with status (pending, accepted, rejected)
+- **Completed Jobs**: jobs where their quote was accepted and work completed
+
+### Quote Card
+- Request summary (trade, suburb)
+- Quote amount
+- Status badge
+- Date submitted
+- If accepted: customer rating received
+
+---
+
+## TradieMessagesScreen
+
+Chat list showing conversations with customers.
+
+### Content
+- List of active conversations (only with customers who accepted their quote)
+- Each shows: customer name, request summary, last message, timestamp, unread badge
+- Tap → ChatScreen
+
+---
+
+## TradieProfileScreen
+
+Business profile and account management.
+
+### Sections
+- **Public Profile Preview**: how customers see them (name, rating, trades, jobs count)
+- **Business Details**: business name, ABN, license, insurance (editable)
+- **Trades & Areas**: manage registered trades and suburbs
+- **Wallet**: balance, transaction history, recharge button
+- **Notification Preferences**: push notification toggles
+- **Support**: help, FAQ, contact support
+- **Account Actions**: logout, delete account
+
+---
+
+## WalletScreen (accessed from Profile or Dashboard)
+
+Wallet management for tradies.
+
+### Content
+- **Current Balance**: large display
+- **Recharge Button**: opens payment flow (Stripe)
+- **Transaction History**: chronological list of all wallet movements
+  - Bonus: "+$10.00 — Signup bonus"
+  - Recharge: "+$5.00 — Wallet recharge"
+  - Unlock: "-$0.50 — Unlocked: Plumbing in Bondi"
+- **Minimum recharge**: $5 AUD
+  </script>
+  <script id="md-admin-screens" type="text/markdown">
+# Admin Screens
+
+## AdminDashboard
+
+Single-screen admin panel (accessed by users with `userType: 'admin'`).
+
+### Sections
+- **Platform Stats**: total users, active requests, total transactions, revenue
+- **User Management**: search/filter users, view details, suspend accounts
+- **Financial Overview**: total wallet recharges, total unlocks, revenue from commission
+- **Recent Activity**: latest signups, requests, quotes, completions
+- **Moderation**: flagged content, reported users (future)
+
+### User Detail View
+- Profile info
+- Activity history (requests or quotes depending on role)
+- Wallet transactions (tradies)
+- Suspend/unsuspend toggle
+  </script>
+  <script id="md-flows" type="text/markdown">
+# User Flows
+
+## Flow 1: Customer Signup & First Request
+
+```
+Open app → Login screen → Enter phone → Receive OTP → Verify OTP
+→ New user detected → Select role: Customer
+→ Enter name → Dashboard (empty state)
+→ Tap "Post a Request" → Fill form → Submit
+→ Request goes live → Wait for quotes
+```
+
+## Flow 2: Tradie Signup & First Unlock
+
+```
+Open app → Login screen → Enter phone → Receive OTP → Verify OTP
+→ New user detected → Select role: Tradie
+→ Onboarding wizard (5 steps) → Complete
+→ $10 bonus credited → Dashboard
+→ Tap "Browse Requests" → Explorer
+→ See request cards → Tap "Unlock $0.50"
+→ Balance deducted → Full details revealed
+→ Tap "Submit Quote" → Fill quote form → Submit
+→ Quote saved → Customer notified
+```
+
+## Flow 3: Quote Acceptance & Job Completion
+
+```
+Customer receives notification: "New quote from [Tradie]"
+→ Opens request detail → Views all quotes
+→ Compares prices, ratings, timelines
+→ Taps "Accept" on preferred quote
+→ System: quote → accepted, others → rejected, request → in-progress
+→ Customer's address & phone shared with tradie
+→ Chat channel opens between customer and accepted tradie
+→ [Work happens in real world]
+→ Customer taps "Mark Complete"
+→ Rating form appears → Customer rates tradie (1-5 stars + comment)
+→ Tradie's rating updated → Request → completed
+```
+
+## Flow 4: Wallet Recharge
+
+```
+Tradie sees low balance (or tries to unlock with insufficient funds)
+→ Taps "Recharge" → Payment screen
+→ Selects amount ($5, $10, $20, $50 or custom, min $5)
+→ Stripe payment flow → Payment succeeds
+→ Cloud Function: walletTransaction created, walletBalance updated
+→ Balance reflected immediately → Can now unlock requests
+```
+
+## Flow 5: Explorer Browsing with Filters
+
+```
+Tradie opens Explorer → Sees all active requests matching their trades/suburbs
+→ Taps filter icon → Filter drawer slides in from right
+→ Filters by: trade type, suburb, date range, competition level, price range
+→ Applies filters → List updates
+→ Scrolls through results (10 at a time, auto-loads to 50, then "Load More")
+→ Sees a good match → Unlocks → Submits quote
+```
+
+## Flow 6: Messaging
+
+```
+Quote accepted → Chat channel auto-created
+→ Both parties see conversation in Messages tab
+→ Can send text messages
+→ Push notifications for new messages when app is backgrounded
+→ Chat persists until job is completed
+```
+
+## Flow 7: Request Cancellation
+
+```
+Customer has active request with no accepted quote
+→ Opens request detail → Taps "Cancel Request"
+→ Confirmation dialog: "Are you sure? Tradies who unlocked won't be refunded."
+→ Confirms → Request status → cancelled
+→ Request removed from Explorer
+→ Tradies who unlocked are NOT refunded (they paid for access, not a guarantee)
+```
+
+## Authentication Flow
+
+```
+Phone entry → Firebase sends OTP (reCAPTCHA on web)
+→ User enters 6-digit code → Firebase verifies
+→ If existing user: sign in → route to role-based dashboard
+→ If new user: create Auth account → role selection → onboarding
+→ Session persists via Firebase Auth (auto-refresh tokens)
+```
+
+## State Machine: Service Request
+
+```
+                    ┌─────────────┐
+                    │   active    │
+                    └──────┬──────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+              ▼            │            ▼
+     ┌────────────┐       │    ┌─────────────┐
+     │ cancelled  │       │    │ in-progress │
+     └────────────┘       │    └──────┬──────┘
+                          │           │
+                          │           ▼
+                          │    ┌─────────────┐
+                          │    │  completed  │
+                          │    └─────────────┘
+                          │
+                (no quotes accepted,
+                 customer cancels)
+```
+
+## State Machine: Quote
+
+```
+     ┌─────────┐
+     │ pending │
+     └────┬────┘
+          │
+     ┌────┼────┐
+     │         │
+     ▼         ▼
+┌──────────┐ ┌──────────┐
+│ accepted │ │ rejected │
+└──────────┘ └──────────┘
+```
+  </script>
+  <script id="md-cloud-functions" type="text/markdown">
+# Cloud Functions
+
+All sensitive business logic runs server-side via Firebase Cloud Functions (callable). The client never directly writes to financial or quote-related collections.
+
+## Function Reference
+
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `unlockServiceRequest` | Tradie | Deduct $0.50, create unlock transaction, reveal details |
+| `submitQuote` | Tradie | Validate unlock, create quote, notify customer |
+| `acceptQuote` | Customer | Accept quote, reject others, share contact details |
+| `rechargeWallet` | Tradie | Process payment, credit wallet |
+| `completeServiceRequest` | Customer | Mark complete, trigger rating flow |
+| `rateTradie` | Customer | Save rating, update tradie's average |
+| `cancelServiceRequest` | Customer | Cancel request, update status |
+| `sendPushNotification` | System | Send FCM push to target user |
+| `updateRequestIntelligence` | Trigger | Recalculate market data on quote changes |
+
+## Function Details
+
+### `unlockServiceRequest`
+
+**Input**: `{ serviceRequestId: string }`
+
+**Logic**:
+1. Verify auth (must be tradie)
+2. Check request exists and is `active`
+3. Check not already unlocked by this tradie
+4. Check wallet balance ≥ $0.50
+5. Deduct $0.50 from `walletBalance`
+6. Create `unlockTransactions` record
+7. Create `walletTransactions` record (type: 'unlock', amount: -0.50)
+8. Increment `totalUnlocks` on service request
+9. Return full request details
+
+**Errors**: `unauthenticated`, `not-found`, `failed-precondition` (insufficient balance or already unlocked)
+
+---
+
+### `submitQuote`
+
+**Input**: `{ serviceRequestId, materialsCost, laborCost, totalPrice, estimatedStartDate, estimatedCompletionDate, timelineDays, notes }`
+
+**Logic**:
+1. Verify auth (must be tradie)
+2. Check request exists and is `active`
+3. Check tradie has unlocked this request
+4. Check tradie hasn't already quoted this request
+5. Create `quotes` document
+6. Increment `totalQuotes` on service request
+7. Trigger `updateRequestIntelligence`
+8. Send notification to customer
+
+**Errors**: `unauthenticated`, `not-found`, `failed-precondition` (not unlocked or already quoted)
+
+---
+
+### `acceptQuote`
+
+**Input**: `{ quoteId: string }`
+
+**Logic**:
+1. Verify auth (must be the request's customer)
+2. Check quote exists and is `pending`
+3. Check request is `active`
+4. Update accepted quote → status: `accepted`, acceptedAt: now
+5. Update all other quotes for this request → status: `rejected`
+6. Update service request: status → `in-progress`, acceptedQuoteId, acceptedTradieId, share address/phone
+7. Create chat channel between customer and tradie
+8. Notify accepted tradie: "Your quote was accepted!"
+9. Notify rejected tradies: "Another quote was accepted"
+
+---
+
+### `rechargeWallet`
+
+**Input**: `{ amount: number, paymentMethodId: string }`
+
+**Logic**:
+1. Verify auth (must be tradie)
+2. Validate amount ≥ $5
+3. Process payment via Stripe
+4. On success: increment `walletBalance`
+5. Create `walletTransactions` record (type: 'recharge')
+6. Return new balance
+
+---
+
+### `updateRequestIntelligence` (Firestore Trigger)
+
+**Trigger**: On quote create/update/delete
+
+**Logic**:
+1. Get all quotes for the affected `serviceRequestId`
+2. Calculate: price range, timeline range, materials/labor breakdown
+3. Determine competition level (low: 1-2 quotes, medium: 3-5, high: 6+)
+4. Calculate opportunity score and win probability
+5. Generate recommended price range
+6. Write to `requestIntelligence/{requestId}`
+
+## Error Handling Pattern
+
+All functions throw `HttpsError` with standard codes:
+- `unauthenticated` — no auth token
+- `permission-denied` — wrong role
+- `not-found` — resource doesn't exist
+- `failed-precondition` — business rule violation
+- `internal` — unexpected error
+
+Client catches these and shows user-friendly messages via Toast.
+  </script>
+  <script id="md-notifications" type="text/markdown">
+# Notifications
+
+## Notification Types
+
+| Type | Recipient | Trigger | Title | Message |
+|------|-----------|---------|-------|---------|
+| `new_quote` | Customer | Quote submitted | "New Quote Received" | "[Tradie] quoted $X for your [Trade] request" |
+| `quote_accepted` | Tradie | Quote accepted | "Quote Accepted!" | "Your quote for [Trade] in [Suburb] was accepted" |
+| `quote_rejected` | Tradie | Another quote accepted | "Quote Update" | "Another quote was accepted for [Trade] in [Suburb]" |
+| `request_completed` | Tradie | Job marked complete | "Job Completed" | "[Customer] marked the job as complete" |
+| `new_rating` | Tradie | Customer rates | "New Rating" | "[Customer] rated you [X]/5 stars" |
+| `new_message` | Either | Chat message sent | "New Message" | "[Sender]: [message preview]" |
+| `wallet_low` | Tradie | Balance < $1 | "Low Balance" | "Your wallet balance is low. Recharge to keep unlocking requests." |
+| `request_cancelled` | Tradie | Customer cancels (if unlocked) | "Request Cancelled" | "A request you unlocked has been cancelled" |
+
+## Delivery Channels
+
+### In-App Notifications
+- Stored in `notifications` collection
+- Shown in notification bell (badge count for unread)
+- Tappable → navigates to relevant screen
+- Mark as read on tap
+
+### Push Notifications (FCM)
+- Sent via `sendPushNotification` Cloud Function
+- Triggered when a `notifications` document is created
+- Uses user's `fcmToken` from their profile
+- Works on iOS and Android (not web — web uses in-app only)
+
+## FCM Token Management
+
+1. On app launch (authenticated): request notification permission
+2. On permission granted: get FCM token via `expo-notifications`
+3. Save token to `users/{uid}.fcmToken`
+4. On token refresh: update Firestore
+5. On logout: clear token from Firestore
+
+## Notification Preferences (Future)
+
+Users will be able to toggle:
+- Push notifications on/off
+- Quiet hours (e.g., no pushes between 10pm-7am)
+- Per-type toggles (quotes, messages, marketing)
+  </script>
+
+  <script id="md-data-examples" type="text/markdown">
+# Data Examples & Queries
+
+This document covers every action in the system with concrete Firestore data examples, the queries needed to power each screen, and analytics/reporting queries for tradie insights.
+
+---
+
+## 1. Customer Onboarded — `users` Collection
+
+When a customer signs up via phone OTP and completes basic profile:
+
+```json
+{
+  "id": "cust_001",
+  "phoneNumber": "+61412345678",
+  "userType": "customer",
+  "firstName": "Sarah",
+  "lastName": "Mitchell",
+  "email": "sarah.m@gmail.com",
+  "postcode": "2026",
+  "address": "",
+  "fcmToken": "dGhpcyBpcyBhIHRva2Vu...",
+  "status": "active",
+  "createdAt": "2025-03-15T09:30:00Z",
+  "updatedAt": "2025-03-15T09:30:00Z"
+}
+```
+
+**Key points:**
+- `walletBalance`, `rating`, `totalJobs` — NOT present (customer-only doc)
+- `postcode` stored for default location on PostRequest form
+- `fcmToken` set on first app launch after notification permission granted
+
+---
+
+## 2. Tradie Onboarded — `users` Collection
+
+When a tradie signs up and completes the 5-step onboarding wizard:
+
+```json
+{
+  "id": "trad_001",
+  "phoneNumber": "+61498765432",
+  "userType": "tradie",
+  "firstName": "Mike",
+  "lastName": "Thompson",
+  "email": "mike@mikesplumbing.com.au",
+  "businessName": "Mike's Plumbing & Gas",
+  "licenseNumber": "PLB-2024-98765",
+  "insuranceDetails": {
+    "provider": "Tradies Insurance Co",
+    "policyNumber": "TIC-2024-55432",
+    "expiryDate": "2026-06-30T00:00:00Z",
+    "coverageAmount": 5000000
+  },
+  "interestedTrades": ["Plumbing", "Gas Fitting", "Hot Water Systems"],
+  "interestedSuburbs": ["2026", "2027", "2029", "2030", "2031"],
+  "walletBalance": 10.00,
+  "rating": 0,
+  "totalJobs": 0,
+  "isApproved": true,
+  "onboardingCompleted": true,
+  "fcmToken": "YW5vdGhlciB0b2tlbg...",
+  "status": "active",
+  "createdAt": "2025-03-10T14:20:00Z",
+  "updatedAt": "2025-03-10T14:45:00Z"
+}
+```
+
+**Key points:**
+- `walletBalance: 10.00` — $10 signup bonus credited on onboarding completion
+- `interestedTrades` — multi-select from TradeSelector (100+ options)
+- `interestedSuburbs` — postcodes the tradie services
+- `rating: 0` and `totalJobs: 0` — fresh account
+
+---
+
+## 3. Customer Posts a Request — `serviceRequests` Collection
+
+When Sarah posts a plumbing request:
+
+```json
+{
+  "id": "req_001",
+  "customerId": "cust_001",
+  "trades": ["Plumbing"],
+  "description": "Kitchen sink is leaking badly under the cabinet. Water pooling on the floor. Need urgent fix before it damages the floorboards.",
+  "postcode": "2026",
+  "urgency": "high",
+  "status": "new",
+  "photos": [
+    "https://firebasestorage.googleapis.com/v0/b/tradie-mate-f852a/photos/req_001_1.jpg",
+    "https://firebasestorage.googleapis.com/v0/b/tradie-mate-f852a/photos/req_001_2.jpg"
+  ],
+  "documents": [],
+  "voiceMessage": "https://firebasestorage.googleapis.com/v0/b/tradie-mate-f852a/voice/req_001.m4a",
+  "budget": { "min": 100, "max": 500 },
+  "searchKeywords": ["plumbing", "kitchen", "sink", "leaking", "badly", "under", "cabinet", "water", "pooling", "floor", "urgent", "fix", "damages", "floorboards", "2026"],
+  "notesWords": ["kitchen", "sink", "is", "leaking", "badly", "under", "the", "cabinet", "water", "pooling", "on", "the", "floor", "need", "urgent", "fix", "before", "it", "damages", "the", "floorboards"],
+  "descriptionLower": "kitchen sink is leaking badly under the cabinet. water pooling on the floor. need urgent fix before it damages the floorboards.",
+  "intelligence": {
+    "totalQuotes": 0,
+    "priceRange": { "min": 0, "max": 0, "average": 0 },
+    "timelineRange": { "minDays": 0, "maxDays": 0, "averageDays": 0 },
+    "breakdown": {
+      "materials": { "min": 0, "max": 0, "average": 0 },
+      "labor": { "min": 0, "max": 0, "average": 0 }
+    },
+    "competitionLevel": "low",
+    "opportunityScore": 80,
+    "competitivePosition": "strong",
+    "recommendedPriceRange": { "min": 0, "max": 0, "optimal": 0 },
+    "winProbability": 0.8,
+    "marketTrends": { "priceDirection": "stable", "demandLevel": "low" },
+    "lastQuoteAt": null
+  },
+  "createdAt": "2025-03-16T08:15:00Z",
+  "updatedAt": "2025-03-16T08:15:00Z"
+}
+```
+
+**Key points:**
+- `intelligence` embedded in the document (not a separate collection read)
+- `searchKeywords` computed on save for array-contains-any queries
+- `status: "new"` — initial state, visible in Explorer
+- `budget` optional but helps tradies gauge the job
+
+---
+
+## 4. Tradie Unlocks a Request
+
+### 4a. `unlockTransactions` — New Record
+
+```json
+{
+  "id": "unlock_001",
+  "tradieId": "trad_001",
+  "requestId": "req_001",
+  "amount": 0.50,
+  "type": "unlock",
+  "status": "completed",
+  "createdAt": "2025-03-16T09:00:00Z",
+  "updatedAt": "2025-03-16T09:00:00Z"
+}
+```
+
+### 4b. `walletTransactions` — New Record
+
+```json
+{
+  "id": "wtx_001",
+  "userId": "trad_001",
+  "type": "unlock",
+  "amount": -0.50,
+  "description": "Unlocked service request: Plumbing",
+  "timestamp": "2025-03-16T09:00:00Z",
+  "status": "completed"
+}
+```
+
+### 4c. `users` — Updated Tradie Doc
+
+```json
+{
+  "id": "trad_001",
+  "walletBalance": 9.50
+}
+```
+
+**Key points:**
+- Wallet goes from $10.00 → $9.50
+- `unlockTransactions` used to check "has this tradie already unlocked this request?"
+- `walletTransactions` is the full audit trail
+
+---
+
+## 5. Tradie Submits a Quote — `quotes` Collection
+
+After unlocking, Mike submits a quote:
+
+```json
+{
+  "id": "quote_001",
+  "serviceRequestId": "req_001",
+  "tradieId": "trad_001",
+  "amount": 280,
+  "totalPrice": 280,
+  "materialsCost": 80,
+  "laborCost": 200,
+  "timelineDays": 1,
+  "estimatedStartDate": "2025-03-18T00:00:00Z",
+  "estimatedCompletionDate": "2025-03-18T00:00:00Z",
+  "breakdown": "Replace P-trap and flexi hoses ($80 parts). 2 hours labor.",
+  "notes": "Can come tomorrow morning. Will check for any water damage to subfloor while I'm there.",
+  "status": "pending",
+  "createdAt": "2025-03-16T09:15:00Z"
+}
+```
+
+### 5b. Intelligence Updated (embedded in `serviceRequests/req_001`)
+
+After first quote:
+
+```json
+{
+  "intelligence": {
+    "totalQuotes": 1,
+    "priceRange": { "min": 280, "max": 280, "average": 280 },
+    "timelineRange": { "minDays": 1, "maxDays": 1, "averageDays": 1 },
+    "breakdown": {
+      "materials": { "min": 80, "max": 80, "average": 80 },
+      "labor": { "min": 200, "max": 200, "average": 200 }
+    },
+    "competitionLevel": "low",
+    "opportunityScore": 72,
+    "competitivePosition": "strong",
+    "recommendedPriceRange": { "min": 252, "max": 308, "optimal": 266 },
+    "winProbability": 0.78,
+    "marketTrends": { "priceDirection": "stable", "demandLevel": "low" },
+    "lastQuoteAt": "2025-03-16T09:15:00Z"
+  }
+}
+```
+
+### 5c. After 3 Quotes (from different tradies)
+
+```json
+{
+  "intelligence": {
+    "totalQuotes": 3,
+    "priceRange": { "min": 220, "max": 350, "average": 283 },
+    "timelineRange": { "minDays": 1, "maxDays": 3, "averageDays": 1.7 },
+    "breakdown": {
+      "materials": { "min": 60, "max": 120, "average": 87 },
+      "labor": { "min": 160, "max": 230, "average": 197 }
+    },
+    "competitionLevel": "medium",
+    "opportunityScore": 58,
+    "competitivePosition": "moderate",
+    "recommendedPriceRange": { "min": 255, "max": 311, "optimal": 269 },
+    "winProbability": 0.55,
+    "marketTrends": { "priceDirection": "stable", "demandLevel": "medium" },
+    "lastQuoteAt": "2025-03-16T14:30:00Z"
+  }
+}
+```
+
+### 5d. `notifications` — Customer Notified
+
+```json
+{
+  "id": "notif_001",
+  "userId": "cust_001",
+  "title": "New Quote Received",
+  "message": "You received a $280 quote for your Plumbing request",
+  "type": "quote",
+  "quoteId": "quote_001",
+  "serviceRequestId": "req_001",
+  "read": false,
+  "timestamp": "2025-03-16T09:15:00Z"
+}
+```
+
+---
+
+## 6. Customer Accepts a Quote
+
+### 6a. `quotes/quote_001` — Updated
+
+```json
+{
+  "status": "accepted",
+  "acceptedAt": "2025-03-17T10:00:00Z"
+}
+```
+
+### 6b. Other Quotes — Rejected
+
+```json
+{
+  "id": "quote_002",
+  "status": "rejected"
+}
+```
+
+### 6c. `serviceRequests/req_001` — Updated
+
+```json
+{
+  "status": "in-progress",
+  "acceptedQuoteId": "quote_001",
+  "customerAddress": "42 Bondi Road, Bondi NSW 2026",
+  "customerPhone": "+61412345678",
+  "updatedAt": "2025-03-17T10:00:00Z"
+}
+```
+
+### 6d. Notifications Created
+
+**To accepted tradie:**
+```json
+{
+  "userId": "trad_001",
+  "title": "Quote Accepted!",
+  "message": "Your $280 quote has been accepted",
+  "type": "quote_accepted",
+  "quoteId": "quote_001",
+  "serviceRequestId": "req_001",
+  "read": false
+}
+```
+
+**To rejected tradies:**
+```json
+{
+  "userId": "trad_002",
+  "title": "Quote Update",
+  "message": "Another quote was accepted for Plumbing in 2026",
+  "type": "quote_rejected",
+  "serviceRequestId": "req_001",
+  "read": false
+}
+```
+
+---
+
+## 7. Job Completed & Rated
+
+### 7a. `serviceRequests/req_001` — Final State
+
+```json
+{
+  "status": "completed",
+  "completedAt": "2025-03-18T16:00:00Z",
+  "rating": 5,
+  "review": "Mike was fantastic. Fixed the leak quickly and even checked for water damage."
+}
+```
+
+### 7b. `users/trad_001` — Rating Updated
+
+```json
+{
+  "rating": 5.0,
+  "totalJobs": 1
+}
+```
+
+Formula: `newRating = ((currentRating * totalJobs) + newScore) / (totalJobs + 1)`
+
+---
+
+## 8. Wallet Recharge
+
+### 8a. `walletTransactions` — New Record
+
+```json
+{
+  "id": "wtx_002",
+  "userId": "trad_001",
+  "type": "recharge",
+  "amount": 20.00,
+  "description": "Wallet recharge via Credit/Debit Card",
+  "timestamp": "2025-03-20T11:00:00Z",
+  "status": "completed"
+}
+```
+
+### 8b. `users/trad_001` — Balance Updated
+
+```json
+{
+  "walletBalance": 29.50
+}
+```
+
+---
+
+---
+
+## Explorer Screen — Queries & Filters
+
+### Primary Query (Page Load)
+
+```typescript
+// Firestore query — fetches active requests ordered by newest
+query(
+  collection(db, 'serviceRequests'),
+  orderBy('createdAt', 'desc'),
+  limit(15)
+)
+```
+
+**Pagination:** Uses `startAfter(lastDoc)` cursor-based pagination.
+
+### What the Explorer Card Shows (Locked)
+
+| Field | Source |
+|-------|--------|
+| Trade type | `serviceRequests.trades` |
+| Postcode + distance | `serviceRequests.postcode` + calculated |
+| Description preview | `serviceRequests.description` (first 50 chars) |
+| Urgency badge | `serviceRequests.urgency` |
+| Time ago | `serviceRequests.createdAt` |
+| Total quotes | `serviceRequests.intelligence.totalQuotes` |
+| Price range | `serviceRequests.intelligence.priceRange` |
+| Timeline range | `serviceRequests.intelligence.timelineRange` |
+| Competition level | `serviceRequests.intelligence.competitionLevel` |
+| Opportunity score | `serviceRequests.intelligence.opportunityScore` |
+| Win probability | `serviceRequests.intelligence.winProbability` |
+
+### Data Filters (Client-Side After Fetch)
+
+| Filter | Field | Clause |
+|--------|-------|--------|
+| Trade type | `trades` | array includes check |
+| Postcode/radius | `postcode` | distance calculation |
+| Budget min/max | `budget.min`, `budget.max` | range check |
+| Urgency | `urgency` | equality check |
+| Posted within X hours | `createdAt` | time difference |
+
+### Intelligence Filters (Client-Side)
+
+| Filter | Field | Logic |
+|--------|-------|-------|
+| Competition level | `intelligence.competitionLevel` | exact match (low/medium/high) |
+| Win rate threshold | `intelligence.winProbability` | >= threshold |
+| Opportunity score range | `intelligence.opportunityScore` | between min and max |
+| Price gap | `intelligence.priceRange` | spread calculation |
+
+### Sort Options
+
+| Sort | Implementation |
+|------|---------------|
+| Newest | Firestore `orderBy('createdAt', 'desc')` — server-side |
+| Best Opportunity | Client-side sort by `intelligence.opportunityScore` desc |
+| Closest | Client-side sort by calculated `distance` asc |
+| Highest Budget | Client-side sort by `budget.max` desc |
+
+### Unlock Check Query
+
+```typescript
+// Check if tradie already unlocked this request
+query(
+  collection(db, 'unlockTransactions'),
+  where('tradieId', '==', currentTradieId),
+  where('status', '==', 'completed')
+)
+// Returns all unlocked request IDs for this tradie
+```
+
+---
+
+## Customer Dashboard — Queries
+
+### Active Requests
+
+```typescript
+// All requests by this customer with status 'new'
+// Currently loaded via UserContext (real-time listener)
+serviceRequests.filter(req => req.status === 'new')
+```
+
+### Quotes for a Request
+
+```typescript
+query(
+  collection(db, 'quotes'),
+  where('serviceRequestId', '==', requestId)
+)
+```
+
+### Customer History
+
+```typescript
+serviceRequests.filter(req =>
+  req.status === 'completed' || req.status === 'cancelled'
+)
+```
+
+---
+
+## Tradie Dashboard — Queries
+
+### Current Stats
+
+```typescript
+// From user doc (real-time via AuthContext)
+user.walletBalance  // e.g. 9.50
+user.totalJobs      // e.g. 1
+user.rating         // e.g. 5.0
+```
+
+### Tradie's Quote History
+
+```typescript
+query(
+  collection(db, 'quotes'),
+  where('tradieId', '==', currentTradieId),
+  orderBy('createdAt', 'desc')
+)
+```
+
+### Wallet Transaction History
+
+```typescript
+query(
+  collection(db, 'walletTransactions'),
+  where('userId', '==', currentTradieId),
+  orderBy('timestamp', 'desc')
+)
+```
+
+---
+
+---
+
+## Tradie Reports & Analytics
+
+### Report 1: Revenue in My Suburbs for My Trade
+
+**Question:** "How much money is being generated in my service areas for my trade types?"
+
+**Sample data context:**
+- Mike services postcodes: 2026, 2027, 2029, 2030, 2031
+- Mike's trades: Plumbing, Gas Fitting, Hot Water Systems
+
+**Query:**
+
+```typescript
+// Get all completed requests in tradie's suburbs + trades
+query(
+  collection(db, 'serviceRequests'),
+  where('status', '==', 'completed'),
+  where('postcode', 'in', ['2026', '2027', '2029', '2030', '2031'])
+)
+// Then client-side filter: request.trades intersects with tradie's trades
+// Then join with accepted quotes to get actual revenue
+```
+
+**Firestore limitation:** `where('postcode', 'in', [...])` supports max 30 values. For tradies with more suburbs, batch queries.
+
+**Result example:**
+
+```json
+{
+  "period": "Last 30 days",
+  "suburbs": {
+    "2026": { "totalRequests": 12, "totalRevenue": 4850, "avgQuoteValue": 404 },
+    "2027": { "totalRequests": 8, "totalRevenue": 3200, "avgQuoteValue": 400 },
+    "2029": { "totalRequests": 5, "totalRevenue": 2100, "avgQuoteValue": 420 },
+    "2030": { "totalRequests": 3, "totalRevenue": 980, "avgQuoteValue": 327 },
+    "2031": { "totalRequests": 2, "totalRevenue": 650, "avgQuoteValue": 325 }
+  },
+  "totals": { "requests": 30, "revenue": 11780, "avgQuoteValue": 393 }
+}
+```
+
+---
+
+### Report 2: Best Suburb for My Trade
+
+**Question:** "Which of my suburbs has the most demand and highest revenue for my trade?"
+
+**Query (same as above, ranked):**
+
+```typescript
+// Same query as Report 1, then rank by:
+// Option A: totalRequests (demand)
+// Option B: totalRevenue (money)
+// Option C: avgQuoteValue (job value)
+```
+
+**Result example:**
+
+```json
+{
+  "trade": "Plumbing",
+  "ranking": [
+    { "postcode": "2026", "suburb": "Bondi", "requests": 12, "revenue": 4850, "rank": 1 },
+    { "postcode": "2027", "suburb": "Bondi Junction", "requests": 8, "revenue": 3200, "rank": 2 },
+    { "postcode": "2029", "suburb": "Rose Bay", "requests": 5, "revenue": 2100, "rank": 3 }
+  ],
+  "insight": "Bondi (2026) generates 41% of your market's plumbing revenue"
+}
+```
+
+---
+
+### Report 3: Best Trades in My Suburbs
+
+**Question:** "What other trades are in high demand in my suburbs? Should I add another trade?"
+
+**Query:**
+
+```typescript
+// Get ALL completed requests in tradie's suburbs (regardless of trade)
+query(
+  collection(db, 'serviceRequests'),
+  where('status', 'in', ['completed', 'new', 'in-progress']),
+  where('postcode', 'in', ['2026', '2027', '2029', '2030', '2031'])
+)
+// Group by trade type, count requests, sum revenue
+```
+
+**Result example:**
+
+```json
+{
+  "period": "Last 30 days",
+  "mySuburbs": ["2026", "2027", "2029", "2030", "2031"],
+  "tradeRanking": [
+    { "trade": "Plumbing", "requests": 30, "revenue": 11780, "isMine": true },
+    { "trade": "Electrical", "requests": 25, "revenue": 15200, "isMine": false },
+    { "trade": "Painting", "requests": 22, "revenue": 18500, "isMine": false },
+    { "trade": "Carpentry", "requests": 18, "revenue": 12400, "isMine": false },
+    { "trade": "Gas Fitting", "requests": 8, "revenue": 4200, "isMine": true },
+    { "trade": "Cleaning", "requests": 15, "revenue": 3800, "isMine": false },
+    { "trade": "Hot Water Systems", "requests": 5, "revenue": 4500, "isMine": true },
+    { "trade": "Tiling", "requests": 12, "revenue": 9600, "isMine": false }
+  ],
+  "recommendation": "Electrical has 25 requests/month in your area with $15,200 revenue. Consider adding it to your trades."
+}
+```
+
+---
+
+### Report 4: My Win Rate & Performance
+
+**Question:** "How am I performing? What's my quote-to-win ratio?"
+
+**Query:**
+
+```typescript
+// All quotes by this tradie
+query(
+  collection(db, 'quotes'),
+  where('tradieId', '==', 'trad_001')
+)
+// Group by status: pending, accepted, rejected
+```
+
+**Result example:**
+
+```json
+{
+  "totalQuotes": 15,
+  "accepted": 4,
+  "rejected": 8,
+  "pending": 3,
+  "winRate": 0.33,
+  "avgQuoteAmount": 320,
+  "avgWinningQuote": 285,
+  "avgLosingQuote": 355,
+  "insight": "Your winning quotes average $285 — 20% below your losing quotes. Competitive pricing is working."
+}
+```
+
+---
+
+### Report 5: Market Activity in My Area
+
+**Question:** "How active is the market right now? Are requests increasing or decreasing?"
+
+**Query:**
+
+```typescript
+// Requests in my suburbs over last 90 days
+query(
+  collection(db, 'serviceRequests'),
+  where('postcode', 'in', ['2026', '2027', '2029', '2030', '2031']),
+  where('createdAt', '>=', ninetyDaysAgo),
+  orderBy('createdAt', 'desc')
+)
+// Group by week
+```
+
+**Result example:**
+
+```json
+{
+  "trend": "up",
+  "weeklyData": [
+    { "week": "Mar 10-16", "requests": 8, "myTrades": 5 },
+    { "week": "Mar 3-9", "requests": 6, "myTrades": 4 },
+    { "week": "Feb 24-Mar 2", "requests": 5, "myTrades": 3 },
+    { "week": "Feb 17-23", "requests": 4, "myTrades": 2 }
+  ],
+  "insight": "Requests in your area are up 60% over the last month. Good time to be active."
+}
+```
+
+---
+
+### Report 6: Competition Analysis
+
+**Question:** "How many other tradies are competing in my area for my trades?"
+
+**Query:**
+
+```typescript
+// Count unlocks per request in my suburbs/trades
+// Get recent requests in my area
+query(
+  collection(db, 'serviceRequests'),
+  where('postcode', 'in', ['2026', '2027', '2029', '2030', '2031']),
+  where('status', 'in', ['new', 'in-progress', 'completed']),
+  where('createdAt', '>=', thirtyDaysAgo)
+)
+// For each, check intelligence.totalQuotes
+```
+
+**Result example:**
+
+```json
+{
+  "avgCompetitorsPerRequest": 3.2,
+  "competitionByTrade": {
+    "Plumbing": { "avgQuotesPerRequest": 4.1, "level": "medium" },
+    "Gas Fitting": { "avgQuotesPerRequest": 1.8, "level": "low" },
+    "Hot Water Systems": { "avgQuotesPerRequest": 2.3, "level": "low" }
+  },
+  "insight": "Gas Fitting has the least competition — only 1.8 quotes per request on average. Focus here for higher win rates."
+}
+```
+
+---
+
+---
+
+## Composite Index Requirements
+
+Based on all queries above, these Firestore composite indexes are needed:
+
+| Collection | Fields | Order | Purpose |
+|-----------|--------|-------|---------|
+| `serviceRequests` | `status`, `createdAt` | asc, desc | Explorer feed |
+| `serviceRequests` | `customerId`, `status` | asc, asc | Customer dashboard |
+| `serviceRequests` | `postcode`, `status`, `createdAt` | asc, asc, desc | Reports by suburb |
+| `serviceRequests` | `status`, `postcode`, `createdAt` | asc, asc, desc | Reports by status+suburb |
+| `quotes` | `serviceRequestId`, `status` | asc, asc | Quotes for a request |
+| `quotes` | `tradieId`, `createdAt` | asc, desc | Tradie quote history |
+| `quotes` | `tradieId`, `status` | asc, asc | Win rate calculation |
+| `unlockTransactions` | `tradieId`, `status` | asc, asc | Unlock check |
+| `walletTransactions` | `userId`, `timestamp` | asc, desc | Wallet history |
+| `notifications` | `userId`, `read`, `timestamp` | asc, asc, desc | Unread notifications |
+
+---
+
+## Data Volume Estimates
+
+For a market with 1,000 active tradies and 500 active customers:
+
+| Collection | Docs/Month | Read Pattern |
+|-----------|-----------|--------------|
+| `serviceRequests` | ~2,000 new | Heavy reads (Explorer) |
+| `quotes` | ~6,000 new | Medium reads (per request) |
+| `unlockTransactions` | ~8,000 new | Light reads (check only) |
+| `walletTransactions` | ~10,000 new | Light reads (history) |
+| `notifications` | ~20,000 new | Medium reads (per user) |
+| `users` | ~100 new | Heavy reads (auth context) |
+
+---
+
+## Query Cost Optimization
+
+| Screen | Reads per Load | Strategy |
+|--------|---------------|----------|
+| Explorer (page) | 15 docs | Single collection query, intelligence embedded |
+| Request Detail | 1 + N quotes | 1 request doc + quotes subcollection query |
+| Customer Dashboard | Real-time listener | UserContext subscription, no per-load cost |
+| Tradie Dashboard | 1 user doc | From AuthContext (already loaded) |
+| Wallet History | 20 docs | Paginated, cursor-based |
+| Reports | 50-200 docs | Batched queries, client-side aggregation |
+
+**Key optimization:** Intelligence data is embedded in `serviceRequests` documents, eliminating the need for a separate `requestIntelligence` collection read. This saves 1 read per card in the Explorer (15 reads saved per page load).
+  </script>
+
+  <script id="md-intelligence-algorithm" type="text/markdown">
+# Intelligence Computation Algorithm
+
+## The Problem
+
+The Explorer screen shows rich market intelligence on every request card:
+- Total quotes, price range, timeline range
+- Competition level (low/medium/high)
+- Opportunity score (0-100%)
+- Win probability (0-100%)
+- Recommended price range
+- Market trends (price direction, demand level)
+
+These need to be **pre-computed and stored** on the `serviceRequests` document so the Explorer can load them in a single query without joining multiple collections.
+
+---
+
+## Two Computation Trigger Points
+
+### Trigger 1: Request Created (Customer submits)
+
+When a customer posts a new request, we initialize the intelligence fields with defaults.
+
+### Trigger 2: Quote Submitted (Tradie quotes)
+
+When a tradie submits a quote, we recalculate all intelligence fields based on all quotes for that request.
+
+---
+
+## On Request Created
+
+**Where:** Cloud Function `onServiceRequestCreated` (Firestore trigger)
+
+**What it computes:**
+
+```json
+{
+  "intelligence": {
+    "totalQuotes": 0,
+    "totalUnlocks": 0,
+    "priceRange": { "min": 0, "max": 0, "average": 0 },
+    "timelineRange": { "minDays": 0, "maxDays": 0, "averageDays": 0 },
+    "breakdown": {
+      "materials": { "min": 0, "max": 0, "average": 0 },
+      "labor": { "min": 0, "max": 0, "average": 0 }
+    },
+    "competitionLevel": "low",
+    "opportunityScore": 90,
+    "competitivePosition": "strong",
+    "recommendedPriceRange": { "min": 0, "max": 0, "optimal": 0 },
+    "winProbability": 0.85,
+    "priceGap": 0,
+    "priceGapCategory": "small",
+    "marketTrends": { "priceDirection": "stable", "demandLevel": "low" },
+    "lastQuoteAt": null,
+    "updatedAt": "serverTimestamp()"
+  }
+}
+```
+
+Also computes flattened fields for Firestore querying:
+- `tradesLower`: trades array in lowercase for `array-contains` queries
+
+---
+
+## On Quote Submitted — The Algorithm
+
+**Where:** Cloud Function `onQuoteCreated` (Firestore trigger on `quotes` collection)
+
+**Input:** All quotes for the affected `serviceRequestId`
+
+### Step 1: Basic Aggregation
+
+```
+totalQuotes = quotes.length
+priceRange = { min, max, average } from all quote totalPrices
+timelineRange = { min, max, average } from all quote timelineDays
+breakdown.materials = { min, max, average }
+breakdown.labor = { min, max, average }
+```
+
+### Step 2: Competition Level
+
+```
+if totalQuotes < 3:  "low"
+elif totalQuotes < 7: "medium"
+else:                  "high"
+```
+
+### Step 3: Price Gap
+
+```
+priceGap = priceRange.max - priceRange.min
+if priceGap > 200: priceGapCategory = "large"
+elif priceGap > 100: priceGapCategory = "medium"
+else: priceGapCategory = "small"
+```
+
+### Step 4: Opportunity Score (0-100)
+
+```
+score = 50 (base)
+
+// Competition factor (40% weight)
++40 if 0 quotes, +30 if <3, +20 if <5, +10 if <8, -10 if 8+
+
+// Price spread factor (30% weight)
+spreadPct = (priceGap / avgPrice) * 100
++30 if >50%, +20 if >25%, +10 if >10%
+
+// Budget factor (20% weight)
++20 if avgPrice > $2000, +15 if > $1000, +10 if > $500
+
+// Freshness factor (10% weight)
++10 if <2h old, +5 if <6h, -10 if >48h
+
+opportunityScore = clamp(score, 10, 100)
+```
+
+### Step 5: Win Probability
+
+```
+if totalQuotes < 3: 0.75
+elif totalQuotes < 5: 0.55
+elif totalQuotes < 7: 0.40
+else: 0.25
+
+Clamped to 0.10 - 0.90
+```
+
+### Step 6: Recommended Price Range
+
+```
+min: avg(prices) * 0.90
+max: avg(prices) * 1.10
+optimal: avg(prices) * 0.95  (slightly below average wins)
+```
+
+### Step 7: Market Trends
+
+```
+if 4+ quotes exist:
+  Compare avg price of recent half vs older half
+  >5% increase → "up"
+  >5% decrease → "down"
+  else → "stable"
+
+demandLevel: >7 quotes = "high", >3 = "medium", else "low"
+```
+
+---
+
+## Final serviceRequests Document Schema
+
+```
+serviceRequests/{id}
+├── customerId, trades[], description, postcode, urgency, status
+├── photos[], documents[], voiceMessage, budget { min, max }
+├── searchKeywords[], tradesLower[], descriptionLower
+├── intelligence
+│   ├── totalQuotes, totalUnlocks
+│   ├── priceRange { min, max, average }
+│   ├── timelineRange { minDays, maxDays, averageDays }
+│   ├── breakdown { materials: {...}, labor: {...} }
+│   ├── competitionLevel: "low" | "medium" | "high"
+│   ├── opportunityScore: 0-100
+│   ├── competitivePosition: "strong" | "moderate" | "weak"
+│   ├── recommendedPriceRange { min, max, optimal }
+│   ├── winProbability: 0.0-1.0
+│   ├── priceGap: number ($)
+│   ├── priceGapCategory: "small" | "medium" | "large"
+│   ├── marketTrends { priceDirection, demandLevel }
+│   ├── lastQuoteAt, updatedAt
+├── createdAt, updatedAt
+```
+
+---
+
+## Firestore Limitations & Constraints
+
+### Key Constraints
+
+| Constraint | Impact |
+|-----------|--------|
+| One `array-contains-any` per query | Can't filter by trades AND another array field |
+| `in` / `array-contains-any` max 30 values | Batch if tradie selects 30+ trade filters |
+| Inequality filters require matching `orderBy` | `budget.max >= X` forces `orderBy('budget.max')` first |
+| Multiple inequalities on different fields | Needs composite index per combination — combinatorial explosion |
+| Can't range-query nested map fields easily | `intelligence.opportunityScore >= 50` works alone but not combined |
+| No OR across different fields | `urgency == 'high' OR trades contains 'plumbing'` impossible |
+
+### Why We Can't Do All Filters Server-Side
+
+Every combination of filters would need its own composite index. With 5+ filter dimensions, that's dozens of indexes (Firestore limit: ~200 per project). Not practical.
+
+### Our Hybrid Strategy
+
+**Server-side (always):**
+- `where('status', '==', 'new')` + `orderBy('createdAt', 'desc')` + pagination
+- Optionally ONE of: `array-contains-any(tradesLower)` OR `where('postcode', '==', X)`
+
+**Client-side (after fetch):**
+- Urgency, budget range, posted-within
+- All intelligence filters (competition, opportunity, win rate, price gap)
+- All sort options except "Newest"
+
+### Over-Fetching Tradeoff
+
+At our scale (50-2000 active requests), fetching 15 docs and filtering 2-3 out client-side is negligible cost. Revisit when >10K active requests.
+
+---
+
+## How Filters Map to Fields (Hybrid)
+
+### Server-Side (Firestore WHERE)
+
+| Filter | Field | Query | Notes |
+|--------|-------|-------|-------|
+| Status | `status` | `== 'new'` | Always applied |
+| Trade type | `tradesLower` | `array-contains-any` | Optional, max 30 |
+| Postcode | `postcode` | `== value` | Optional, equality only |
+
+**Rule:** Only ONE optional filter alongside status + orderBy(createdAt).
+
+### Client-Side (Post-Fetch)
+
+| Filter | Field | Logic |
+|--------|-------|-------|
+| Urgency | `urgency` | includes check |
+| Budget range | `budget.max` | >= min and <= max |
+| Posted within | `createdAt` | >= (now - hours) |
+| Competition level | `intelligence.competitionLevel` | exact match |
+| Opportunity score | `intelligence.opportunityScore` | range (min-max) |
+| Win rate | `intelligence.winProbability` | >= threshold |
+| Price gap | `intelligence.priceGapCategory` | exact match |
+
+### Sort Options
+
+| Sort | Where | Why |
+|------|-------|-----|
+| Newest | Firestore `orderBy('createdAt', 'desc')` | Supports cursor pagination |
+| Best Opportunity | Client-side | Can't orderBy nested field with other constraints |
+| Closest | Client-side | Distance calculated per-tradie, not stored |
+| Highest Budget | Client-side | Would need different orderBy, breaks pagination |
+
+### Pagination Note
+
+Client-side sorting breaks cursor pagination. Strategy: fetch larger batch (50), sort client-side, display in pages of 15. Acceptable at our scale.
+
+---
+
+## Composite Indexes Needed
+
+| Collection | Fields | Purpose |
+|-----------|--------|---------|
+| `serviceRequests` | `status` ASC, `createdAt` DESC | Explorer primary query |
+| `serviceRequests` | `status` ASC, `tradesLower` ARRAY, `createdAt` DESC | Explorer + trade filter |
+| `serviceRequests` | `customerId` ASC, `status` ASC, `createdAt` DESC | Customer dashboard |
+| `quotes` | `serviceRequestId` ASC, `status` ASC | Quotes for a request |
+| `quotes` | `tradieId` ASC, `createdAt` DESC | Tradie quote history |
+| `unlockTransactions` | `tradieId` ASC, `serviceRequestId` ASC | Unlock check |
+
+---
+
+## Do We Merge unlockTransactions into quotes?
+
+**No. Keep them separate.**
+
+| Reason | Explanation |
+|--------|-------------|
+| Different lifecycle | Unlock happens before quote (tradie may never quote) |
+| Financial audit | Unlocks are payment transactions — need clean audit trail |
+| Different queries | "Has tradie unlocked?" vs "What quotes exist?" |
+| 1:many possible | One unlock, zero or one quote per tradie per request |
+
+The only thing we do is increment `intelligence.totalUnlocks` on the serviceRequest when an unlock happens.
+
+---
+
+## Cloud Functions Needed
+
+| Function | Trigger | Action |
+|----------|---------|--------|
+| `onServiceRequestCreated` | `serviceRequests` doc created | Initialize intelligence defaults + tradesLower |
+| `onQuoteCreated` | `quotes` doc created | Recalculate full intelligence on parent request |
+| `onQuoteUpdated` | `quotes` doc updated | Recalculate (handles status changes) |
+| `onUnlockCreated` | `unlockTransactions` doc created | Increment totalUnlocks on request |
+
+---
+
+## Migration from Current Code
+
+| Step | What |
+|------|------|
+| 1 | Create Cloud Functions (triggers) |
+| 2 | Backfill `intelligence` on existing serviceRequests |
+| 3 | Update `explorerService.ts` to use server-side WHERE for data filters |
+| 4 | Remove client-side intelligence calculation |
+| 5 | Keep client-side intelligence filtering (Firestore can't range-query nested fields) |
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    const docs = {
+      overview: document.getElementById('md-overview').textContent,
+      process: document.getElementById('md-process').textContent,
+      database: document.getElementById('md-database').textContent,
+      'customer-screens': document.getElementById('md-customer-screens').textContent,
+      'tradie-screens': document.getElementById('md-tradie-screens').textContent,
+      'admin-screens': document.getElementById('md-admin-screens').textContent,
+      flows: document.getElementById('md-flows').textContent,
+      'cloud-functions': document.getElementById('md-cloud-functions').textContent,
+      notifications: document.getElementById('md-notifications').textContent,
+      'data-examples': document.getElementById('md-data-examples').textContent,
+      'intelligence-algorithm': document.getElementById('md-intelligence-algorithm').textContent,
+    };
+
+    const content = document.getElementById('content');
+    const links = document.querySelectorAll('.sidebar a[data-doc]');
+
+    function loadDoc(key) {
+      content.innerHTML = marked.parse(docs[key] || '# Not found');
+    }
+
+    links.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        loadDoc(link.dataset.doc);
+      });
+    });
+
+    loadDoc('overview');
+  </script>
+</body>
+</html>

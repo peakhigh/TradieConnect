@@ -93,6 +93,10 @@ temp/
 *.swo
 *~
 
+# Symlinks to sibling projects
+_buildon
+_educator
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -105,3 +109,5 @@ Thumbs.db
 # Logs
 logs
 *.log
+firebase-debug.log
+firestore-debug.log
