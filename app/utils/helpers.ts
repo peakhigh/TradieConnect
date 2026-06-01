@@ -60,3 +60,43 @@ export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength) + '...';
 }
+
+/**
+ * Convert any Firestore timestamp format to a readable date string.
+ * Handles: Firestore Timestamp, serialized {seconds}, Date, string.
+ */
+export function timestampToReadable(timestamp: any, format?: string): string {
+  if (!timestamp) return '';
+  
+  // Firestore Timestamp (has toDate method)
+  if (timestamp?.toDate) {
+    return formatDate(timestamp.toDate(), format);
+  }
+  
+  // Serialized Firestore Timestamp {seconds} or {_seconds}
+  if (timestamp?.seconds || timestamp?._seconds) {
+    const secs = timestamp.seconds || timestamp._seconds;
+    return formatDate(new Date(secs * 1000), format);
+  }
+  
+  // String or Date
+  const date = new Date(timestamp);
+  if (!isNaN(date.getTime())) {
+    return formatDate(date, format);
+  }
+  
+  return '';
+}
+
+function formatDate(date: Date, format?: string): string {
+  if (format === 'relative') return formatTimeAgo(date);
+  // Default: "15 Mar 2025"
+  return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function formatChatTimestamp(dateInput: any): string {
+  const date = dateInput?.toDate ? dateInput.toDate() : new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) + 
+    ' ' + date.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true });
+}

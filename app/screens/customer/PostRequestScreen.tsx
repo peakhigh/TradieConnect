@@ -170,15 +170,15 @@ export default function PostRequestScreen() {
   const [recording, setRecording] = useState<any>(null);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      setScrollKey(prev => prev + 1);
-      // Scroll to top when screen is focused
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-      }, 100);
-    });
-
-    return unsubscribe;
+    if (navigation && 'addListener' in navigation) {
+      const unsubscribe = (navigation as any).addListener('focus', () => {
+        setScrollKey(prev => prev + 1);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+        }, 100);
+      });
+      return unsubscribe;
+    }
   }, [navigation]);
 
 

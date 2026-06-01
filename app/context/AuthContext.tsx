@@ -1,35 +1,114 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
-import { User, Customer, Tradie } from '../types';
+import { User } from '../types';
+
+// --- State & Actions ---
+
+interface AuthState {
+  user: User | null;
+  firebaseUser: FirebaseUser | null;
+  loading: boolean;
+  authIsReady: boolean;
+  successMessage: string | null;
+}
+
+type AuthAction =
+  | { type: 'AUTH_IS_READY'; payload: { user: User | null; firebaseUser: FirebaseUser | null } }
+  | { type: 'LOGIN'; payload: { user: User; firebaseUser: FirebaseUser } }
+  | { type: 'LOGOUT' }
+  | { type: 'SET_USER'; payload: User | null }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SHOW_SUCCESS'; payload: string }
+  | { type: 'CLEAR_SUCCESS' };
+
+const initialState: AuthState = {
+  user: null,
+  firebaseUser: null,
+  loading: true,
+  authIsReady: false,
+  successMessage: null,
+};
+
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'AUTH_IS_READY':
+      return {
+        ...state,
+        user: action.payload.user,
+        firebaseUser: action.payload.firebaseUser,
+        loading: false,
+        authIsReady: true,
+      };
+    case 'LOGIN':
+      return {
+        ...state,
+        user: action.payload.user,
+        firebaseUser: action.payload.firebaseUser,
+        loading: false,
+      };
+    case 'LOGOUT':
+      return {
+        ...state,
+        user: null,
+        firebaseUser: null,
+        successMessage: null,
+      };
+    case 'SET_USER':
+      return { ...state, user: action.payload };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SHOW_SUCCESS':
+      return { ...state, successMessage: action.payload };
+    case 'CLEAR_SUCCESS':
+      return { ...state, successMessage: null };
+    default:
+      return state;
+  }
+}
+
+// --- Persistence helpers ---
+
+function persistUser(userData: User | null) {
+  if (Platform.OS === 'web') {
+    if (userData) {
+      localStorage.setItem('tradieapp_user', JSON.stringify(userData));
+    } else {
+      localStorage.removeItem('tradieapp_user');
+    }
+  }
+}
+
+function loadPersistedUser(): User | null {
+  if (Platform.OS === 'web') {
+    try {
+      const stored = localStorage.getItem('tradieapp_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// --- Context ---
 
 interface AuthContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   loading: boolean;
+  authIsReady: boolean;
   signOut: () => Promise<void>;
+  logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
   showSuccessMessage: (message: string) => void;
   successMessage: string | null;
   clearSuccessMessage: () => void;
+  dispatch: React.Dispatch<AuthAction>;
 }
-
-// Custom setUser function that also saves to localStorage
-const setUserWithPersistence = (setUser: React.Dispatch<React.SetStateAction<User | null>>) => {
-  return (userData: User | null) => {
-    setUser(userData);
-    if (Platform.OS === 'web') {
-      if (userData) {
-        localStorage.setItem('tradieapp_user', JSON.stringify(userData));
-      } else {
-        localStorage.removeItem('tradieapp_user');
-      }
-    }
-  };
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -42,77 +121,49 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load user from localStorage on web
+  // Load persisted user on mount
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      try {
-        const storedUser = localStorage.getItem('tradieapp_user');
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Error loading user from localStorage:', error);
-      }
+    const persisted = loadPersistedUser();
+    if (persisted) {
+      dispatch({ type: 'SET_USER', payload: persisted });
     }
-    setLoading(false);
   }, []);
 
+  // Listen to Firebase auth state
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
           if (userDoc.exists()) {
-            const userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
-            setUser(userData);
-            
-            // Also save to localStorage for persistence
-            if (Platform.OS === 'web') {
-              localStorage.setItem('tradieapp_user', JSON.stringify(userData));
-            }
+            const userData = { id: fbUser.uid, ...userDoc.data() } as User;
+            persistUser(userData);
+            dispatch({ type: 'AUTH_IS_READY', payload: { user: userData, firebaseUser: fbUser } });
           } else {
-            setUser(null);
+            dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
-          setUser(null);
+          dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
         }
       } else {
-        // Only check localStorage if no Firebase user
-        if (Platform.OS === 'web') {
-          const storedUser = localStorage.getItem('tradieapp_user');
-          if (storedUser) {
-            const userData = JSON.parse(storedUser);
-            setUser(userData);
-          } else {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
+        // No Firebase user — check localStorage
+        const persisted = loadPersistedUser();
+        dispatch({ type: 'AUTH_IS_READY', payload: { user: persisted, firebaseUser: null } });
       }
-      
-      setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       await firebaseSignOut(auth);
-      setUserWithPersistence(setUser)(null);
-      setFirebaseUser(null);
-      
-      // Redirect to static website on web platform
+      persistUser(null);
+      dispatch({ type: 'LOGOUT' });
+
       if (Platform.OS === 'web') {
         window.location.href = '/';
       }
@@ -120,44 +171,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error signing out:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const showSuccessMessage = (message: string) => {
-    setSuccessMessage(message);
-  };
+  const setUser = useCallback((userData: User | null) => {
+    persistUser(userData);
+    dispatch({ type: 'SET_USER', payload: userData });
+  }, []);
 
-  const clearSuccessMessage = () => {
-    setSuccessMessage(null);
-  };
-
-  const refreshUser = async () => {
-    if (firebaseUser) {
+  const refreshUser = useCallback(async () => {
+    if (state.firebaseUser) {
       try {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const userDoc = await getDoc(doc(db, 'users', state.firebaseUser.uid));
         if (userDoc.exists()) {
-          const userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
-          setUser(userData);
-          
-          if (Platform.OS === 'web') {
-            localStorage.setItem('tradieapp_user', JSON.stringify(userData));
-          }
+          const userData = { id: state.firebaseUser.uid, ...userDoc.data() } as User;
+          persistUser(userData);
+          dispatch({ type: 'SET_USER', payload: userData });
         }
       } catch (error) {
         console.error('Error refreshing user data:', error);
       }
     }
-  };
+  }, [state.firebaseUser]);
+
+  const showSuccessMessage = useCallback((message: string) => {
+    dispatch({ type: 'SHOW_SUCCESS', payload: message });
+  }, []);
+
+  const clearSuccessMessage = useCallback(() => {
+    dispatch({ type: 'CLEAR_SUCCESS' });
+  }, []);
 
   const value: AuthContextType = {
-    user,
-    firebaseUser,
-    loading,
+    user: state.user,
+    firebaseUser: state.firebaseUser,
+    loading: state.loading,
+    authIsReady: state.authIsReady,
     signOut,
-    setUser: setUserWithPersistence(setUser),
+    logout: signOut,
+    setUser,
     refreshUser,
     showSuccessMessage,
-    successMessage,
+    successMessage: state.successMessage,
     clearSuccessMessage,
+    dispatch,
   };
 
   return (
