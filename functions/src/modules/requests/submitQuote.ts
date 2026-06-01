@@ -119,8 +119,71 @@ export const submitQuote = https.onCall(async (request) => {
     });
   }
 
+  // 8. Create chatRoom between tradie and customer
+  const tradieData = (await db.collection('users').doc(tradieId).get()).data();
+  const tradieName = tradieData?.displayName || tradieData?.firstName || 'Tradie';
+  const customerName = serviceRequestData?.customerName || 'Customer';
+  const customerId = serviceRequestData?.customerId || '';
+  const tradeDisplay = serviceRequestData?.trades ? serviceRequestData.trades.join(', ') : 'Service';
+
+  const chatRoomData = {
+    serviceRequestId,
+    quoteId: quoteDocRef.id,
+    customerId,
+    customerName,
+    tradieId,
+    tradieName,
+    status: 'active',
+    lastMessage: `Quote: $${totalPrice.toFixed(2)} for ${tradeDisplay}`,
+    lastMessageAt: FieldValue.serverTimestamp(),
+    unreadByCustomer: 1,
+    unreadByTradie: 0,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  const chatRoomRef = await db.collection('chatRooms').add(chatRoomData);
+
+  // 9. Add the quote as the first message in the chat
+  await db.collection('chatRooms').doc(chatRoomRef.id).collection('messages').add({
+    type: 'quote',
+    text: `Quote: $${totalPrice.toFixed(2)} for ${tradeDisplay}`,
+    senderId: tradieId,
+    senderName: tradieName,
+    receiverId: customerId,
+    receiverName: customerName,
+    quoteData: {
+      quoteId: quoteDocRef.id,
+      totalPrice,
+      materialsCost,
+      laborCost,
+      timelineDays,
+      estimatedStartDate: estimatedStartDate || null,
+      estimatedCompletionDate: estimatedCompletionDate || null,
+      notes: notes || null,
+      tradieName,
+      tradieRating: tradieData?.rating || 0,
+      trades: serviceRequestData?.trades || [],
+      postcode: serviceRequestData?.postcode || '',
+      status: 'pending',
+    },
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // 10. Add system message
+  await db.collection('chatRooms').doc(chatRoomRef.id).collection('messages').add({
+    type: 'system',
+    text: `${tradieName} submitted a quote for $${totalPrice.toFixed(2)}`,
+    senderId: 'system',
+    senderName: 'System',
+    receiverId: customerId,
+    receiverName: customerName,
+    systemAction: 'quote_submitted',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
   return {
     success: true,
     message: 'Quote submitted successfully',
+    chatRoomId: chatRoomRef.id,
   };
 });

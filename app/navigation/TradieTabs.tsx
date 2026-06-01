@@ -10,6 +10,9 @@ import WebLayout from './WebLayout';
 import BottomTabBar, { TabItem } from './BottomTabBar';
 import { AppNavigationProvider } from './NavigationContext';
 
+import ChatListScreen from '../screens/chat/ChatListScreen';
+import ChatScreen from '../screens/chat/ChatScreen';
+
 const WEB_SIDEBAR_BREAKPOINT = 768;
 
 // Placeholder screens
@@ -25,9 +28,6 @@ function SettingsScreen() {
 function HelpScreen() {
   return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
 }
-function MessagesScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
 
 const TRADIE_TABS: TabItem[] = [
   { name: 'Dashboard', label: 'Home', icon: Home },
@@ -37,12 +37,13 @@ const TRADIE_TABS: TabItem[] = [
   { name: 'Profile', label: 'Profile', icon: User },
 ];
 
-function renderScreen(activeRoute: string) {
+function renderScreen(activeRoute: string, routeParams?: any) {
   switch (activeRoute) {
     case 'Dashboard': return <TradieDashboard />;
     case 'Explorer': return <ExplorerScreen />;
     case 'History': return <TradieHistoryScreen />;
-    case 'Messages': return <MessagesScreen />;
+    case 'Messages': return <ChatListScreen />;
+    case 'Chat': return <ChatScreen chatRoomId={routeParams?.chatRoomId} otherPartyName={routeParams?.otherPartyName} />;
     case 'Profile': return <TradieProfileScreen />;
     case 'SubmitQuote': return <SubmitQuoteScreen />;
     case 'Wallet': return <WalletScreen />;
@@ -56,16 +57,20 @@ function renderScreen(activeRoute: string) {
 // --- WEB WIDE: Sidebar layout ---
 function TradieWebLayout() {
   const [activeRoute, setActiveRoute] = useState('Dashboard');
+  const [routeParams, setRouteParams] = useState<any>(null);
 
   const navContext = useMemo(() => ({
-    navigate: (screen: string) => setActiveRoute(screen),
+    navigate: (screen: string, params?: any) => {
+      setActiveRoute(screen);
+      setRouteParams(params || null);
+    },
     activeRoute,
   }), [activeRoute]);
 
   return (
     <AppNavigationProvider value={navContext}>
-      <WebLayout activeRoute={activeRoute} onNavigate={setActiveRoute}>
-        {renderScreen(activeRoute)}
+      <WebLayout activeRoute={activeRoute} onNavigate={(route) => { setActiveRoute(route); setRouteParams(null); }}>
+        {renderScreen(activeRoute, routeParams)}
       </WebLayout>
     </AppNavigationProvider>
   );
@@ -74,23 +79,32 @@ function TradieWebLayout() {
 // --- MOBILE / NARROW WEB: Bottom tabs layout ---
 function TradieMobileLayout() {
   const [activeRoute, setActiveRoute] = useState('Dashboard');
+  const [routeParams, setRouteParams] = useState<any>(null);
 
   const navContext = useMemo(() => ({
-    navigate: (screen: string) => setActiveRoute(screen),
+    navigate: (screen: string, params?: any) => {
+      setActiveRoute(screen);
+      setRouteParams(params || null);
+    },
     activeRoute,
   }), [activeRoute]);
+
+  // Hide bottom tabs on Chat screen
+  const showTabs = activeRoute !== 'Chat' && activeRoute !== 'SubmitQuote';
 
   return (
     <AppNavigationProvider value={navContext}>
       <View style={styles.mobileContainer}>
         <View style={styles.screenContent}>
-          {renderScreen(activeRoute)}
+          {renderScreen(activeRoute, routeParams)}
         </View>
-        <BottomTabBar
-          tabs={TRADIE_TABS}
-          activeTab={activeRoute}
-          onTabPress={setActiveRoute}
-        />
+        {showTabs && (
+          <BottomTabBar
+            tabs={TRADIE_TABS}
+            activeTab={activeRoute}
+            onTabPress={(tab) => { setActiveRoute(tab); setRouteParams(null); }}
+          />
+        )}
       </View>
     </AppNavigationProvider>
   );

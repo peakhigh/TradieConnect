@@ -105,6 +105,41 @@ export const acceptQuote = https.onCall(async (request) => {
     });
   }
 
+  // 6. Add system message to the chat room for this quote
+  const chatRoomQuery = await db.collection('chatRooms')
+    .where('quoteId', '==', quoteId)
+    .limit(1)
+    .get();
+
+  if (!chatRoomQuery.empty) {
+    const chatRoomId = chatRoomQuery.docs[0].id;
+
+    // Add system message about acceptance
+    await db.collection('chatRooms').doc(chatRoomId).collection('messages').add({
+      type: 'system',
+      text: 'Quote accepted! Contact details have been shared.',
+      senderId: 'system',
+      senderName: 'System',
+      receiverId: quoteData.tradieId,
+      receiverName: quoteData.tradieName || 'Tradie',
+      systemAction: 'quote_accepted',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Update the quote message status inside chat
+    const quoteMessages = await db.collection('chatRooms').doc(chatRoomId)
+      .collection('messages')
+      .where('type', '==', 'quote')
+      .limit(1)
+      .get();
+
+    if (!quoteMessages.empty) {
+      await quoteMessages.docs[0].ref.update({
+        'quoteData.status': 'accepted',
+      });
+    }
+  }
+
   return {
     success: true,
     message: 'Quote accepted successfully',
