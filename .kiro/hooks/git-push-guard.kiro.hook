@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Git Push Guard",
+  "description": "Requires explicit user approval before any git commit or push operation. Prevents accidental commits to any branch.",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if the command being executed contains 'git commit' or 'git push'. If it does, STOP and ask the user for explicit approval before proceeding. Do NOT execute the command without user confirmation. Say: \"I'm about to run a git commit/push. Do you want me to proceed?\""
+  }
+}

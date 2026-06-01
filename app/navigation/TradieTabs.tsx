@@ -4,6 +4,7 @@ import TradieDashboard from '../screens/tradie/TradieDashboard';
 import ExplorerScreen from '../screens/tradie/ExplorerScreen';
 import TradieHistoryScreen from '../screens/tradie/TradieHistoryScreen';
 import TradieProfileScreen from '../screens/tradie/TradieProfileScreen';
+import SubmitQuoteScreen from '../screens/tradie/SubmitQuoteScreen';
 import { Platform } from 'react-native';
 import { Home, Search, History, User } from 'lucide-react-native';
 import { theme } from '../theme/theme';
@@ -77,6 +78,15 @@ export default function TradieTabs() {
             <User size={Platform.OS === 'web' ? theme.iconSize.lg : size} color={color} />
           ),
           headerTitle: 'Profile',
+        }}
+      />
+
+      <Tab.Screen
+        name="SubmitQuote"
+        component={SubmitQuoteScreen}
+        options={{
+          tabBarButton: () => null,
+          headerShown: false,
         }}
       />
     </Tab.Navigator>

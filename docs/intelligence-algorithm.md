@@ -14,15 +14,51 @@ These need to be **pre-computed and stored** on the `serviceRequests` document s
 
 ---
 
-## Two Computation Trigger Points
+## Collections Overview
+
+| Collection | Purpose |
+|-----------|---------|
+| `serviceRequests` | Customer job postings + embedded intelligence fields |
+| `quotes` | Tradie interactions — lifecycle: unlocked → quoted → accepted/rejected |
+| `walletTransactions` | Financial audit trail (recharges, debits, bonuses) |
+| `users` | User profiles (customer, tradie, admin) |
+| `notifications` | In-app + push notification records |
+| `ratings` | Individual rating records |
+
+**No separate `unlockTransactions` collection.** Unlocks and quotes are merged into a single `quotes` collection with lifecycle statuses.
+
+---
+
+## The `quotes` Lifecycle
+
+```
+unlocked → quoted → accepted / rejected
+```
+
+| Status | Meaning | When |
+|--------|---------|------|
+| `unlocked` | Tradie paid $0.50 to see full details | On unlock click |
+| `quoted` | Tradie submitted pricing/timeline | On quote submit |
+| `accepted` | Customer chose this tradie | On customer accept |
+| `rejected` | Customer chose someone else | When another quote is accepted |
+
+A tradie who unlocks but never quotes stays at `status: 'unlocked'` forever. That's fine — it records they paid and looked.
+
+---
+
+## Three Computation Trigger Points
 
 ### Trigger 1: Request Created (Customer submits)
 
-When a customer posts a new request, we initialize the intelligence fields with defaults.
+Initialize all intelligence fields with defaults.
 
-### Trigger 2: Quote Submitted (Tradie quotes)
+### Trigger 2: Quote Unlocked (Tradie pays $0.50)
 
-When a tradie submits a quote, we recalculate all intelligence fields based on all quotes for that request.
+Create `quotes` doc with `status: 'unlocked'`. Increment unlock count on serviceRequest. Adjust demand level.
+
+### Trigger 3: Quote Submitted (Tradie fills in pricing)
+
+Update `quotes` doc to `status: 'quoted'`. Recalculate all intelligence fields based on all quoted entries.
 
 ---
 
@@ -32,194 +68,269 @@ When a tradie submits a quote, we recalculate all intelligence fields based on a
 
 **Where:** Cloud Function `onServiceRequestCreated` (Firestore trigger)
 
-**What it computes:**
+**What it sets on the serviceRequest document:**
 
 ```
-intelligence = {
-  totalQuotes: 0,
-  totalUnlocks: 0,
-  priceRange: { min: 0, max: 0, average: 0 },
-  timelineRange: { minDays: 0, maxDays: 0, averageDays: 0 },
-  breakdown: {
-    materials: { min: 0, max: 0, average: 0 },
-    labor: { min: 0, max: 0, average: 0 }
-  },
-  competitionLevel: "low",
-  opportunityScore: 90,          // High — no competition yet
-  competitivePosition: "strong",
-  recommendedPriceRange: { min: 0, max: 0, optimal: 0 },
-  winProbability: 0.85,          // High — first mover advantage
-  priceGap: 0,                   // No spread yet
-  marketTrends: { priceDirection: "stable", demandLevel: "low" },
-  lastQuoteAt: null,
-  updatedAt: serverTimestamp()
-}
-```
+tradesLower: trades.map(t => t.toLowerCase())
+status: "new"
 
-**Also computes (for filtering/sorting):**
-
-```
-// Flatten key fields to top level for Firestore querying
-budgetMax: request.budget?.max || 0,
-tradesLower: request.trades.map(t => t.toLowerCase()),
+intel_totalQuotes: 0
+intel_totalUnlocks: 0
+intel_priceMin: 0
+intel_priceMax: 0
+intel_priceAverage: 0
+intel_timelineMinDays: 0
+intel_timelineMaxDays: 0
+intel_timelineAvgDays: 0
+intel_materialsMin: 0
+intel_materialsMax: 0
+intel_materialsAvg: 0
+intel_laborMin: 0
+intel_laborMax: 0
+intel_laborAvg: 0
+intel_competitionLevel: "low"
+intel_opportunityScore: 90
+intel_competitivePosition: "strong"
+intel_recommendedPriceMin: 0
+intel_recommendedPriceMax: 0
+intel_recommendedPriceOptimal: 0
+intel_winProbability: 0.85
+intel_priceGap: 0
+intel_priceGapCategory: "small"
+intel_priceDirection: "stable"
+intel_demandLevel: "low"
+intel_lastQuoteAt: null
+intel_updatedAt: serverTimestamp()
 ```
 
 ---
 
-### On Quote Submitted
+### On Unlock (quotes doc created with status: 'unlocked')
 
-**Where:** Cloud Function `onQuoteCreated` (Firestore trigger on `quotes` collection)
+**Where:** Inside the `unlockServiceRequest` callable Cloud Function (already runs server-side)
 
-**Input:** All quotes for the affected `serviceRequestId`
+**What it does:**
 
-**Algorithm:**
+1. Validate tradie, check balance, deduct $0.50
+2. Create `quotes` doc:
+```
+{
+  tradieId: "trad_001"
+  serviceRequestId: "req_001"
+  status: "unlocked"
+  unlockAmount: 0.50
+  unlockedAt: serverTimestamp()
+  totalPrice: null
+  materialsCost: null
+  laborCost: null
+  timelineDays: null
+  estimatedStartDate: null
+  estimatedCompletionDate: null
+  notes: null
+  quotedAt: null
+  acceptedAt: null
+  tradieName: "Mike Thompson"
+  tradieRating: 4.8
+  createdAt: serverTimestamp()
+}
+```
+3. Create `walletTransactions` record (financial audit)
+4. Update serviceRequest:
+```
+intel_totalUnlocks: FieldValue.increment(1)
+
+// Update demand level
+if intel_totalUnlocks > 10: intel_demandLevel = "high"
+elif intel_totalUnlocks > 5: intel_demandLevel = "medium"
+
+// Boost opportunity if many unlocks but few quotes (people looking, not quoting yet)
+if intel_totalUnlocks > 3 and intel_totalQuotes < 3:
+    intel_opportunityScore = min(current + 5, 100)
+
+intel_updatedAt: serverTimestamp()
+```
+
+---
+
+### On Quote Submitted (quotes doc updated to status: 'quoted')
+
+**Where:** `submitQuote` callable Cloud Function
+
+**What it does:**
+
+1. Validate tradie has an existing `quotes` doc with `status: 'unlocked'` for this request
+2. Update the existing `quotes` doc:
+```
+{
+  status: "quoted"
+  totalPrice: 280
+  materialsCost: 80
+  laborCost: 200
+  timelineDays: 1
+  estimatedStartDate: Timestamp
+  estimatedCompletionDate: Timestamp
+  notes: "Can come tomorrow morning."
+  quotedAt: serverTimestamp()
+}
+```
+3. Fetch ALL `quotes` docs for this `serviceRequestId` where `status == 'quoted'`
+4. Recalculate intelligence:
 
 ```
-function recalculateIntelligence(quotes[]):
+function recalculateIntelligence(quotedDocs[], totalUnlocks):
 
-  // --- Basic Aggregation ---
-  totalQuotes = quotes.length
-  prices = quotes.map(q => q.totalPrice)
-  timelines = quotes.map(q => q.timelineDays)
-  materials = quotes.map(q => q.materialsCost)
-  labor = quotes.map(q => q.laborCost)
+  totalQuotes = quotedDocs.length
+  prices = quotedDocs.map(q => q.totalPrice)
+  timelines = quotedDocs.map(q => q.timelineDays)
+  materials = quotedDocs.map(q => q.materialsCost)
+  labor = quotedDocs.map(q => q.laborCost)
 
-  priceRange = { min: min(prices), max: max(prices), average: avg(prices) }
-  timelineRange = { min: min(timelines), max: max(timelines), average: avg(timelines) }
-  breakdown = {
-    materials: { min: min(materials), max: max(materials), average: avg(materials) },
-    labor: { min: min(labor), max: max(labor), average: avg(labor) }
-  }
+  intel_totalQuotes = totalQuotes
+  intel_priceMin = min(prices)
+  intel_priceMax = max(prices)
+  intel_priceAverage = round(avg(prices))
+  intel_timelineMinDays = min(timelines)
+  intel_timelineMaxDays = max(timelines)
+  intel_timelineAvgDays = round(avg(timelines), 1)
+  intel_materialsMin = min(materials)
+  intel_materialsMax = max(materials)
+  intel_materialsAvg = round(avg(materials))
+  intel_laborMin = min(labor)
+  intel_laborMax = max(labor)
+  intel_laborAvg = round(avg(labor))
 
   // --- Competition Level ---
-  if totalQuotes < 3:  competitionLevel = "low"
-  elif totalQuotes < 7: competitionLevel = "medium"
-  else:                  competitionLevel = "high"
+  if totalQuotes < 3:  intel_competitionLevel = "low"
+  elif totalQuotes < 7: intel_competitionLevel = "medium"
+  else:                  intel_competitionLevel = "high"
 
-  // --- Price Gap (spread) ---
-  priceGap = priceRange.max - priceRange.min
-  priceGapCategory:
-    if priceGap > 200: "large"
-    elif priceGap > 100: "medium"
-    else: "small"
+  // --- Price Gap ---
+  intel_priceGap = intel_priceMax - intel_priceMin
+  if intel_priceGap > 200: intel_priceGapCategory = "large"
+  elif intel_priceGap > 100: intel_priceGapCategory = "medium"
+  else: intel_priceGapCategory = "small"
 
   // --- Opportunity Score (0-100) ---
-  score = 50  // base
+  score = 50
 
-  // Competition factor (40% weight)
+  // Competition factor (40%)
   if totalQuotes == 0: score += 40
   elif totalQuotes < 3: score += 30
   elif totalQuotes < 5: score += 20
   elif totalQuotes < 8: score += 10
   else: score -= 10
 
-  // Price spread factor (30% weight) — high spread = pricing opportunity
-  spreadPct = (priceGap / avg(prices)) * 100
+  // Price spread factor (30%)
+  spreadPct = (intel_priceGap / intel_priceAverage) * 100
   if spreadPct > 50: score += 30
   elif spreadPct > 25: score += 20
   elif spreadPct > 10: score += 10
 
-  // Budget factor (20% weight) — higher value jobs = better opportunity
-  if avg(prices) > 2000: score += 20
-  elif avg(prices) > 1000: score += 15
-  elif avg(prices) > 500: score += 10
+  // Budget factor (20%)
+  if intel_priceAverage > 2000: score += 20
+  elif intel_priceAverage > 1000: score += 15
+  elif intel_priceAverage > 500: score += 10
 
-  // Freshness factor (10% weight)
+  // Freshness factor (10%)
   hoursOld = (now - request.createdAt) / hours
   if hoursOld < 2: score += 10
   elif hoursOld < 6: score += 5
   elif hoursOld > 48: score -= 10
 
-  opportunityScore = clamp(score, 10, 100)
+  // Unlock-to-quote bonus
+  if totalUnlocks > 3 and totalQuotes < 3: score += 5
+
+  intel_opportunityScore = clamp(score, 10, 100)
 
   // --- Win Probability ---
-  baseProbability:
-    if totalQuotes < 3: 0.75
-    elif totalQuotes < 5: 0.55
-    elif totalQuotes < 7: 0.40
-    else: 0.25
-
-  winProbability = clamp(baseProbability, 0.10, 0.90)
+  if totalQuotes < 3: intel_winProbability = 0.75
+  elif totalQuotes < 5: intel_winProbability = 0.55
+  elif totalQuotes < 7: intel_winProbability = 0.40
+  else: intel_winProbability = 0.25
 
   // --- Competitive Position ---
-  if totalQuotes < 3: "strong"
-  elif totalQuotes < 7: "moderate"
-  else: "weak"
+  if totalQuotes < 3: intel_competitivePosition = "strong"
+  elif totalQuotes < 7: intel_competitivePosition = "moderate"
+  else: intel_competitivePosition = "weak"
 
   // --- Recommended Price Range ---
-  recommendedPriceRange = {
-    min: round(avg(prices) * 0.90),
-    max: round(avg(prices) * 1.10),
-    optimal: round(avg(prices) * 0.95)  // slightly below average wins
-  }
+  intel_recommendedPriceMin = round(intel_priceAverage * 0.90)
+  intel_recommendedPriceMax = round(intel_priceAverage * 1.10)
+  intel_recommendedPriceOptimal = round(intel_priceAverage * 0.95)
 
   // --- Market Trends ---
-  // Compare recent quotes vs older quotes
-  if quotes.length >= 4:
-    recentHalf = quotes.sortByDate().slice(0, half)
-    olderHalf = quotes.sortByDate().slice(half)
-    if avg(recentHalf.prices) > avg(olderHalf.prices) * 1.05: priceDirection = "up"
-    elif avg(recentHalf.prices) < avg(olderHalf.prices) * 0.95: priceDirection = "down"
-    else: priceDirection = "stable"
+  if quotedDocs.length >= 4:
+    recentHalf = quotedDocs.sortByDate().slice(0, half)
+    olderHalf = quotedDocs.sortByDate().slice(half)
+    if avg(recentHalf.prices) > avg(olderHalf.prices) * 1.05: intel_priceDirection = "up"
+    elif avg(recentHalf.prices) < avg(olderHalf.prices) * 0.95: intel_priceDirection = "down"
+    else: intel_priceDirection = "stable"
   else:
-    priceDirection = "stable"
+    intel_priceDirection = "stable"
 
-  demandLevel:
-    if totalQuotes > 7: "high"
-    elif totalQuotes > 3: "medium"
-    else: "low"
+  totalInterest = totalUnlocks + totalQuotes
+  if totalInterest > 12: intel_demandLevel = "high"
+  elif totalInterest > 5: intel_demandLevel = "medium"
+  else: intel_demandLevel = "low"
+
+  intel_lastQuoteAt = latestQuotedDoc.quotedAt
+  intel_updatedAt = serverTimestamp()
 ```
+
+5. Write all `intel_*` fields back to `serviceRequests/{serviceRequestId}`
+6. Send notification to customer
 
 ---
 
-## Final `serviceRequests` Document Schema
-
-After computation, each serviceRequest document contains:
+## Final `serviceRequests` Document Schema (Flat)
 
 ```typescript
 interface ServiceRequestDocument {
-  // --- Core fields (set by customer on creation) ---
+  // --- Core fields (set by customer) ---
   id: string;
   customerId: string;
-  trades: string[];                    // ["Plumbing", "Gas Fitting"]
+  trades: string[];
+  tradesLower: string[];
   description: string;
+  descriptionLower: string;
   postcode: string;
   urgency: 'low' | 'medium' | 'high';
   status: 'new' | 'quoted' | 'assigned' | 'completed' | 'cancelled' | 'expired';
   photos: string[];
   documents: string[];
   voiceMessage: string | null;
-  budget?: { min: number; max: number };
-
-  // --- Computed search fields (set on creation) ---
+  budgetMin: number;
+  budgetMax: number;
   searchKeywords: string[];
-  tradesLower: string[];               // for array-contains queries
-  descriptionLower: string;
 
-  // --- Embedded intelligence (set on creation, updated on each quote) ---
-  intelligence: {
-    totalQuotes: number;
-    totalUnlocks: number;
-    priceRange: { min: number; max: number; average: number };
-    timelineRange: { minDays: number; maxDays: number; averageDays: number };
-    breakdown: {
-      materials: { min: number; max: number; average: number };
-      labor: { min: number; max: number; average: number };
-    };
-    competitionLevel: 'low' | 'medium' | 'high';
-    opportunityScore: number;          // 0-100
-    competitivePosition: 'strong' | 'moderate' | 'weak';
-    recommendedPriceRange: { min: number; max: number; optimal: number };
-    winProbability: number;            // 0.0-1.0
-    priceGap: number;                  // absolute $ spread
-    priceGapCategory: 'small' | 'medium' | 'large';
-    marketTrends: {
-      priceDirection: 'up' | 'down' | 'stable';
-      demandLevel: 'low' | 'medium' | 'high';
-    };
-    lastQuoteAt: Timestamp | null;
-    updatedAt: Timestamp;
-  };
+  // --- Intelligence fields (flat) ---
+  intel_totalQuotes: number;
+  intel_totalUnlocks: number;
+  intel_priceMin: number;
+  intel_priceMax: number;
+  intel_priceAverage: number;
+  intel_timelineMinDays: number;
+  intel_timelineMaxDays: number;
+  intel_timelineAvgDays: number;
+  intel_materialsMin: number;
+  intel_materialsMax: number;
+  intel_materialsAvg: number;
+  intel_laborMin: number;
+  intel_laborMax: number;
+  intel_laborAvg: number;
+  intel_competitionLevel: 'low' | 'medium' | 'high';
+  intel_opportunityScore: number;
+  intel_competitivePosition: 'strong' | 'moderate' | 'weak';
+  intel_recommendedPriceMin: number;
+  intel_recommendedPriceMax: number;
+  intel_recommendedPriceOptimal: number;
+  intel_winProbability: number;
+  intel_priceGap: number;
+  intel_priceGapCategory: 'small' | 'medium' | 'large';
+  intel_priceDirection: 'up' | 'down' | 'stable';
+  intel_demandLevel: 'low' | 'medium' | 'high';
+  intel_lastQuoteAt: Timestamp | null;
+  intel_updatedAt: Timestamp;
 
   // --- Timestamps ---
   createdAt: Timestamp;
@@ -229,224 +340,216 @@ interface ServiceRequestDocument {
 
 ---
 
-## `quotes` Collection Schema
+## `quotes` Collection Schema (Flat — Merged Unlock + Quote)
 
 ```typescript
 interface QuoteDocument {
   id: string;
-  serviceRequestId: string;           // FK to serviceRequests
-  tradieId: string;                   // FK to users
-  tradieName: string;                 // denormalized
-  tradieRating: number;               // denormalized at time of quote
+  serviceRequestId: string;
+  tradieId: string;
+  tradieName: string;
+  tradieRating: number;
 
-  // --- Pricing ---
-  totalPrice: number;
-  materialsCost: number;
-  laborCost: number;
+  // --- Lifecycle ---
+  status: 'unlocked' | 'quoted' | 'accepted' | 'rejected';
 
-  // --- Timeline ---
-  timelineDays: number;
-  estimatedStartDate: Timestamp;
-  estimatedCompletionDate: Timestamp;
+  // --- Unlock data (set on creation) ---
+  unlockAmount: number;               // always 0.50
+  unlockedAt: Timestamp;
 
-  // --- Meta ---
-  notes: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  // --- Quote data (null until status = 'quoted') ---
+  totalPrice: number | null;
+  materialsCost: number | null;
+  laborCost: number | null;
+  timelineDays: number | null;
+  estimatedStartDate: Timestamp | null;
+  estimatedCompletionDate: Timestamp | null;
+  notes: string | null;
+  quotedAt: Timestamp | null;
+
+  // --- Acceptance (null until status = 'accepted') ---
+  acceptedAt: Timestamp | null;
+
+  // --- Timestamps ---
   createdAt: Timestamp;
-  acceptedAt?: Timestamp;
 }
 ```
+
+### Key Queries on `quotes`
+
+| Query | Purpose |
+|-------|---------|
+| `where(tradieId, ==, X) && where(serviceRequestId, ==, Y)` | Has this tradie unlocked this request? |
+| `where(serviceRequestId, ==, X) && where(status, 'in', ['quoted','accepted','rejected'])` | All actual quotes for intelligence calculation |
+| `where(serviceRequestId, ==, X)` | All interactions (unlocks + quotes) — total interest |
+| `where(tradieId, ==, X) && where(status, ==, 'quoted')` | Tradie's quote history |
+| `where(serviceRequestId, ==, X) && where(status, ==, 'accepted')` | Who won this job? |
 
 ---
 
-## `unlockTransactions` Collection Schema
+## `walletTransactions` Collection Schema (Flat)
 
 ```typescript
-interface UnlockTransactionDocument {
+interface WalletTransactionDocument {
   id: string;
-  tradieId: string;
-  serviceRequestId: string;
-  amount: number;                     // always 0.50
-  status: 'completed';
+  userId: string;
+  type: 'recharge' | 'unlock' | 'bonus' | 'refund';
+  amount: number;                     // positive = credit, negative = debit
+  description: string;
+  referenceId: string;                // serviceRequestId or payment ID
+  status: 'completed' | 'pending' | 'failed';
   createdAt: Timestamp;
 }
 ```
 
-**Decision: Keep `unlockTransactions` separate.** Don't merge with quotes because:
-1. A tradie can unlock without quoting (they paid to look, decided not to quote)
-2. Unlock is a financial transaction — needs its own audit trail
-3. Different query patterns: "has this tradie unlocked?" vs "what quotes exist?"
+This remains the financial audit trail. Every unlock creates both a `quotes` doc (lifecycle) AND a `walletTransactions` doc (money trail).
 
 ---
 
 ## Firestore Limitations & Constraints
 
-### Key Constraints That Affect Our Design
+### Key Constraints
 
 | Constraint | Impact |
 |-----------|--------|
-| **One `array-contains` / `array-contains-any` per query** | Can't filter by trades AND another array field simultaneously |
-| **`in` / `array-contains-any` max 30 values** | If tradie selects 30+ trade filters, need to batch (unlikely) |
-| **Inequality filters require matching `orderBy`** | `where('budget.max', '>=', X)` forces `orderBy('budget.max')` first — can't also `orderBy('createdAt')` in the same query without composite index |
-| **Multiple inequalities on different fields** | Supported in Firestore v2 but requires composite indexes for every combination. Combinatorial explosion with our filter options. |
-| **Can't range-query nested map fields efficiently** | `intelligence.opportunityScore >= 50` works but combining with other inequalities is impractical |
-| **`orderBy` must match first inequality field** | If we filter `createdAt >= cutoff`, we must `orderBy('createdAt')` — can't then sort by opportunity score server-side |
-| **No OR across different fields** | `urgency == 'high' OR trades contains 'plumbing'` impossible in one query |
-| **Document size: 1MB max** | Our intelligence embed is ~2KB — no issue |
-| **500 writes/sec per document** | Popular requests with simultaneous quotes could hit contention — unlikely at our scale |
+| One `array-contains-any` per query | Can't filter by trades AND another array field |
+| `in` / `array-contains-any` max 30 values | Batch if 30+ trade filters |
+| Inequality filters require matching `orderBy` | `budgetMax >= X` forces `orderBy('budgetMax')` first |
+| Multiple inequalities on different fields | Needs composite index per combination |
+| No OR across different fields | Can't do in single query |
 
-### Why We Can't Do All Filters Server-Side
+### Why Flat Fields
 
-Consider this ideal query:
-```
-where(tradesLower, array-contains-any, ['plumbing'])  // array filter
-where(urgency, in, ['high', 'medium'])                 // in filter
-where(budget.max, >=, 500)                             // inequality #1
-where(createdAt, >=, 24hAgo)                           // inequality #2
-orderBy(createdAt, desc)                               // sort
-```
-
-**Problems:**
-1. Two inequality fields (`budget.max` and `createdAt`) — needs composite index AND `orderBy` must start with first inequality field
-2. If we `orderBy('budget.max')` first, we lose `createdAt` desc pagination
-3. Every combination of filters would need its own composite index (dozens of indexes)
-4. Composite indexes have a limit of ~200 per project
+- `FieldValue.increment()` works directly on `intel_totalUnlocks`
+- Simple `where('intel_competitionLevel', '==', 'low')` queries
+- No dot-notation update headaches
+- Easier composite index definitions
 
 ### Our Hybrid Strategy
 
-**Server-side (Firestore query):** Minimal, reliable filtering
-- `where('status', '==', 'new')` — always applied (only show active requests)
-- `orderBy('createdAt', 'desc')` — always applied (newest first for pagination)
+**Server-side (always):**
+- `where('status', '==', 'new')` + `orderBy('createdAt', 'desc')` + pagination
 - Optionally ONE of: `array-contains-any(tradesLower)` OR `where('postcode', '==', X)`
 
-**Client-side (after fetch):** Everything else
-- Urgency filter
-- Budget range
-- Posted-within time filter
-- All intelligence filters (competition, opportunity, win rate, price gap)
+**Client-side (after fetch):**
+- Urgency, budget range, posted-within
+- All intelligence filters
 - All sort options except "Newest"
-
-### Tradeoff: Over-Fetching
-
-This means we fetch more documents than we display (some get filtered out client-side). At our scale this is fine:
-
-| Scale | Active Requests | Fetch per page | After client filter | Cost |
-|-------|----------------|----------------|--------------------|----|
-| Early (now) | ~50-200 | 15 | 10-15 | Negligible |
-| Growth | ~500-2000 | 15 | 8-15 | Still fine |
-| Scale issue | 10,000+ | 15 | 2-3 | Need server-side filtering |
-
-**When to revisit:** If client-side filtering consistently removes >50% of fetched docs, we should add composite indexes for the most common filter combinations.
-
-### Composite Indexes We DO Need
-
-These are the minimum indexes for our primary query patterns:
-
-| Collection | Fields | Purpose |
-|-----------|--------|---------|
-| `serviceRequests` | `status` ASC, `createdAt` DESC | Explorer feed (primary query) |
-| `serviceRequests` | `status` ASC, `tradesLower` ARRAY, `createdAt` DESC | Explorer with trade filter |
-| `serviceRequests` | `customerId` ASC, `status` ASC, `createdAt` DESC | Customer dashboard |
-| `quotes` | `serviceRequestId` ASC, `status` ASC | Quotes for a request |
-| `quotes` | `tradieId` ASC, `createdAt` DESC | Tradie's quote history |
-| `unlockTransactions` | `tradieId` ASC, `serviceRequestId` ASC | Unlock check |
 
 ---
 
-## How Filters Map to Fields (Hybrid Approach)
+## How Filters Map to Fields
 
 ### Server-Side (Firestore WHERE)
 
-| Filter | Field | Query | Notes |
-|--------|-------|-------|-------|
-| Status | `status` | `where('status', '==', 'new')` | Always applied |
-| Trade type | `tradesLower` | `array-contains-any` | Optional, max 30 values |
-| Postcode | `postcode` | `where('postcode', '==', value)` | Optional, equality only |
-
-**Rule:** Only ONE optional filter at a time alongside `status` + `orderBy(createdAt)`.
+| Filter | Field | Query |
+|--------|-------|-------|
+| Status | `status` | `== 'new'` |
+| Trade type | `tradesLower` | `array-contains-any` |
+| Postcode | `postcode` | `== value` |
 
 ### Client-Side (Post-Fetch)
 
 | Filter | Field | Logic |
 |--------|-------|-------|
-| Urgency | `urgency` | `includes` check |
-| Budget range | `budget.max` | `>= min && <= max` |
-| Posted within | `createdAt` | `>= (now - hours)` |
-| Competition level | `intelligence.competitionLevel` | exact match |
-| Opportunity score | `intelligence.opportunityScore` | range (min-max) |
-| Win rate | `intelligence.winProbability` | `>= threshold` |
-| Price gap | `intelligence.priceGapCategory` | exact match |
-| Distance/closest | calculated from postcode | Haversine or lookup |
+| Urgency | `urgency` | includes check |
+| Budget range | `budgetMax` | >= min and <= max |
+| Posted within | `createdAt` | >= (now - hours) |
+| Competition level | `intel_competitionLevel` | exact match |
+| Opportunity score | `intel_opportunityScore` | range (min-max) |
+| Win rate | `intel_winProbability` | >= threshold |
+| Price gap | `intel_priceGapCategory` | exact match |
 
 ### Sort Options
 
-| Sort | Implementation | Why |
-|------|---------------|-----|
-| Newest | `orderBy('createdAt', 'desc')` — **Firestore** | Primary sort, supports pagination |
-| Best Opportunity | **Client-side** sort by `intelligence.opportunityScore` desc | Can't orderBy nested field with other constraints |
-| Closest | **Client-side** sort by calculated distance | Distance isn't stored, calculated per-tradie |
-| Highest Budget | **Client-side** sort by `budget.max` desc | Would need different orderBy, breaks pagination |
-
-### Pagination Caveat
-
-Client-side sorting breaks cursor-based pagination. When sorting by anything other than "Newest":
-- We fetch a larger batch (e.g., 50 docs)
-- Sort client-side
-- Display in pages of 15
-- "Load More" fetches next 50 from Firestore, merges, re-sorts
-
-This is acceptable at our scale. At 10K+ active requests, we'd need server-side sorting with dedicated indexes per sort option.
+| Sort | Where | Why |
+|------|-------|-----|
+| Newest | Firestore | Supports cursor pagination |
+| Best Opportunity | Client | Can't combine orderBy with other constraints |
+| Closest | Client | Distance calculated per-tradie |
+| Highest Budget | Client | Would need different orderBy |
 
 ---
 
-## Cloud Function Implementation Plan
+## Composite Indexes Needed
 
-### Function 1: `onServiceRequestCreated`
-
-**Trigger:** `onDocumentCreated('serviceRequests/{requestId}')`
-
-**Actions:**
-1. Read the new document
-2. Set default `intelligence` object (all zeros, high opportunity score)
-3. Compute `tradesLower` from `trades`
-4. Write back to the same document
-
-### Function 2: `onQuoteCreated`
-
-**Trigger:** `onDocumentCreated('quotes/{quoteId}')`
-
-**Actions:**
-1. Read `serviceRequestId` from the new quote
-2. Fetch ALL quotes for that `serviceRequestId`
-3. Run `recalculateIntelligence(quotes)`
-4. Update `serviceRequests/{serviceRequestId}.intelligence` with new values
-5. Increment `intelligence.totalQuotes`
-
-### Function 3: `onUnlockCreated` (optional)
-
-**Trigger:** `onDocumentCreated('unlockTransactions/{id}')`
-
-**Actions:**
-1. Increment `serviceRequests/{serviceRequestId}.intelligence.totalUnlocks`
+| Collection | Fields | Purpose |
+|-----------|--------|---------|
+| `serviceRequests` | `status` ASC, `createdAt` DESC | Explorer primary |
+| `serviceRequests` | `status` ASC, `tradesLower` ARRAY, `createdAt` DESC | Explorer + trade filter |
+| `serviceRequests` | `customerId` ASC, `status` ASC, `createdAt` DESC | Customer dashboard |
+| `quotes` | `serviceRequestId` ASC, `status` ASC | Quotes for a request |
+| `quotes` | `tradieId` ASC, `serviceRequestId` ASC | Unlock check |
+| `quotes` | `tradieId` ASC, `status` ASC, `createdAt` DESC | Tradie history |
+| `walletTransactions` | `userId` ASC, `createdAt` DESC | Wallet history |
 
 ---
 
-## What Changes from Current Code
+## Cloud Functions Needed
 
-| Current | New |
-|---------|-----|
-| Intelligence computed client-side in `explorerService.ts` | Intelligence pre-computed server-side, stored on document |
-| Random values for win probability, market trends | Deterministic algorithm based on actual quote data |
-| No Firestore-level filtering on trades/urgency | Server-side `where` clauses for data filters |
-| All filtering is client-side | Hybrid: data filters server-side, intelligence filters client-side |
-| `fetchServiceRequests` fetches ALL then filters | Fetches only matching docs, then applies intelligence filters |
+| Function | Type | Trigger/Action |
+|----------|------|----------------|
+| `onServiceRequestCreated` | Firestore trigger | Initialize `intel_*` defaults + `tradesLower` |
+| `unlockServiceRequest` | Callable | Validate, deduct wallet, create `quotes` doc (status: unlocked), create `walletTransactions`, increment `intel_totalUnlocks` on request |
+| `submitQuote` | Callable | Validate unlock exists, update `quotes` doc (status: quoted, add pricing), recalculate ALL `intel_*` on request, notify customer |
+| `acceptQuote` | Callable | Update winning quote (status: accepted), reject others, update request status, share contact, notify |
+
+---
+
+## Summary: What Happens at Each Action
+
+### Customer Posts Request
+```
+FE: Upload files → Write to serviceRequests (status: 'new')
+BE trigger: Set intel_* defaults, compute tradesLower
+```
+
+### Tradie Unlocks Request
+```
+FE: Call unlockServiceRequest callable
+BE callable:
+  1. Validate balance >= $0.50
+  2. Deduct $0.50 from user.walletBalance
+  3. Create quotes/{id} with status: 'unlocked'
+  4. Create walletTransactions/{id} (type: 'unlock', amount: -0.50)
+  5. Update serviceRequest: intel_totalUnlocks++, adjust intel_demandLevel
+  6. Return success
+```
+
+### Tradie Submits Quote
+```
+FE: Call submitQuote callable
+BE callable:
+  1. Find existing quotes doc (tradieId + serviceRequestId + status: 'unlocked')
+  2. Update it: status → 'quoted', add totalPrice/materials/labor/timeline/notes
+  3. Fetch all quotes for this request where status in ['quoted','accepted','rejected']
+  4. Run recalculateIntelligence() → write intel_* fields to serviceRequest
+  5. Create notification for customer
+  6. Return success
+```
+
+### Customer Accepts Quote
+```
+FE: Call acceptQuote callable
+BE callable:
+  1. Update winning quote: status → 'accepted', acceptedAt
+  2. Update all other quoted docs for same request: status → 'rejected'
+  3. Update serviceRequest: status → 'assigned', share address/phone
+  4. Notify accepted tradie + rejected tradies
+```
 
 ---
 
 ## Migration Steps
 
-1. Add Cloud Functions (`onServiceRequestCreated`, `onQuoteCreated`)
-2. Run a one-time migration script to backfill `intelligence` on existing requests
-3. Update `explorerService.ts` to use server-side `where` clauses for data filters
-4. Remove client-side intelligence calculation (it's now pre-computed)
-5. Keep client-side intelligence filtering (can't do range queries on nested fields in Firestore)
+| Step | What |
+|------|------|
+| 1 | Create/update Cloud Functions (trigger + callables) |
+| 2 | Migrate existing `unlockTransactions` data into `quotes` collection |
+| 3 | Flatten `intelligence` nested object to `intel_*` fields on serviceRequests |
+| 4 | Flatten `budget: {min,max}` to `budgetMin`, `budgetMax` |
+| 5 | Add `tradesLower` field to all existing serviceRequests |
+| 6 | Run backfill script to compute intel_* from existing quotes |
+| 7 | Update FE `explorerService.ts` to read flat fields |
+| 8 | Update FE components to use new field names |
+| 9 | Delete `unlockTransactions` collection (after migration verified) |

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Container } from '../../components/UI/Container';
 import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown, HelpCircle } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
@@ -38,6 +39,7 @@ const PAGINATION_CONFIG = {
 };
 
 export default function ExplorerScreen() {
+  const navigation = useNavigation<any>();
   const [activeSort, setActiveSort] = useState('newest');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [requests, setRequests] = useState<EnrichedServiceRequest[]>([]);
@@ -215,6 +217,10 @@ export default function ExplorerScreen() {
       }
       return newSet;
     });
+  };
+
+  const handleSubmitQuote = (request: EnrichedServiceRequest) => {
+    navigation.navigate('SubmitQuote', { request });
   };
 
   const scrollToTop = () => {
@@ -516,6 +522,7 @@ export default function ExplorerScreen() {
                 setHelpSection(section);
                 setShowHelpDrawer(true);
               }}
+              onSubmitQuote={handleSubmitQuote}
               isSaved={savedRequests.has(item.id)}
               sequenceNumber={index + 1}
             />
