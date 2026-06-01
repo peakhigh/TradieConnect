@@ -87,34 +87,47 @@ export const AppNavigator: React.FC = () => {
 
   console.log('APPNAVIGATOR - User authenticated, determining screen...');
   
+  // Minimal test — render CustomerTabs or TradieTabs directly without Stack wrapper
+  if (user.userType === 'customer') {
+    return (
+      <NavigationContainer linking={linking}>
+        <CustomerTabs />
+      </NavigationContainer>
+    );
+  }
+
+  if (user.userType === 'tradie') {
+    if (!user.onboardingCompleted) {
+      return (
+        <NavigationContainer linking={linking}>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="TradieOnboarding" component={TradieOnboardingScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      );
+    }
+    return (
+      <NavigationContainer linking={linking}>
+        <TradieTabs />
+      </NavigationContainer>
+    );
+  }
+
+  if (user.userType === 'admin') {
+    return (
+      <NavigationContainer linking={linking}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
+  // Fallback
   return (
     <NavigationContainer linking={linking}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        {user.userType === 'customer' && (
-          <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-        )}
-        
-        {user.userType === 'tradie' && (
-          !user.onboardingCompleted ? (
-            (() => {
-              console.log('APPNAVIGATOR - Showing TradieOnboarding');
-              return <Stack.Screen name="TradieOnboarding" component={TradieOnboardingScreen} />;
-            })()
-          ) : (
-            (() => {
-              console.log('APPNAVIGATOR - Showing TradieTabs');
-              return <Stack.Screen name="TradieTabs" component={TradieTabs} />;
-            })()
-          )
-        )}
-        
-        {user.userType === 'admin' && (
-          <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
-        )}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" component={HomeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
