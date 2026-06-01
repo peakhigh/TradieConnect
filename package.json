@@ -19,6 +19,7 @@
     "deploy:rules": "firebase deploy --only firestore:rules,storage",
     "deploy:all": "npm run build:web && firebase deploy",
     "populate-firestore": "node scripts/populateFirestore.js",
+    "seed": "cp .env.local .env && node bin/data/seed.js",
     "build:android": "eas build -p android --profile preview --local",
     "build:ios": "eas build -p ios --profile preview --local",
     "run:android": "npx expo run:android",

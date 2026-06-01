@@ -64,20 +64,34 @@ export default function PostRequestScreen() {
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
+  // Autofill support
+  const autofillData = (() => {
+    try {
+      const { getAutofillData } = require('../../utils/testAutofill');
+      return getAutofillData('serviceRequest');
+    } catch { return null; }
+  })();
   
   const { control, handleSubmit, watch, formState: { errors: formErrors }, setError, clearErrors, reset, setValue } = useForm({
     defaultValues: {
-      description: '',
-      postcode: user?.postcode || '',
-      urgency: 'medium' as 'low' | 'medium' | 'high',
+      description: autofillData?.description || '',
+      postcode: autofillData?.postcode || user?.postcode || '',
+      urgency: (autofillData?.urgency || 'medium') as 'low' | 'medium' | 'high',
       additionalNotes: ''
     }
   });
+
+  // Set autofill trades on mount
+  const [autofilledTrades] = useState<string[]>(autofillData?.trades || []);
   
   // Clear form data on every load, then load edit data if needed
   useEffect(() => {
-    // Always clear form first
-    setSelectedTrades([]);
+    // Always clear form first (unless autofill)
+    if (!autofillData) {
+      setSelectedTrades([]);
+    } else {
+      setSelectedTrades(autofilledTrades);
+    }
     setSelectedFiles([]);
     setVoiceMessage(null);
     setErrors({});
@@ -367,10 +381,26 @@ export default function PostRequestScreen() {
 
       secureLog('About to upload files and save to Firestore:', serviceRequest);
       
-      // Upload files to Firebase Storage
-      const uploadedPhotos = [];
-      const uploadedDocuments = [];
-      let uploadedVoiceMessage = null;
+      // Upload files to Firebase Storage (or mock)
+      const uploadedPhotos: string[] = [];
+      const uploadedDocuments: string[] = [];
+      let uploadedVoiceMessage: string | null = null;
+
+      const { featureFlags } = require('../../utils/featureFlags');
+      
+      if (featureFlags.useMocks) {
+        // Mock mode: skip real uploads, use placeholder URLs
+        selectedFiles.forEach(file => {
+          if (file.type === 'image') {
+            uploadedPhotos.push('https://via.placeholder.com/400x300?text=Mock+Photo');
+          } else {
+            uploadedDocuments.push('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
+          }
+        });
+        if (voiceMessage) {
+          uploadedVoiceMessage = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+        }
+      } else {
       
       for (const file of selectedFiles) {
         try {
@@ -421,6 +451,7 @@ export default function PostRequestScreen() {
           secureError('Error uploading voice message:', error);
         }
       }
+      } // end else (non-mock upload)
       
       // Update service request with uploaded file URLs
       serviceRequest.photos = uploadedPhotos;

@@ -91,7 +91,10 @@ export default function ServiceRequestCard({
     } catch (error: any) {
       setShowUnlockModal(false);
       const errorMessage = error?.message || 'Failed to unlock request';
-      if (errorMessage.includes('Insufficient') || errorMessage.includes('wallet')) {
+      // If already unlocked, just mark it as unlocked (not an error)
+      if (errorMessage.includes('already unlocked') || errorMessage.includes('already-exists') || error?.code === 'already-exists') {
+        onUnlock(request.id);
+      } else if (errorMessage.includes('Insufficient') || errorMessage.includes('wallet')) {
         Alert.alert('Insufficient Balance', 'Please recharge your wallet to unlock this request.');
       } else {
         Alert.alert('Error', errorMessage);

@@ -52,6 +52,21 @@ export const submitQuote = https.onCall(async (request) => {
     .get();
 
   if (unlockQuery.empty) {
+    // Check if already quoted
+    const alreadyQuoted = await db.collection('quotes')
+      .where('tradieId', '==', tradieId)
+      .where('serviceRequestId', '==', serviceRequestId)
+      .where('status', '==', 'quoted')
+      .limit(1)
+      .get();
+
+    if (!alreadyQuoted.empty) {
+      throw new https.HttpsError(
+        'already-exists',
+        'You have already submitted a quote for this request.'
+      );
+    }
+
     throw new https.HttpsError(
       'permission-denied',
       'You must unlock this request before submitting a quote. No unlocked entry found.'
