@@ -50,6 +50,17 @@ if (isLocalStorageEnabled) {
   connectStorageEmulator(storage, emulatorHost, 9199);
 }
 
+// --- App Check (disabled until production) ---
+// TODO: Enable App Check with reCAPTCHA site key for production
+// import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+// if (process.env.NODE_ENV === 'development') {
+//   (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = 'your-debug-token';
+// }
+// const appCheck = initializeAppCheck(app, {
+//   provider: new ReCaptchaV3Provider('your-recaptcha-site-key'),
+//   isTokenAutoRefreshEnabled: true,
+// });
+
 // Debug logging
 console.log('🔥 Firebase initialized:', {
   projectId: firebaseConfig.projectId,
