@@ -37,10 +37,9 @@ interface QuoteFormData {
   notes: string;
 }
 
-export default function SubmitQuoteScreen() {
+export default function SubmitQuoteScreen({ request: requestProp }: { request?: any }) {
   const navigation = useScreenNavigation();
-  const route = useRoute<any>();
-  const request: EnrichedServiceRequest = route.params?.request;
+  const request = requestProp;
   const [submitting, setSubmitting] = useState(false);
 
   // Autofill support
@@ -116,9 +115,8 @@ export default function SubmitQuoteScreen() {
         notes: data.notes || '',
       });
 
-      Alert.alert('Success', 'Your quote has been submitted successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert('Success', 'Your quote has been submitted successfully!');
+      navigation.navigate('Explorer');
     } catch (error: any) {
       const msg = error?.message || 'Failed to submit quote';
       Alert.alert('Error', msg);
@@ -157,7 +155,7 @@ export default function SubmitQuoteScreen() {
       <Container>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>No request data available</Text>
-          <SimpleButton title="Go Back" onPress={() => navigation.goBack()} variant="outline" />
+          <SimpleButton title="Go Back" onPress={() => navigation.navigate('Explorer')} variant="outline" />
         </View>
       </Container>
     );
@@ -167,7 +165,7 @@ export default function SubmitQuoteScreen() {
     <Container>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.navigate('Explorer')} style={styles.backButton}>
           <ArrowLeft size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Submit Quote</Text>
@@ -274,7 +272,6 @@ export default function SubmitQuoteScreen() {
                 value={value}
                 onChangeText={onChange}
                 error={errors.materialsCost?.message}
-                leftIcon={<DollarSign size={16} color="#6b7280" />}
               />
             )}
           />
@@ -291,7 +288,6 @@ export default function SubmitQuoteScreen() {
                 value={value}
                 onChangeText={onChange}
                 error={errors.laborCost?.message}
-                leftIcon={<DollarSign size={16} color="#6b7280" />}
               />
             )}
           />
@@ -309,7 +305,6 @@ export default function SubmitQuoteScreen() {
                 onChangeText={onChange}
                 error={errors.totalPrice?.message}
                 helperText="Auto-calculated from materials + labor (editable)"
-                leftIcon={<DollarSign size={16} color="#3b82f6" />}
               />
             )}
           />
@@ -326,7 +321,6 @@ export default function SubmitQuoteScreen() {
                 value={value}
                 onChangeText={onChange}
                 error={errors.timelineDays?.message}
-                leftIcon={<Clock size={16} color="#6b7280" />}
               />
             )}
           />
@@ -341,7 +335,6 @@ export default function SubmitQuoteScreen() {
                 value={value}
                 onChangeText={onChange}
                 helperText="When you can start the job"
-                leftIcon={<Calendar size={16} color="#6b7280" />}
               />
             )}
           />
@@ -368,7 +361,6 @@ export default function SubmitQuoteScreen() {
                 multiline
                 numberOfLines={4}
                 style={styles.notesInput}
-                leftIcon={<FileText size={16} color="#6b7280" />}
               />
             )}
           />

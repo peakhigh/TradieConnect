@@ -8,8 +8,9 @@ import FilterDrawer from '../../components/explorer/FilterDrawer';
 import { RequestCardSkeleton } from '../../components/UI/Skeleton';
 import { HelpDrawer } from '../../components/UI/HelpDrawer';
 import { ExplorerRequest, DataFilters as DataFiltersType, IntelligenceFilters as IntelligenceFiltersType } from '../../types/explorer';
-import { fetchServiceRequests } from '../../services/explorerService';
+import { fetchServiceRequests, checkUnlockedRequests } from '../../services/explorerService';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
+import { useAuth } from '../../context/AuthContext';
 import { secureLog, secureError } from '../../utils/logger';
 
 // Combined filter state
@@ -40,7 +41,9 @@ const PAGINATION_CONFIG = {
 
 export default function ExplorerScreen() {
   const { navigate } = useScreenNavigation();
+  const { user } = useAuth();
   const [activeSort, setActiveSort] = useState('newest');
+  const [unlockedRequestIds, setUnlockedRequestIds] = useState<Set<string>>(new Set());
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [requests, setRequests] = useState<ExplorerRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +76,15 @@ export default function ExplorerScreen() {
   const [totalAvailable, setTotalAvailable] = useState(0);
   const [showHelpDrawer, setShowHelpDrawer] = useState(false);
   const [helpSection, setHelpSection] = useState<'statuses' | 'intelligence' | 'unlock' | 'filters'>('statuses');
+
+  // Load unlocked request IDs for this tradie
+  useEffect(() => {
+    if (user?.id) {
+      checkUnlockedRequests(user.id).then(ids => {
+        setUnlockedRequestIds(new Set(ids));
+      });
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     loadRequests(true);
@@ -115,7 +127,12 @@ export default function ExplorerScreen() {
 
       if (reset) {
         secureLog(`🆕 Setting ${fetchedRequests.length} requests (reset)`);
-        setRequests(fetchedRequests);
+        // Mark already-unlocked requests
+        const markedRequests = fetchedRequests.map(req => ({
+          ...req,
+          isUnlocked: unlockedRequestIds.has(req.id),
+        }));
+        setRequests(markedRequests);
         setItemsLoadedInCurrentBatch(fetchedRequests.length);
         setTotalResults(fetchedRequests.length);
 
@@ -196,6 +213,7 @@ export default function ExplorerScreen() {
     try {
       // The ServiceRequestCard handles the actual unlock via Cloud Function.
       // Here we just update local state to reflect the unlocked status.
+      setUnlockedRequestIds(prev => new Set([...prev, requestId]));
       setRequests(prev =>
         prev.map(req => req.id === requestId ? { ...req, isUnlocked: true } : req)
       );
