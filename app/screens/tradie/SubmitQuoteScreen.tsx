@@ -43,14 +43,22 @@ export default function SubmitQuoteScreen() {
   const request: EnrichedServiceRequest = route.params?.request;
   const [submitting, setSubmitting] = useState(false);
 
+  // Autofill support
+  const quoteAutofill = (() => {
+    try {
+      const { getAutofillData } = require('../../utils/testAutofill');
+      return getAutofillData('quote');
+    } catch { return null; }
+  })();
+
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<QuoteFormData>({
     defaultValues: {
-      materialsCost: '',
-      laborCost: '',
-      totalPrice: '',
-      timelineDays: '',
-      estimatedStartDate: '',
-      notes: '',
+      materialsCost: quoteAutofill?.materialsCost || '',
+      laborCost: quoteAutofill?.laborCost || '',
+      totalPrice: quoteAutofill?.totalPrice || '',
+      timelineDays: quoteAutofill?.timelineDays || '',
+      estimatedStartDate: quoteAutofill?.estimatedStartDate || '',
+      notes: quoteAutofill?.notes || '',
     },
   });
 

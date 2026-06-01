@@ -16,7 +16,7 @@ module.exports = {
 
   // Test tradie
   tradie: {
-    phoneNumber: '0498765432',
+    phoneNumber: '0405726599',
     userId: 'tradie_test_001', // Replace with real Firebase Auth UID after signup
     firstName: 'Mike',
     lastName: 'Thompson',

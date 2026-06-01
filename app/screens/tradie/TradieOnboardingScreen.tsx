@@ -11,6 +11,7 @@ import { InsuranceDetailsStep } from './onboarding/InsuranceDetailsStep';
 import InterestsStep from './onboarding/InterestsStep';
 import { OnboardingSuccessStep } from './onboarding/OnboardingSuccessStep';
 import { useAuth } from '../../context/AuthContext';
+import { isAutofillEnabled, getOnboardingData } from '../../utils/testAutofill';
 
 interface OnboardingData {
   personalDetails: {
@@ -105,6 +106,43 @@ export default function TradieOnboardingScreen({
           interestedSuburbs: existingData.interestedSuburbs || [],
           interestedTrades: existingData.interestedTrades || []
         }
+      };
+    }
+
+    // Autofill for development
+    const autofill = getOnboardingData('tradie');
+    if (autofill) {
+      return {
+        personalDetails: {
+          firstName: autofill.firstName || '',
+          lastName: autofill.lastName || '',
+          email: autofill.email || '',
+          businessType: 'sole_trader',
+        },
+        businessDetails: {
+          abn: '',
+          businessName: autofill.businessName || '',
+          streetAddress: '',
+          suburb: '',
+          state: '',
+          postcode: '',
+        },
+        contractorDetails: {
+          licenceNumber: autofill.licenseNumber || 'LIC-TEST-001',
+          nameOnLicence: `${autofill.firstName} ${autofill.lastName}`,
+          licenceClass: 'Class A',
+          licenceExpiry: new Date('2027-12-31'),
+        },
+        insuranceDetails: {
+          policyNumber: 'POL-TEST-001',
+          policyHolderName: `${autofill.firstName} ${autofill.lastName}`,
+          expiryDate: new Date('2027-06-30'),
+          liabilityLimit: '5000000',
+        },
+        interests: {
+          interestedSuburbs: autofill.suburbs || ['2026', '2027', '2029'],
+          interestedTrades: autofill.trades || ['Plumbing', 'Gas Fitting'],
+        },
       };
     }
     
