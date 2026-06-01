@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Platform, View, StyleSheet, useWindowDimensions } from 'react-native';
 import CustomerDashboard from '../screens/customer/CustomerDashboard';
 import PostRequestScreen from '../screens/customer/PostRequestScreen';
@@ -9,6 +9,7 @@ import MessagesScreen from '../screens/customer/MessagesScreen';
 import { Home, Plus, History, User, MessageCircle } from 'lucide-react-native';
 import WebLayout from './WebLayout';
 import BottomTabBar, { TabItem } from './BottomTabBar';
+import { AppNavigationProvider } from './NavigationContext';
 
 const WEB_SIDEBAR_BREAKPOINT = 768;
 
@@ -50,10 +51,17 @@ function renderScreen(activeRoute: string) {
 function CustomerWebLayout() {
   const [activeRoute, setActiveRoute] = useState('Dashboard');
 
+  const navContext = useMemo(() => ({
+    navigate: (screen: string) => setActiveRoute(screen),
+    activeRoute,
+  }), [activeRoute]);
+
   return (
-    <WebLayout activeRoute={activeRoute} onNavigate={setActiveRoute}>
-      {renderScreen(activeRoute)}
-    </WebLayout>
+    <AppNavigationProvider value={navContext}>
+      <WebLayout activeRoute={activeRoute} onNavigate={setActiveRoute}>
+        {renderScreen(activeRoute)}
+      </WebLayout>
+    </AppNavigationProvider>
   );
 }
 
@@ -61,17 +69,24 @@ function CustomerWebLayout() {
 function CustomerMobileLayout() {
   const [activeRoute, setActiveRoute] = useState('Dashboard');
 
+  const navContext = useMemo(() => ({
+    navigate: (screen: string) => setActiveRoute(screen),
+    activeRoute,
+  }), [activeRoute]);
+
   return (
-    <View style={styles.mobileContainer}>
-      <View style={styles.screenContent}>
-        {renderScreen(activeRoute)}
+    <AppNavigationProvider value={navContext}>
+      <View style={styles.mobileContainer}>
+        <View style={styles.screenContent}>
+          {renderScreen(activeRoute)}
+        </View>
+        <BottomTabBar
+          tabs={CUSTOMER_TABS}
+          activeTab={activeRoute}
+          onTabPress={setActiveRoute}
+        />
       </View>
-      <BottomTabBar
-        tabs={CUSTOMER_TABS}
-        activeTab={activeRoute}
-        onTabPress={setActiveRoute}
-      />
-    </View>
+    </AppNavigationProvider>
   );
 }
 

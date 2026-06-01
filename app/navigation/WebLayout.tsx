@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import WebSidebar from './WebSidebar';
+import { theme } from '../theme/theme';
 
 interface WebLayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.colors.background,
   },
 });

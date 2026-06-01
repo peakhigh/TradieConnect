@@ -73,7 +73,7 @@ export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps)
       >
         <IconComponent
           size={20}
-          color={isActive ? theme.colors.primary : theme.colors.text.secondary}
+          color={isActive ? theme.colors.primary : 'rgba(255,255,255,0.75)'}
         />
         <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>
           {item.label}
@@ -142,7 +142,7 @@ export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps)
 const styles = StyleSheet.create({
   sidebar: {
     width: 260,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0A2E5A',
     paddingVertical: 20,
     height: '100%',
   },
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4a',
+    borderBottomColor: '#1E4377',
   },
   brandText: {
     fontSize: 18,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 12,
-    color: '#8b8ba8',
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
   userSection: {
@@ -168,20 +168,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4a',
+    borderBottomColor: '#1E4377',
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#E0F2FE',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0A2E5A',
   },
   userInfo: {
     marginLeft: 12,
@@ -209,21 +209,21 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
   },
   menuItemActive: {
-    backgroundColor: '#2a2a4a',
-    borderLeftColor: theme.colors.primary,
+    backgroundColor: '#E0F2FE',
+    borderLeftColor: '#E0F2FE',
   },
   menuLabel: {
     fontSize: 14,
-    color: '#b0b0c8',
+    color: 'rgba(255,255,255,0.75)',
     marginLeft: 12,
   },
   menuLabelActive: {
-    color: '#ffffff',
+    color: '#0A2E5A',
     fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: '#2a2a4a',
+    backgroundColor: '#1E4377',
     marginHorizontal: 20,
     marginVertical: 8,
   },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#2a2a4a',
+    borderTopColor: '#1E4377',
   },
   logoutButton: {
     flexDirection: 'row',

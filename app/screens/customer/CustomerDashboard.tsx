@@ -7,7 +7,7 @@ import { createCursorStyle, createTextDecoration } from '../../theme/crossPlatfo
 import { Sparkles, MessageCircle, Plus } from 'lucide-react-native';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { SkeletonLoader } from '../../components/UI/SkeletonLoader';
 import { RequestDetailsDrawer } from '../../components/UI/RequestDetailsDrawer';
 
@@ -20,7 +20,7 @@ import { ResultsHeader } from '../../components/UI/ResultsHeader';
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
   const { serviceRequests, quotes, unreadMessageCount } = useUser();
-  const navigation = useNavigation();
+  const navigation = useScreenNavigation();
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState<string | null>(null);

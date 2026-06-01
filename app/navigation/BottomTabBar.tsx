@@ -28,16 +28,18 @@ export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabB
         return (
           <TouchableOpacity
             key={tab.name}
-            style={styles.tab}
+            style={[styles.tab, isActive && styles.tabActive]}
             onPress={() => onTabPress(tab.name)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={tab.label}
           >
-            <IconComponent
-              size={22}
-              color={isActive ? theme.colors.primary : '#6b7280'}
-            />
+            <View style={[styles.iconWrapper, isActive && styles.iconWrapperActive]}>
+              <IconComponent
+                size={20}
+                color={isActive ? '#FFFFFF' : 'rgba(255,255,255,0.6)'}
+              />
+            </View>
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {tab.label}
             </Text>
@@ -51,11 +53,11 @@ export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabB
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.sidebar.bg,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-    paddingTop: 8,
+    borderTopColor: theme.colors.sidebar.border,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    paddingTop: 10,
   },
   tab: {
     flex: 1,
@@ -63,13 +65,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 4,
   },
+  tabActive: {},
+  iconWrapper: {
+    width: 36,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapperActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
   label: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 2,
+    fontSize: 10,
+    color: theme.colors.sidebar.text,
+    marginTop: 3,
+    fontWeight: '500',
   },
   labelActive: {
-    color: theme.colors.primary,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

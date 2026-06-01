@@ -12,8 +12,8 @@ import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
 import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic, ArrowLeft } from 'lucide-react-native';
 import DateTimePicker from 'react-native-ui-datepicker';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useRoute } from '@react-navigation/native';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
@@ -47,7 +47,7 @@ type TabParamList = {
 
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const navigation = useScreenNavigation();
   let editRequestId: string | undefined;
   try {
     const route = useRoute();
