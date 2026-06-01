@@ -6,6 +6,7 @@ export interface TabItem {
   name: string;
   label: string;
   icon: any; // Lucide icon component
+  badge?: number; // Optional unread badge count
 }
 
 interface BottomTabBarProps {
@@ -39,6 +40,11 @@ export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabB
                 size={20}
                 color={isActive ? '#FFFFFF' : 'rgba(255,255,255,0.6)'}
               />
+              {tab.badge && tab.badge > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{tab.badge > 9 ? '9+' : tab.badge}</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {tab.label}
@@ -85,5 +91,22 @@ const styles = StyleSheet.create({
   labelActive: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });

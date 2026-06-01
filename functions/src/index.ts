@@ -9,3 +9,4 @@ export { acceptQuote } from './modules/requests/acceptQuote';
 export { rechargeWallet } from './modules/payments/rechargeWallet';
 export { completeServiceRequest } from './modules/requests/complete';
 export { sendPushNotification } from './modules/notifications/sendPush';
+export { onChatMessageCreated } from './modules/chat/onMessageCreated';

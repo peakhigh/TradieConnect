@@ -24,9 +24,13 @@ import {
   startAfter,
   getDocs,
 } from '../../services/firebase';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, Send, Paperclip, FileText } from 'lucide-react-native';
 import { formatTimeAgo } from '../../utils/helpers';
 import QuoteCard from '../../components/chat/QuoteCard';
+import AttachmentMenu from '../../components/chat/AttachmentMenu';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { ref, uploadBytesResumable, getDownloadURL, storage } from '../../services/firebase';
 
 interface ChatMessage {
   id: string;
@@ -51,6 +55,7 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Subscribe to new messages (real-time)
@@ -125,6 +130,108 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
     }
   };
 
+  const handleSendImage = async (uri: string, fileName: string) => {
+    if (!chatRoomId || !user) return;
+    try {
+      // Upload to Firebase Storage
+      const path = `chat/${chatRoomId}/${Date.now()}_${fileName}`;
+      const storageRef = ref(storage, path);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      uploadTask.on('state_changed', null, null, async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+        // Send image message
+        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
+        await addDoc(messagesRef, {
+          type: 'image',
+          text: '📷 Photo',
+          imageUrl: downloadURL,
+          senderId: user.id,
+          senderName: (user as any).firstName || 'User',
+          receiverId: '',
+          receiverName: otherPartyName || '',
+          createdAt: serverTimestamp(),
+        });
+
+        // Update lastMessage
+        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
+        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
+        await updateDoc(chatRoomRef, {
+          lastMessage: '📷 Photo',
+          lastMessageAt: serverTimestamp(),
+        });
+      });
+    } catch (error) {
+      console.error('Error sending image:', error);
+    }
+  };
+
+  const handleSendDocument = async (uri: string, fileName: string) => {
+    if (!chatRoomId || !user) return;
+    try {
+      const path = `chat/${chatRoomId}/${Date.now()}_${fileName}`;
+      const storageRef = ref(storage, path);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      uploadTask.on('state_changed', null, null, async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
+        await addDoc(messagesRef, {
+          type: 'document',
+          text: `📎 ${fileName}`,
+          documentUrl: downloadURL,
+          documentName: fileName,
+          senderId: user.id,
+          senderName: (user as any).firstName || 'User',
+          receiverId: '',
+          receiverName: otherPartyName || '',
+          createdAt: serverTimestamp(),
+        });
+
+        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
+        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
+        await updateDoc(chatRoomRef, {
+          lastMessage: `📎 ${fileName}`,
+          lastMessageAt: serverTimestamp(),
+        });
+      });
+    } catch (error) {
+      console.error('Error sending document:', error);
+    }
+  };
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      handleSendImage(result.assets[0].uri, result.assets[0].fileName || `image_${Date.now()}.jpg`);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled && result.assets[0]) {
+      handleSendImage(result.assets[0].uri, `photo_${Date.now()}.jpg`);
+    }
+  };
+
+  const handlePickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+    if (!result.canceled && result.assets[0]) {
+      handleSendDocument(result.assets[0].uri, result.assets[0].name);
+    }
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderId === user?.id;
 
@@ -155,9 +262,24 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
           {!isMe && (
             <Text style={styles.senderName}>{item.senderName}</Text>
           )}
-          <Text style={[styles.messageText, isMe && styles.myMessageText]}>
-            {item.text}
-          </Text>
+          {item.type === 'image' && item.imageUrl && (
+            <TouchableOpacity style={styles.imageMessage}>
+              <Text style={[styles.messageText, isMe && styles.myMessageText]}>📷 Photo attached</Text>
+            </TouchableOpacity>
+          )}
+          {item.type === 'document' && item.documentUrl && (
+            <TouchableOpacity style={styles.documentMessage}>
+              <FileText size={14} color={isMe ? '#ffffff' : theme.colors.primary} />
+              <Text style={[styles.messageText, isMe && styles.myMessageText, { marginLeft: 6 }]}>
+                {item.documentName || 'Document'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {(item.type === 'text' || (!item.imageUrl && !item.documentUrl)) && (
+            <Text style={[styles.messageText, isMe && styles.myMessageText]}>
+              {item.text}
+            </Text>
+          )}
           <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
             {formatTimeAgo(item.createdAt)}
           </Text>
@@ -205,6 +327,12 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
 
       {/* Composer */}
       <View style={styles.composer}>
+        <TouchableOpacity
+          style={styles.attachButton}
+          onPress={() => setShowAttachmentMenu(true)}
+        >
+          <Paperclip size={20} color={theme.colors.text.secondary} />
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           value={newMessage}
@@ -224,6 +352,15 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
           <Send size={20} color={newMessage.trim() ? '#ffffff' : theme.colors.text.tertiary} />
         </TouchableOpacity>
       </View>
+
+      {/* Attachment Menu */}
+      <AttachmentMenu
+        visible={showAttachmentMenu}
+        onClose={() => setShowAttachmentMenu(false)}
+        onPickImage={handlePickImage}
+        onTakePhoto={handleTakePhoto}
+        onPickDocument={handlePickDocument}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -332,6 +469,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.light,
   },
+  attachButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
   input: {
     flex: 1,
     backgroundColor: theme.colors.surfaceSecondary,
@@ -363,5 +507,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: theme.colors.text.secondary,
+  },
+  imageMessage: {
+    marginBottom: 4,
+  },
+  documentMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 });
