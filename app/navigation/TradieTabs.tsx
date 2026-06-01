@@ -12,13 +12,11 @@ import { AppNavigationProvider } from './NavigationContext';
 
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
+import WalletScreen from '../screens/tradie/WalletScreen';
 
 const WEB_SIDEBAR_BREAKPOINT = 768;
 
 // Placeholder screens
-function WalletScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
 function NotificationsScreen() {
   return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
 }

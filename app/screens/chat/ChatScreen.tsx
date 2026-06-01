@@ -58,6 +58,22 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  // Mark as read when chat opens
+  useEffect(() => {
+    if (!chatRoomId || !user) return;
+    const markAsRead = async () => {
+      try {
+        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
+        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
+        const field = user.userType === 'tradie' ? 'unreadByTradie' : 'unreadByCustomer';
+        await updateDoc(chatRoomRef, { [field]: 0 });
+      } catch (error) {
+        console.error('Error marking as read:', error);
+      }
+    };
+    markAsRead();
+  }, [chatRoomId, user?.id]);
+
   // Subscribe to new messages (real-time)
   useEffect(() => {
     if (!chatRoomId) {

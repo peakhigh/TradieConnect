@@ -1,97 +1,125 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { EmptyState } from '../../components/UI/EmptyState';
+import { useAuth } from '../../context/AuthContext';
+import { useFetchDocs } from '../../hooks/useFetchDocs';
 import { theme } from '../../theme/theme';
-import { History, Star, DollarSign, Calendar } from 'lucide-react-native';
+import { Calendar, DollarSign, Trophy } from 'lucide-react-native';
+import { formatCurrency, timestampToReadable } from '../../utils/helpers';
+
+interface QuoteDoc {
+  id: string;
+  serviceRequestId: string;
+  tradieId: string;
+  amount?: number;
+  totalPrice?: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: any;
+  tradeType?: string;
+  trades?: string[];
+  postcode?: string;
+  suburb?: string;
+}
 
 export default function TradieHistoryScreen() {
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+
+  const { documents: quotes, loading } = useFetchDocs<QuoteDoc>({
+    collectionName: 'quotes',
+    wheres: [['tradieId', '==', user?.id || '']],
+    orderBys: [['createdAt', 'desc']],
+    limitCount: 30,
+    subscribe: false,
+  });
+
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case 'accepted':
+        return { bg: theme.colors.success + '20', text: theme.colors.success };
+      case 'rejected':
+        return { bg: theme.colors.error + '20', text: theme.colors.error };
+      case 'pending':
+      default:
+        return { bg: theme.colors.warning + '20', text: theme.colors.warning };
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+        return 'Quoted';
+      default:
+        return status;
+    }
+  };
 
   return (
-    <Container style={styles.container}>
-      <ScrollView>
+    <Container scrollable={false} style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Job History</Text>
-            <Text style={styles.subtitle}>Track your completed jobs and earnings</Text>
+            <Text style={styles.title}>Quote History</Text>
+            <Text style={styles.subtitle}>All quotes you have submitted</Text>
           </View>
 
-          {/* Stats Overview */}
-          <View style={styles.statsSection}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Total Jobs</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>$0</Text>
-              <Text style={styles.statLabel}>Total Earned</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>0.0</Text>
-              <Text style={styles.statLabel}>Avg Rating</Text>
-            </View>
-          </View>
-
-          {/* Filter Section */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Filter by Status</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.filterTags}>
-                {['All', 'Completed', 'In Progress', 'Cancelled'].map((filter) => (
-                  <View key={filter} style={styles.filterTag}>
-                    <Text style={styles.filterTagText}>{filter}</Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-
-          {/* Job History List */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Jobs</Text>
-            
+          {loading ? (
+            <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
+          ) : quotes.length === 0 ? (
             <EmptyState
-              title="No Job History"
-              message="You haven't completed any jobs yet. Start exploring service requests to build your history!"
+              title="No Quotes Yet"
+              message="Quotes you submit will appear here. Start exploring service requests!"
             />
-          </View>
+          ) : (
+            quotes.map((quote) => {
+              const statusStyle = getStatusBadgeStyle(quote.status);
+              const quoteAmount = quote.amount || quote.totalPrice || 0;
+              const tradeDisplay = quote.trades?.join(', ') || quote.tradeType || 'Service';
+              const locationDisplay = quote.postcode || quote.suburb || '';
 
-          {/* Sample Job History Card (for design reference) */}
-          <View style={styles.jobCard}>
-            <View style={styles.jobHeader}>
-              <Text style={styles.jobTitle}>Kitchen Plumbing Repair</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Completed</Text>
-              </View>
-            </View>
-            
-            <Text style={styles.customerName}>John Smith</Text>
-            <Text style={styles.jobLocation}>Bondi, NSW 2026</Text>
-            
-            <View style={styles.jobMeta}>
-              <View style={styles.metaItem}>
-                <Calendar size={16} color={theme.colors.text.secondary} />
-                <Text style={styles.metaText}>Completed: 15 Dec 2023</Text>
-              </View>
-              
-              <View style={styles.metaItem}>
-                <DollarSign size={16} color={theme.colors.success} />
-                <Text style={styles.metaText}>Earned: $350</Text>
-              </View>
-              
-              <View style={styles.metaItem}>
-                <Star size={16} color={theme.colors.warning} />
-                <Text style={styles.metaText}>Rating: 4.8/5</Text>
-              </View>
-            </View>
-            
-            <Text style={styles.jobDescription}>
-              Fixed leaking kitchen tap and replaced worn washers. Customer was very satisfied with the quick service.
-            </Text>
-          </View>
+              return (
+                <View key={quote.id} style={styles.quoteCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardHeaderLeft}>
+                      <Text style={styles.tradeType}>{tradeDisplay}</Text>
+                      {locationDisplay ? (
+                        <Text style={styles.postcode}>{locationDisplay}</Text>
+                      ) : null}
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                      <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                        {getStatusLabel(quote.status)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.cardBody}>
+                    <View style={styles.metaItem}>
+                      <DollarSign size={14} color={theme.colors.text.secondary} />
+                      <Text style={styles.metaText}>{formatCurrency(quoteAmount)}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Calendar size={14} color={theme.colors.text.secondary} />
+                      <Text style={styles.metaText}>
+                        {timestampToReadable(quote.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {quote.status === 'accepted' && (
+                    <View style={styles.wonBadge}>
+                      <Trophy size={14} color={theme.colors.success} />
+                      <Text style={styles.wonText}>Job won!</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </Container>
@@ -101,7 +129,6 @@ export default function TradieHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     padding: theme.spacing.lg,
@@ -111,7 +138,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.xxl : theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
+    fontWeight: theme.fontWeight.bold as any,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
@@ -119,67 +146,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text.secondary,
   },
-  statsSection: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
+  loader: {
+    marginTop: theme.spacing.xl,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border.light,
-    ...theme.shadows.sm,
-  },
-  statNumber: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  statLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-  },
-  filterSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  filterTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  filterTags: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  filterTag: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border.light,
-  },
-  filterTagText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.primary,
-  },
-  section: {
-    marginBottom: theme.spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-  },
-  jobCard: {
+  quoteCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
@@ -188,45 +158,39 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border.light,
     ...theme.shadows.sm,
   },
-  jobHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.md,
   },
-  jobTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+  cardHeaderLeft: {
     flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  tradeType: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+  },
+  postcode: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
-    backgroundColor: theme.colors.success + '20',
+    paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
   },
   statusText: {
     fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.success,
+    fontWeight: theme.fontWeight.medium as any,
   },
-  customerName: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  jobLocation: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.md,
-  },
-  jobMeta: {
+  cardBody: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
   metaItem: {
     flexDirection: 'row',
@@ -237,9 +201,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
   },
-  jobDescription: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text.secondary,
-    lineHeight: 20,
+  wonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.light,
+  },
+  wonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.success,
   },
 });

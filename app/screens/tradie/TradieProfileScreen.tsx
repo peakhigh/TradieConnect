@@ -1,21 +1,52 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
-import { SimpleButton as Button } from '../../components/UI/SimpleButton';
+import { SimpleButton } from '../../components/UI/SimpleButton';
+import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
-import { User, LogOut, ArrowLeft, Edit3, X } from 'lucide-react-native';
+import { useSave } from '../../hooks/useSave';
 import { theme } from '../../theme/theme';
-import { ProjectLoader } from '../../components/UI/ProjectLoader';
+import { User, Star, Briefcase, X } from 'lucide-react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
-import TradieOnboardingScreen from './TradieOnboardingScreen';
-import { formatDate } from '../../utils/dateUtils';
 
 export default function TradieProfileScreen() {
-  const { user, signOut, refreshUser } = useAuth();
+  const { user, signOut, setUser } = useAuth();
   const navigation = useScreenNavigation();
-  const [loading, setLoading] = useState(false);
+  const { updateDocument, loading: saving } = useSave('users');
   const [editing, setEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [formData, setFormData] = useState({
+    businessName: (user as any)?.businessName || '',
+    licenceNumber: (user as any)?.licenceDetails?.licenceNumber || (user as any)?.licenseNumber || '',
+  });
+
+  const handleSave = async () => {
+    if (!user) return;
+    try {
+      await updateDocument(user.id, {
+        businessName: formData.businessName,
+        licenceDetails: {
+          ...((user as any)?.licenceDetails || {}),
+          licenceNumber: formData.licenceNumber,
+        },
+      });
+
+      const updatedUser = {
+        ...user,
+        businessName: formData.businessName,
+        licenceDetails: {
+          ...((user as any)?.licenceDetails || {}),
+          licenceNumber: formData.licenceNumber,
+        },
+      };
+      setUser(updatedUser as any);
+      setEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile');
+    }
+  };
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -30,216 +61,139 @@ export default function TradieProfileScreen() {
     }
   };
 
-  const handleEditComplete = async () => {
-    await refreshUser();
-    setEditing(false);
-  };
+  const displayName = (user as any)?.firstName || (user as any)?.lastName
+    ? `${(user as any)?.firstName || ''} ${(user as any)?.lastName || ''}`.trim()
+    : 'Tradie';
 
-  if (editing) {
-    return (
-      <Modal visible={editing} animationType="slide" presentationStyle="fullScreen">
-        <View style={styles.editContainer}>
-          <View style={styles.editHeader}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => setEditing(false)}
-            >
-              <ArrowLeft size={20} color={theme.colors.text.secondary} />
-              <Text style={styles.backButtonText}>Back to Profile</Text>
-            </TouchableOpacity>
-          </View>
-          <TradieOnboardingScreen 
-            isEditMode={true}
-            existingData={user}
-            onComplete={handleEditComplete}
-          />
-        </View>
-      </Modal>
-    );
-  }
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+  const rating = (user as any)?.rating ?? 0;
+  const totalJobs = (user as any)?.totalJobs ?? 0;
+  const trades: string[] = (user as any)?.interestedTrades || (user as any)?.trades || [];
+  const suburbs: string[] = (user as any)?.interestedSuburbs || (user as any)?.suburbs || [];
 
   return (
-    <Container style={styles.container}>
-      <ScrollView>
+    <Container scrollable={false} style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
+          {/* Avatar + Name + Stats */}
           <View style={styles.header}>
             <View style={styles.avatar}>
-              <User size={40} color="#6b7280" />
+              <Text style={styles.avatarText}>{avatarLetter}</Text>
             </View>
-            <Text style={styles.name}>
-              {user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}` : 'Welcome!'}
-            </Text>
-            <Text style={styles.userType}>Tradie</Text>
-            {user?.businessName && (
-              <Text style={styles.businessName}>{user.businessName}</Text>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            
-            <View style={styles.profileView}>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>First Name</Text>
-                <Text style={styles.profileValue}>{user?.firstName || 'Not set'}</Text>
+            <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Star size={14} color={theme.colors.warning} />
+                <Text style={styles.statText}>{rating.toFixed(1)}</Text>
               </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Last Name</Text>
-                <Text style={styles.profileValue}>{user?.lastName || 'Not set'}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Email</Text>
-                <Text style={styles.profileValue}>{user?.email || 'Not set'}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Phone Number</Text>
-                <Text style={styles.profileValue}>{user?.phoneNumber}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Business Type</Text>
-                <Text style={styles.profileValue}>
-                  {user?.businessType === 'business' ? 'Business Owner' : 'Sole Trader'}
-                </Text>
+              <View style={styles.statItem}>
+                <Briefcase size={14} color={theme.colors.primary} />
+                <Text style={styles.statText}>{totalJobs} jobs</Text>
               </View>
             </View>
           </View>
 
-          {user?.businessType === 'business' && (
+          {/* Editable Fields */}
+          {editing ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Edit Details</Text>
+
+              <Input
+                label="Business Name"
+                value={formData.businessName}
+                onChangeText={(value: string) => setFormData(prev => ({ ...prev, businessName: value }))}
+              />
+              <Input
+                label="Licence Number"
+                value={formData.licenceNumber}
+                onChangeText={(value: string) => setFormData(prev => ({ ...prev, licenceNumber: value }))}
+              />
+
+              <View style={styles.editActions}>
+                <SimpleButton
+                  title="Cancel"
+                  onPress={() => {
+                    setEditing(false);
+                    setFormData({
+                      businessName: (user as any)?.businessName || '',
+                      licenceNumber: (user as any)?.licenceDetails?.licenceNumber || (user as any)?.licenseNumber || '',
+                    });
+                  }}
+                  variant="outline"
+                  style={styles.actionButton}
+                />
+                <SimpleButton
+                  title="Save"
+                  onPress={handleSave}
+                  loading={saving}
+                  style={styles.actionButton}
+                />
+              </View>
+            </View>
+          ) : (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Business Details</Text>
-              
+
               <View style={styles.profileView}>
                 <View style={styles.profileItem}>
-                  <Text style={styles.profileLabel}>ABN</Text>
-                  <Text style={styles.profileValue}>{user?.abn || 'Not set'}</Text>
-                </View>
-                
-                <View style={styles.profileItem}>
                   <Text style={styles.profileLabel}>Business Name</Text>
-                  <Text style={styles.profileValue}>{user?.businessName || 'Not set'}</Text>
+                  <Text style={styles.profileValue}>{(user as any)?.businessName || 'Not set'}</Text>
                 </View>
-                
                 <View style={styles.profileItem}>
-                  <Text style={styles.profileLabel}>Business Address</Text>
+                  <Text style={styles.profileLabel}>Licence Number</Text>
                   <Text style={styles.profileValue}>
-                    {user?.businessAddress ? 
-                      `${user.businessAddress.streetAddress}, ${user.businessAddress.suburb}, ${user.businessAddress.state} ${user.businessAddress.postcode}` 
-                      : 'Not set'
-                    }
+                    {(user as any)?.licenceDetails?.licenceNumber || (user as any)?.licenseNumber || 'Not set'}
                   </Text>
                 </View>
               </View>
+
+              <SimpleButton
+                title="Edit Details"
+                onPress={() => setEditing(true)}
+                style={styles.editButton}
+              />
             </View>
           )}
 
+          {/* Trades */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contractor Details</Text>
-            
-            <View style={styles.profileView}>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Licence Number</Text>
-                <Text style={styles.profileValue}>{user?.licenceDetails?.licenceNumber || 'Not set'}</Text>
+            <Text style={styles.sectionTitle}>Trades</Text>
+            {trades.length > 0 ? (
+              <View style={styles.tagContainer}>
+                {trades.map((trade) => (
+                  <View key={trade} style={[styles.tag, styles.tradeTag]}>
+                    <Text style={styles.tradeTagText}>{trade}</Text>
+                  </View>
+                ))}
               </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Name on Licence</Text>
-                <Text style={styles.profileValue}>{user?.licenceDetails?.nameOnLicence || 'Not set'}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Licence Class</Text>
-                <Text style={styles.profileValue}>{user?.licenceDetails?.licenceClass || 'Not set'}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Licence Expiry</Text>
-                <Text style={styles.profileValue}>
-                  {formatDate(user?.licenceDetails?.licenceExpiry)}
-                </Text>
-              </View>
-            </View>
+            ) : (
+              <Text style={styles.emptyText}>No trades set</Text>
+            )}
           </View>
 
+          {/* Suburbs */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Insurance Details</Text>
-            
-            <View style={styles.profileView}>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Policy Number</Text>
-                <Text style={styles.profileValue}>{user?.insuranceDetails?.policyNumber || 'Not set'}</Text>
+            <Text style={styles.sectionTitle}>Service Areas</Text>
+            {suburbs.length > 0 ? (
+              <View style={styles.tagContainer}>
+                {suburbs.map((suburb) => (
+                  <View key={suburb} style={[styles.tag, styles.suburbTag]}>
+                    <Text style={styles.suburbTagText}>{suburb}</Text>
+                  </View>
+                ))}
               </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Policy Holder Name</Text>
-                <Text style={styles.profileValue}>{user?.insuranceDetails?.policyHolderName || 'Not set'}</Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Expiry Date</Text>
-                <Text style={styles.profileValue}>
-                  {formatDate(user?.insuranceDetails?.expiryDate)}
-                </Text>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Liability Limit</Text>
-                <Text style={styles.profileValue}>{user?.insuranceDetails?.liabilityLimit || 'Not set'}</Text>
-              </View>
-            </View>
+            ) : (
+              <Text style={styles.emptyText}>No suburbs set</Text>
+            )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Service Interests</Text>
-            
-            <View style={styles.profileView}>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Interested Suburbs</Text>
-                <View style={styles.tagContainer}>
-                  {(user?.interestedSuburbs || []).map((suburb: string) => (
-                    <View key={suburb} style={[styles.tag, styles.suburbTag]}>
-                      <Text style={styles.suburbTagText}>{suburb}</Text>
-                    </View>
-                  ))}
-                  {(!user?.interestedSuburbs || user.interestedSuburbs.length === 0) && (
-                    <Text style={styles.profileValue}>Not set</Text>
-                  )}
-                </View>
-              </View>
-              
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Interested Trades</Text>
-                <View style={styles.tagContainer}>
-                  {(user?.interestedTrades || []).map((trade: string) => (
-                    <View key={trade} style={[styles.tag, styles.tradeTag]}>
-                      <Text style={styles.tradeTagText}>{trade}</Text>
-                    </View>
-                  ))}
-                  {(!user?.interestedTrades || user.interestedTrades.length === 0) && (
-                    <Text style={styles.profileValue}>Not set</Text>
-                  )}
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.actions}>
-            <Button
-              title="Edit Profile"
-              onPress={() => setEditing(true)}
-              style={styles.actionButton}
-            />
-
-            <Button
-              title="Logout"
-              onPress={handleLogout}
-              variant="outline"
-              style={styles.actionButton}
-            />
-          </View>
+          {/* Logout */}
+          <SimpleButton
+            title="Logout"
+            onPress={handleLogout}
+            variant="outline"
+            style={styles.logoutButton}
+          />
 
           {/* Logout Modal */}
           <Modal
@@ -258,13 +212,13 @@ export default function TradieProfileScreen() {
                 </View>
                 <Text style={styles.modalText}>Are you sure you want to logout?</Text>
                 <View style={styles.modalButtons}>
-                  <Button
+                  <SimpleButton
                     title="Cancel"
                     onPress={() => setShowLogoutModal(false)}
                     variant="outline"
                     style={styles.modalButton}
                   />
-                  <Button
+                  <SimpleButton
                     title="Logout"
                     onPress={confirmLogout}
                     variant="danger"
@@ -276,7 +230,6 @@ export default function TradieProfileScreen() {
           </Modal>
         </View>
       </ScrollView>
-      {loading && <ProjectLoader message="Updating profile..." />}
     </Container>
   );
 }
@@ -288,25 +241,6 @@ const styles = StyleSheet.create({
   content: {
     padding: theme.spacing.xxl,
   },
-  editContainer: {
-    flex: 1,
-  },
-  editHeader: {
-    padding: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.light,
-    backgroundColor: theme.colors.surface,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: theme.colors.text.secondary,
-  },
   header: {
     alignItems: 'center',
     marginBottom: 32,
@@ -315,64 +249,108 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.primary,
+  },
   name: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.text.primary,
+    marginBottom: 8,
   },
-  userType: {
-    fontSize: 16,
-    color: '#6b7280',
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  statsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
   },
-  businessName: {
-    fontSize: 14,
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
-    marginTop: 4,
-    fontStyle: 'italic',
+    fontWeight: theme.fontWeight.medium as any,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 16,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    marginBottom: 12,
   },
   profileView: {
-    gap: 16,
+    gap: 12,
   },
   profileItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.colors.border.light,
   },
   profileLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium as any,
+    color: theme.colors.text.secondary,
     marginBottom: 4,
   },
   profileValue: {
-    fontSize: 16,
-    color: '#1f2937',
-    fontWeight: '400',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.primary,
   },
-  actions: {
+  editActions: {
+    flexDirection: 'row',
     gap: 12,
+    marginTop: 16,
   },
   actionButton: {
     flex: 1,
+  },
+  editButton: {
+    marginTop: 16,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  tradeTag: {
+    backgroundColor: '#dcfce7',
+  },
+  tradeTagText: {
+    color: '#166534',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium as any,
+  },
+  suburbTag: {
+    backgroundColor: '#dbeafe',
+  },
+  suburbTagText: {
+    color: '#1e40af',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium as any,
+  },
+  emptyText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    fontStyle: 'italic',
+  },
+  logoutButton: {
+    marginTop: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -382,7 +360,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 24,
     width: '100%',
@@ -396,12 +374,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.text.primary,
   },
   modalText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: theme.colors.text.secondary,
     marginBottom: 24,
   },
   modalButtons: {
@@ -410,33 +388,5 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  suburbTag: {
-    backgroundColor: '#dbeafe',
-  },
-  suburbTagText: {
-    color: '#1e40af',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  tradeTag: {
-    backgroundColor: '#dcfce7',
-  },
-  tradeTagText: {
-    color: '#166534',
-    fontSize: 12,
-    fontWeight: '500',
   },
 });
