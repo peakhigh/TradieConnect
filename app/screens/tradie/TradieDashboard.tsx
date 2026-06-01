@@ -5,12 +5,12 @@ import { StatCard } from '../../components/UI/StatCard';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { Sparkles, Search, Wallet, TrendingUp, MessageCircle, Star } from 'lucide-react-native';
 
 export default function TradieDashboard() {
   const { user } = useAuth();
-  const navigation = useNavigation();
+  const navigation = useScreenNavigation();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,15 +22,15 @@ export default function TradieDashboard() {
   }, []);
 
   const handleExploreJobs = () => {
-    navigation.navigate('Explorer' as never);
+    navigation.navigate('Explorer');
   };
 
   const handleViewWallet = () => {
-    navigation.navigate('Wallet' as never);
+    navigation.navigate('Wallet');
   };
 
   const handleViewMessages = () => {
-    navigation.navigate('Messages' as never);
+    navigation.navigate('Messages');
   };
 
   return (

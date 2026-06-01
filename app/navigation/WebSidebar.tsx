@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { useNavigation, useRoute, NavigationProp } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme/theme';
 import {

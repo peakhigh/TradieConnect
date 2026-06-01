@@ -9,7 +9,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { useForm, Controller } from 'react-hook-form';
 import { Container } from '../../components/UI/Container';
 import { Input } from '../../components/UI/Input';
@@ -38,7 +38,7 @@ interface QuoteFormData {
 }
 
 export default function SubmitQuoteScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useScreenNavigation();
   const route = useRoute<any>();
   const request: EnrichedServiceRequest = route.params?.request;
   const [submitting, setSubmitting] = useState(false);

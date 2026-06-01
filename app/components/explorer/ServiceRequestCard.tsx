@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, ActivityIndicator, Alert } from 'react-native';
-import { EnrichedServiceRequest } from '../../types/explorer';
+import { ExplorerRequest } from '../../types/explorer';
 import { StatusBadge } from '../UI/StatusBadge';
-import { 
-  MapPin, 
-  Clock, 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
-  Lock, 
+import {
+  MapPin,
+  Clock,
+  DollarSign,
+  Users,
+  TrendingUp,
+  Lock,
   Unlock,
   Heart,
   BarChart3,
@@ -18,23 +18,23 @@ import {
 import { functions, httpsCallable } from '../../services/firebase';
 
 interface ServiceRequestCardProps {
-  request: EnrichedServiceRequest;
+  request: ExplorerRequest;
   onUnlock: (requestId: string) => void;
   onSave: (requestId: string) => void;
   onHelp: (section: 'statuses' | 'intelligence' | 'unlock') => void;
-  onSubmitQuote?: (request: EnrichedServiceRequest) => void;
+  onSubmitQuote?: (request: ExplorerRequest) => void;
   isSaved?: boolean;
   sequenceNumber?: number;
 }
 
-export default function ServiceRequestCard({ 
-  request, 
-  onUnlock, 
-  onSave, 
+export default function ServiceRequestCard({
+  request,
+  onUnlock,
+  onSave,
   onHelp,
   onSubmitQuote,
   isSaved = false,
-  sequenceNumber 
+  sequenceNumber
 }: ServiceRequestCardProps) {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -73,12 +73,6 @@ export default function ServiceRequestCard({
   const getTradeDisplay = () => {
     if (request.trades && request.trades.length > 0) {
       return request.trades.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
-    }
-    if ((request as any).tradeType && Array.isArray((request as any).tradeType)) {
-      return (request as any).tradeType.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
-    }
-    if ((request as any).tradeType && typeof (request as any).tradeType === 'string') {
-      return (request as any).tradeType.charAt(0).toUpperCase() + (request as any).tradeType.slice(1);
     }
     return 'General Service';
   };
@@ -135,8 +129,8 @@ export default function ServiceRequestCard({
               style={styles.saveButton}
               onPress={() => onSave(request.id)}
             >
-              <Heart 
-                size={16} 
+              <Heart
+                size={16}
                 color={isSaved ? "#dc2626" : "#6b7280"}
                 fill={isSaved ? "#dc2626" : "none"}
               />
@@ -146,8 +140,8 @@ export default function ServiceRequestCard({
 
         {/* Description Preview */}
         <Text style={styles.description} numberOfLines={2}>
-          {request.isUnlocked 
-            ? request.description 
+          {request.isUnlocked
+            ? request.description
             : `${request.description?.substring(0, 50) || ''}...`
           }
         </Text>
@@ -177,49 +171,49 @@ export default function ServiceRequestCard({
               <HelpCircle size={12} color="#6b7280" />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.intelligenceGrid}>
             <View style={styles.statItem}>
               <Users size={12} color="#6b7280" />
-              <Text style={styles.statLabel}>{request.quotes?.totalQuotes || 0} quotes</Text>
+              <Text style={styles.statLabel}>{request.intel_totalQuotes || 0} quotes</Text>
             </View>
-            
+
             <View style={styles.statItem}>
               <DollarSign size={12} color="#6b7280" />
               <Text style={styles.statLabel}>
-                ${request.quotes?.priceRange?.min?.toFixed(2) || '0.00'} - ${request.quotes?.priceRange?.max?.toFixed(2) || '0.00'}
+                ${(request.intel_priceMin || 0).toFixed(2)} - ${(request.intel_priceMax || 0).toFixed(2)}
               </Text>
             </View>
-            
+
             <View style={styles.statItem}>
               <Clock size={12} color="#6b7280" />
               <Text style={styles.statLabel}>
-                {request.quotes?.timelineRange?.minDays || 0}-{request.quotes?.timelineRange?.maxDays || 0} days
+                {request.intel_timelineMinDays || 0}-{request.intel_timelineMaxDays || 0} days
               </Text>
             </View>
 
             <View style={styles.statItem}>
               <View style={[
-                styles.competitionDot, 
-                { backgroundColor: getCompetitionColor(request.quotes?.competitionLevel || 'low') }
+                styles.competitionDot,
+                { backgroundColor: getCompetitionColor(request.intel_competitionLevel || 'low') }
               ]} />
               <Text style={styles.statLabel}>
-                {request.quotes?.competitionLevel || 'low'} competition
+                {request.intel_competitionLevel || 'low'} competition
               </Text>
             </View>
           </View>
 
           {/* Opportunity Score */}
           <View style={styles.opportunityRow}>
-            <TrendingUp size={12} color={getOpportunityColor(request.intelligence?.opportunityScore || 0)} />
+            <TrendingUp size={12} color={getOpportunityColor(request.intel_opportunityScore || 0)} />
             <Text style={[
               styles.opportunityText,
-              { color: getOpportunityColor(request.intelligence?.opportunityScore || 0) }
+              { color: getOpportunityColor(request.intel_opportunityScore || 0) }
             ]}>
-              {(request.intelligence?.opportunityScore || 0).toFixed(1)}% Opportunity Score
+              {(request.intel_opportunityScore || 0).toFixed(1)}% Opportunity Score
             </Text>
             <Text style={styles.winRate}>
-              • {((request.intelligence?.winProbability || 0) * 100).toFixed(1)}% win rate
+              • {((request.intel_winProbability || 0) * 100).toFixed(1)}% win rate
             </Text>
           </View>
         </View>
@@ -250,24 +244,24 @@ export default function ServiceRequestCard({
               <Unlock size={14} color="#16a34a" />
               <Text style={styles.unlockedTitle}>Full Details Unlocked</Text>
             </View>
-            
+
             {/* Detailed Intelligence */}
             <View style={styles.detailedIntelligence}>
               <Text style={styles.recommendationTitle}>Winning Strategy:</Text>
               <Text style={styles.recommendationText}>
-                • Quote around ${request.intelligence?.recommendedPriceRange?.optimal?.toFixed(2) || '0.00'} to be competitive
+                • Quote around ${(request.intel_recommendedPriceOptimal || 0).toFixed(2)} to be competitive
               </Text>
               <Text style={styles.recommendationText}>
-                • Offer {request.quotes?.timelineRange?.averageDays?.toFixed(1) || '0'} day completion
+                • Offer {(request.intel_timelineAvgDays || 0).toFixed(1)} day completion
               </Text>
               <Text style={styles.recommendationText}>
-                • Market trend: {request.intelligence?.marketTrends?.priceDirection === 'up' ? '📈' : 
-                  request.intelligence?.marketTrends?.priceDirection === 'down' ? '📉' : '➡️'} 
-                {' '}Prices {request.intelligence?.marketTrends?.priceDirection || 'stable'}
+                • Market trend: {request.intel_priceDirection === 'up' ? '📈' :
+                  request.intel_priceDirection === 'down' ? '📉' : '➡️'}
+                {' '}Prices {request.intel_priceDirection || 'stable'}
               </Text>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quoteButton}
               onPress={() => onSubmitQuote?.(request)}
             >
@@ -325,6 +319,7 @@ export default function ServiceRequestCard({
     </>
   );
 }
+
 
 const styles = StyleSheet.create({
   card: {

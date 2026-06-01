@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Container } from '../../components/UI/Container';
 import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown, HelpCircle } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
@@ -8,8 +7,9 @@ import ServiceRequestCard from '../../components/explorer/ServiceRequestCard';
 import FilterDrawer from '../../components/explorer/FilterDrawer';
 import { RequestCardSkeleton } from '../../components/UI/Skeleton';
 import { HelpDrawer } from '../../components/UI/HelpDrawer';
-import { EnrichedServiceRequest, DataFilters as DataFiltersType, IntelligenceFilters as IntelligenceFiltersType } from '../../types/explorer';
-import { fetchServiceRequests, unlockServiceRequest } from '../../services/explorerService';
+import { ExplorerRequest, DataFilters as DataFiltersType, IntelligenceFilters as IntelligenceFiltersType } from '../../types/explorer';
+import { fetchServiceRequests } from '../../services/explorerService';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { secureLog, secureError } from '../../utils/logger';
 
 // Combined filter state
@@ -39,10 +39,10 @@ const PAGINATION_CONFIG = {
 };
 
 export default function ExplorerScreen() {
-  const navigation = useNavigation<any>();
+  const { navigate } = useScreenNavigation();
   const [activeSort, setActiveSort] = useState('newest');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  const [requests, setRequests] = useState<EnrichedServiceRequest[]>([]);
+  const [requests, setRequests] = useState<ExplorerRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -194,16 +194,13 @@ export default function ExplorerScreen() {
 
   const handleUnlock = async (requestId: string) => {
     try {
-      // Mock tradie ID - in real app, get from auth context
-      const tradieId = 'tradie_1';
-      const unlockedRequest = await unlockServiceRequest(requestId, tradieId);
-      setRequests(prev => 
-        prev.map(req => req.id === requestId ? unlockedRequest : req)
+      // The ServiceRequestCard handles the actual unlock via Cloud Function.
+      // Here we just update local state to reflect the unlocked status.
+      setRequests(prev =>
+        prev.map(req => req.id === requestId ? { ...req, isUnlocked: true } : req)
       );
-      Alert.alert('Success', 'Request unlocked! Full details now available.');
     } catch (error) {
-      secureError('Error unlocking request:', error);
-      Alert.alert('Error', 'Failed to unlock request');
+      secureError('Error updating unlock state:', error);
     }
   };
 
@@ -219,8 +216,8 @@ export default function ExplorerScreen() {
     });
   };
 
-  const handleSubmitQuote = (request: EnrichedServiceRequest) => {
-    navigation.navigate('SubmitQuote', { request });
+  const handleSubmitQuote = (request: ExplorerRequest) => {
+    navigate('SubmitQuote', { request });
   };
 
   const scrollToTop = () => {

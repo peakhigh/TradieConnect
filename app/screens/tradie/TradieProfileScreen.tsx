@@ -6,13 +6,13 @@ import { useAuth } from '../../context/AuthContext';
 import { User, LogOut, ArrowLeft, Edit3, X } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
-import { useNavigation } from '@react-navigation/native';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import TradieOnboardingScreen from './TradieOnboardingScreen';
 import { formatDate } from '../../utils/dateUtils';
 
 export default function TradieProfileScreen() {
   const { user, signOut, refreshUser } = useAuth();
-  const navigation = useNavigation();
+  const navigation = useScreenNavigation();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);

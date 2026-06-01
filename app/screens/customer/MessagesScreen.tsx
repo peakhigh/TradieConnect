@@ -3,8 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInp
 import { Container } from '../../components/UI/Container';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { theme } from '../../theme/theme';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 
 type TabParamList = {
   Dashboard: undefined;

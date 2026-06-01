@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 
 type TabParamList = {
   Dashboard: undefined;

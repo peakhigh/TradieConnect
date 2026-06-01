@@ -18,8 +18,7 @@ import { theme } from '../../theme/theme';
 import { X, ArrowLeft } from 'lucide-react-native';
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 
 type TabParamList = {
   Dashboard: undefined;

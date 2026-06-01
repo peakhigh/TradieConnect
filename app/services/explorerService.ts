@@ -1,356 +1,206 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
   startAfter,
-  getDocs, 
-  doc, 
-  getDoc,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
-  DocumentSnapshot 
+  getDocs,
+  DocumentSnapshot
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { EnrichedServiceRequest, DataFilters, IntelligenceFilters, QuoteAggregation, MarketIntelligence } from '../types/explorer';
+import { ExplorerRequest, DataFilters, IntelligenceFilters } from '../types/explorer';
 import { secureLog, secureError } from '../utils/logger';
 
 // Calculate distance between two points using Haversine formula
 function calculateDistance(
-  request: any, 
+  request: any,
   tradieLocation?: { lat: number; lng: number }
 ): number {
   if (!tradieLocation || !request.location?.lat || !request.location?.lng) {
     return Math.round(Math.random() * 20 * 10) / 10; // Fallback to random
   }
-  
+
   const R = 6371; // Earth's radius in km
   const dLat = (request.location.lat - tradieLocation.lat) * Math.PI / 180;
   const dLng = (request.location.lng - tradieLocation.lng) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(tradieLocation.lat * Math.PI / 180) * Math.cos(request.location.lat * Math.PI / 180) *
-    Math.sin(dLng/2) * Math.sin(dLng/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c;
-  
-  return Math.round(distance * 10) / 10; // Round to 1 decimal
-}
-
-// Calculate quote aggregation from quotes array
-function calculateQuoteAggregation(quotes: any[]): QuoteAggregation {
-  if (quotes.length === 0) {
-    return {
-      requestId: '',
-      totalQuotes: 0,
-      priceRange: { min: 0, max: 0, average: 0 },
-      timelineRange: { minDays: 0, maxDays: 0, averageDays: 0 },
-      breakdown: {
-        materials: { min: 0, max: 0, average: 0 },
-        labor: { min: 0, max: 0, average: 0 }
-      },
-      competitionLevel: 'low',
-      lastQuoteAt: new Date()
-    };
-  }
-
-  const prices = quotes.map(q => q.totalPrice);
-  const timelines = quotes.map(q => q.timelineDays);
-  const materials = quotes.map(q => q.materialsCost);
-  const labor = quotes.map(q => q.laborCost);
-
-  return {
-    requestId: quotes[0].requestId,
-    totalQuotes: quotes.length,
-    priceRange: {
-      min: Math.min(...prices),
-      max: Math.max(...prices),
-      average: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
-    },
-    timelineRange: {
-      minDays: Math.min(...timelines),
-      maxDays: Math.max(...timelines),
-      averageDays: Math.round(timelines.reduce((a, b) => a + b, 0) / timelines.length * 10) / 10
-    },
-    breakdown: {
-      materials: {
-        min: Math.min(...materials),
-        max: Math.max(...materials),
-        average: Math.round(materials.reduce((a, b) => a + b, 0) / materials.length)
-      },
-      labor: {
-        min: Math.min(...labor),
-        max: Math.max(...labor),
-        average: Math.round(labor.reduce((a, b) => a + b, 0) / labor.length)
-      }
-    },
-    competitionLevel: quotes.length < 3 ? 'low' : quotes.length < 7 ? 'medium' : 'high',
-    lastQuoteAt: new Date(Math.max(...quotes.map(q => q.createdAt?.toDate ? q.createdAt.toDate().getTime() : new Date(q.createdAt).getTime())))
-  };
-}
-
-// Calculate market intelligence
-function calculateMarketIntelligence(requestId: string, quotes: any[]): MarketIntelligence {
-  const aggregation = calculateQuoteAggregation(quotes);
-  const priceSpread = aggregation.priceRange.max - aggregation.priceRange.min;
-  const avgPrice = aggregation.priceRange.average;
-  
-  // Calculate opportunity score based on market conditions
-  let opportunityScore = 50; // Base score
-  
-  // Competition factor (40% weight)
-  if (aggregation.totalQuotes === 0) opportunityScore += 40;
-  else if (aggregation.totalQuotes < 3) opportunityScore += 30;
-  else if (aggregation.totalQuotes < 5) opportunityScore += 20;
-  else if (aggregation.totalQuotes < 8) opportunityScore += 10;
-  else opportunityScore -= 10; // High competition
-  
-  // Price spread factor (30% weight)
-  const spreadPercentage = avgPrice > 0 ? (priceSpread / avgPrice) * 100 : 0;
-  if (spreadPercentage > 50) opportunityScore += 30; // High price variance = opportunity
-  else if (spreadPercentage > 25) opportunityScore += 20;
-  else if (spreadPercentage > 10) opportunityScore += 10;
-  
-  // Budget factor (20% weight) - higher budgets = better opportunity
-  if (avgPrice > 2000) opportunityScore += 20;
-  else if (avgPrice > 1000) opportunityScore += 15;
-  else if (avgPrice > 500) opportunityScore += 10;
-  
-  // Time factor (10% weight) - newer requests = better opportunity
-  const hoursOld = (Date.now() - new Date(requestId).getTime()) / (1000 * 60 * 60);
-  if (hoursOld < 2) opportunityScore += 10;
-  else if (hoursOld < 6) opportunityScore += 5;
-  else if (hoursOld > 24) opportunityScore -= 5;
-  
-  return {
-    requestId,
-    opportunityScore: Math.min(100, Math.max(10, Math.round(opportunityScore))),
-    competitivePosition: aggregation.totalQuotes < 3 ? 'strong' : 
-                       aggregation.totalQuotes < 7 ? 'moderate' : 'weak',
-    recommendedPriceRange: {
-      min: Math.round(aggregation.priceRange.average * 0.9),
-      max: Math.round(aggregation.priceRange.average * 1.1),
-      optimal: Math.round(aggregation.priceRange.average * 0.95)
-    },
-    winProbability: Math.max(0.2, Math.min(0.9, 
-      (aggregation.totalQuotes < 3 ? 0.8 : 
-       aggregation.totalQuotes < 7 ? 0.6 : 0.4) + 
-      (Math.random() * 0.2 - 0.1)
-    )),
-    marketTrends: {
-      priceDirection: Math.random() > 0.6 ? 'up' : Math.random() > 0.3 ? 'stable' : 'down',
-      demandLevel: aggregation.totalQuotes > 7 ? 'high' : 
-                   aggregation.totalQuotes > 3 ? 'medium' : 'low'
-    }
-  };
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
 }
 
 export async function fetchServiceRequests(
   dataFilters: DataFilters,
   intelligenceFilters: IntelligenceFilters,
   sortBy: string = 'newest',
-  limitCount: number = 10,
+  limitCount: number = 15,
   lastDoc: DocumentSnapshot | null = null,
   tradieLocation?: { lat: number; lng: number }
-): Promise<{ requests: EnrichedServiceRequest[]; hasMore: boolean; lastDoc: DocumentSnapshot | null }> {
-  secureLog('🔍 Fetching service requests:', { 
-    filters: { dataFilters, intelligenceFilters }, 
-    sortBy, 
-    limitCount, 
+): Promise<{ requests: ExplorerRequest[]; hasMore: boolean; lastDoc: DocumentSnapshot | null }> {
+  secureLog('🔍 Fetching service requests:', {
+    filters: { dataFilters, intelligenceFilters },
+    sortBy,
+    limitCount,
     hasLastDoc: !!lastDoc,
     lastDocId: lastDoc?.id || 'none'
   });
-  
+
   try {
-    // Build query for service requests (now with embedded intelligence)
-    let q = query(collection(db, 'serviceRequests'));
+    // Primary Firestore query: status + orderBy + pagination
+    let q = query(
+      collection(db, 'serviceRequests'),
+      where('status', '==', 'new'),
+      orderBy('createdAt', 'desc')
+    );
 
-    // Apply sorting only
-    q = query(q, orderBy('createdAt', 'desc'));
-
-    // Add pagination
     if (lastDoc) {
       q = query(q, startAfter(lastDoc));
     }
     q = query(q, limit(limitCount));
 
-    const requestsSnapshot = await getDocs(q);
-    secureLog(`📊 Firestore query returned ${requestsSnapshot.docs.length} documents (limit: ${limitCount})`);
-    
-    if (requestsSnapshot.docs.length > 0) {
-      secureLog(`📄 First doc ID: ${requestsSnapshot.docs[0].id}, Last doc ID: ${requestsSnapshot.docs[requestsSnapshot.docs.length - 1].id}`);
-    }
-    
-    // Build enriched requests directly from serviceRequests collection
-    const enrichedRequests: EnrichedServiceRequest[] = [];
+    const snapshot = await getDocs(q);
+    secureLog(`📊 Firestore query returned ${snapshot.docs.length} documents (limit: ${limitCount})`);
 
-    for (const doc of requestsSnapshot.docs) {
+    if (snapshot.docs.length > 0) {
+      secureLog(`📄 First doc ID: ${snapshot.docs[0].id}, Last doc ID: ${snapshot.docs[snapshot.docs.length - 1].id}`);
+    }
+
+    // Map documents to ExplorerRequest — read flat intel_* fields directly
+    let requests: ExplorerRequest[] = snapshot.docs.map(doc => {
       const data = doc.data();
-      const request = {
+      return {
         id: doc.id,
-        ...data,
+        customerId: data.customerId || '',
+        trades: data.trades || [],
+        tradesLower: data.tradesLower || [],
+        description: data.description || '',
+        descriptionLower: data.descriptionLower || '',
+        postcode: data.postcode || '',
+        urgency: data.urgency || 'low',
+        status: data.status || 'new',
+        photos: data.photos || [],
+        documents: data.documents || [],
+        voiceMessage: data.voiceMessage || null,
+        budgetMin: data.budgetMin || 0,
+        budgetMax: data.budgetMax || 0,
+        searchKeywords: data.searchKeywords || [],
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now())
-      };
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
 
-      // Extract intelligence data (now embedded in the same document)
-      const intelligence = data.intelligence || {
-        totalQuotes: 0,
-        priceRange: { min: 0, max: 0, average: 0 },
-        timelineRange: { minDays: 0, maxDays: 0, averageDays: 0 },
-        breakdown: {
-          materials: { min: 0, max: 0, average: 0 },
-          labor: { min: 0, max: 0, average: 0 }
-        },
-        competitionLevel: 'low' as const,
-        opportunityScore: 80,
-        competitivePosition: 'strong' as const,
-        recommendedPriceRange: { min: 0, max: 0, optimal: 0 },
-        winProbability: 0.8,
-        marketTrends: { priceDirection: 'stable' as const, demandLevel: 'low' as const },
-        lastQuoteAt: new Date()
-      };
+        // Flat intelligence fields (with || 0 fallbacks for pre-migration docs)
+        intel_totalQuotes: data.intel_totalQuotes || 0,
+        intel_totalUnlocks: data.intel_totalUnlocks || 0,
+        intel_priceMin: data.intel_priceMin || 0,
+        intel_priceMax: data.intel_priceMax || 0,
+        intel_priceAverage: data.intel_priceAverage || 0,
+        intel_timelineMinDays: data.intel_timelineMinDays || 0,
+        intel_timelineMaxDays: data.intel_timelineMaxDays || 0,
+        intel_timelineAvgDays: data.intel_timelineAvgDays || 0,
+        intel_materialsMin: data.intel_materialsMin || 0,
+        intel_materialsMax: data.intel_materialsMax || 0,
+        intel_materialsAvg: data.intel_materialsAvg || 0,
+        intel_laborMin: data.intel_laborMin || 0,
+        intel_laborMax: data.intel_laborMax || 0,
+        intel_laborAvg: data.intel_laborAvg || 0,
+        intel_competitionLevel: data.intel_competitionLevel || 'low',
+        intel_opportunityScore: data.intel_opportunityScore || 0,
+        intel_competitivePosition: data.intel_competitivePosition || 'strong',
+        intel_recommendedPriceMin: data.intel_recommendedPriceMin || 0,
+        intel_recommendedPriceMax: data.intel_recommendedPriceMax || 0,
+        intel_recommendedPriceOptimal: data.intel_recommendedPriceOptimal || 0,
+        intel_winProbability: data.intel_winProbability || 0,
+        intel_priceGap: data.intel_priceGap || 0,
+        intel_priceGapCategory: data.intel_priceGapCategory || 'small',
+        intel_priceDirection: data.intel_priceDirection || 'stable',
+        intel_demandLevel: data.intel_demandLevel || 'low',
+        intel_lastQuoteAt: data.intel_lastQuoteAt?.toDate ? data.intel_lastQuoteAt.toDate() : null,
+        intel_updatedAt: data.intel_updatedAt?.toDate ? data.intel_updatedAt.toDate() : new Date(),
 
-      // Apply intelligence filters
-      let includeRequest = true;
-      let filterReasons = [];
+        // UI-only fields
+        isUnlocked: false,
+        distance: calculateDistance(data, tradieLocation),
+      } as ExplorerRequest;
+    });
 
-      if (intelligenceFilters.competitionLevel !== 'all' && 
-          intelligence.competitionLevel !== intelligenceFilters.competitionLevel) {
-        includeRequest = false;
-        filterReasons.push(`competition: ${intelligence.competitionLevel} != ${intelligenceFilters.competitionLevel}`);
-      }
-
-      if (intelligence.opportunityScore < intelligenceFilters.opportunityScore.min ||
-          intelligence.opportunityScore > intelligenceFilters.opportunityScore.max) {
-        includeRequest = false;
-        filterReasons.push(`opportunity: ${intelligence.opportunityScore} not in [${intelligenceFilters.opportunityScore.min}, ${intelligenceFilters.opportunityScore.max}]`);
-      }
-
-      if (includeRequest) {
-        enrichedRequests.push({
-          ...request,
-          quotes: intelligence,
-          intelligence,
-          isUnlocked: false,
-          distance: calculateDistance(request, tradieLocation)
-        });
-      } else {
-        secureLog(`❌ Filtered out request ${request.id}: ${filterReasons.join(', ')}`);
-      }
+    // --- Client-side Data Filters ---
+    if (dataFilters.trades.length > 0) {
+      requests = requests.filter(r =>
+        r.tradesLower?.some(t => dataFilters.trades.includes(t))
+      );
     }
-
-    // Apply additional sorting for intelligence-based sorts
-    if (sortBy === 'opportunity') {
-      enrichedRequests.sort((a, b) => b.intelligence.opportunityScore - a.intelligence.opportunityScore);
-    } else if (sortBy === 'closest') {
-      enrichedRequests.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-    } else if (sortBy === 'budget') {
-      enrichedRequests.sort((a, b) => {
-        const budgetA = a.budget?.max || a.intelligence.recommendedPriceRange.max || 0;
-        const budgetB = b.budget?.max || b.intelligence.recommendedPriceRange.max || 0;
-        return budgetB - budgetA; // Highest first
+    if (dataFilters.urgency.length > 0) {
+      requests = requests.filter(r => dataFilters.urgency.includes(r.urgency));
+    }
+    if (dataFilters.budget.min > 0 || dataFilters.budget.max < 5000) {
+      requests = requests.filter(r => {
+        const max = r.budgetMax || r.intel_priceAverage || 0;
+        return max >= dataFilters.budget.min && max <= dataFilters.budget.max;
       });
     }
+    if (dataFilters.location.postcode) {
+      requests = requests.filter(r => r.postcode === dataFilters.location.postcode);
+    }
+    if (dataFilters.postedWithin < 24) {
+      const cutoff = new Date(Date.now() - dataFilters.postedWithin * 60 * 60 * 1000);
+      requests = requests.filter(r => r.createdAt >= cutoff);
+    }
 
-    const hasMore = requestsSnapshot.docs.length === limitCount;
-    const newLastDoc = requestsSnapshot.docs.length > 0 ? requestsSnapshot.docs[requestsSnapshot.docs.length - 1] : null;
-    
-    secureLog(`✅ Returning ${enrichedRequests.length} enriched requests`, {
-      totalFetched: requestsSnapshot.docs.length,
-      afterFiltering: enrichedRequests.length,
+    // --- Client-side Intelligence Filters ---
+    if (intelligenceFilters.competitionLevel !== 'all') {
+      requests = requests.filter(r => r.intel_competitionLevel === intelligenceFilters.competitionLevel);
+    }
+    if (intelligenceFilters.opportunityScore.min > 0 || intelligenceFilters.opportunityScore.max < 100) {
+      requests = requests.filter(r =>
+        (r.intel_opportunityScore || 0) >= intelligenceFilters.opportunityScore.min &&
+        (r.intel_opportunityScore || 0) <= intelligenceFilters.opportunityScore.max
+      );
+    }
+    if (intelligenceFilters.winRateThreshold > 0) {
+      requests = requests.filter(r =>
+        ((r.intel_winProbability || 0) * 100) >= intelligenceFilters.winRateThreshold
+      );
+    }
+    if (intelligenceFilters.priceGap !== 'all') {
+      requests = requests.filter(r => r.intel_priceGapCategory === intelligenceFilters.priceGap);
+    }
+
+    // --- Client-side Sort ---
+    if (sortBy === 'opportunity') {
+      requests.sort((a, b) => (b.intel_opportunityScore || 0) - (a.intel_opportunityScore || 0));
+    } else if (sortBy === 'closest') {
+      requests.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    } else if (sortBy === 'budget') {
+      requests.sort((a, b) => (b.budgetMax || b.intel_priceAverage || 0) - (a.budgetMax || a.intel_priceAverage || 0));
+    }
+
+    const hasMore = snapshot.docs.length === limitCount;
+    const newLastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+
+    secureLog(`✅ Returning ${requests.length} requests`, {
+      totalFetched: snapshot.docs.length,
+      afterFiltering: requests.length,
       hasMore,
       newLastDocId: newLastDoc?.id || 'none'
     });
-    
-    return {
-      requests: enrichedRequests,
-      hasMore,
-      lastDoc: newLastDoc
-    };
 
-  } catch (error) {
+    return { requests, hasMore, lastDoc: newLastDoc };
+  } catch (error: any) {
     console.error('Full service error:', error);
-    console.error('Error message:', error?.message);
-    console.error('Error code:', error?.code);
     secureError('❌ Error fetching service requests:', error);
-    return {
-      requests: [],
-      hasMore: false,
-      lastDoc: null
-    };
-  }
-}
-
-export async function unlockServiceRequest(
-  requestId: string, 
-  tradieId: string
-): Promise<EnrichedServiceRequest> {
-  try {
-    // Record unlock transaction
-    await addDoc(collection(db, 'unlockTransactions'), {
-      tradieId,
-      requestId,
-      amount: 0.50,
-      type: 'unlock',
-      status: 'completed',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-
-    // Get the full request details
-    const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
-    if (!requestDoc.exists()) {
-      throw new Error('Request not found');
-    }
-
-    const requestData = {
-      id: requestDoc.id,
-      ...requestDoc.data(),
-      createdAt: requestDoc.data()?.createdAt?.toDate() || new Date(),
-      updatedAt: requestDoc.data()?.updatedAt?.toDate() || new Date()
-    };
-
-    // Get quotes
-    const quotesQuery = query(
-      collection(db, 'quotes'),
-      where('requestId', '==', requestId)
-    );
-    const quotesSnapshot = await getDocs(quotesQuery);
-    const quotes = quotesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date()
-    }));
-
-    const quoteAggregation = calculateQuoteAggregation(quotes);
-    const intelligence = calculateMarketIntelligence(requestId, quotes);
-
-    return {
-      ...requestData,
-      quotes: quoteAggregation,
-      intelligence,
-      isUnlocked: true,
-      distance: Math.random() * 20
-    };
-
-  } catch (error) {
-    secureError('Error unlocking service request:', error);
-    throw error;
+    return { requests: [], hasMore: false, lastDoc: null };
   }
 }
 
 export async function checkUnlockedRequests(tradieId: string): Promise<string[]> {
   try {
-    const unlocksQuery = query(
-      collection(db, 'unlockTransactions'),
-      where('tradieId', '==', tradieId),
-      where('status', '==', 'completed')
+    const q = query(
+      collection(db, 'quotes'),
+      where('tradieId', '==', tradieId)
     );
-    
-    const unlocksSnapshot = await getDocs(unlocksQuery);
-    return unlocksSnapshot.docs.map(doc => doc.data().requestId);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data().serviceRequestId);
   } catch (error) {
     secureError('Error checking unlocked requests:', error);
     return [];

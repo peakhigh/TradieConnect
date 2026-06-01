@@ -9,8 +9,7 @@ import { db } from '../../services/firebase';
 import { User, LogOut, Mail, Phone, MapPin, X, ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
-import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 
 type TabParamList = {
   Dashboard: undefined;
