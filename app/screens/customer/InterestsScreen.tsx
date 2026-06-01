@@ -33,9 +33,14 @@ interface Interest {
 }
 
 export default function InterestsScreen() {
-  const route = useRoute();
+  let requestId: string | undefined;
+  try {
+    const route = useRoute();
+    requestId = (route.params as any)?.requestId;
+  } catch {
+    requestId = undefined;
+  }
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
-  const { requestId } = route.params as { requestId: string };
   const [interests, setInterests] = useState<Interest[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [request, setRequest] = useState<any>(null);

@@ -31,10 +31,16 @@ interface Message {
 }
 
 export default function MessagesScreen() {
-  const route = useRoute();
+  let routeParams: { requestId?: string; tradieId?: string } = {};
+  try {
+    const route = useRoute();
+    routeParams = (route.params || {}) as { requestId?: string; tradieId?: string };
+  } catch {
+    // Not inside a navigator — no route params
+  }
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { user } = useAuth();
-  const { requestId, tradieId } = route.params as { requestId?: string; tradieId?: string };
+  const { requestId, tradieId } = routeParams;
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread'>('all');

@@ -48,8 +48,13 @@ type TabParamList = {
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
-  const route = useRoute();
-  const editRequestId = route.params?.editRequestId;
+  let editRequestId: string | undefined;
+  try {
+    const route = useRoute();
+    editRequestId = (route.params as any)?.editRequestId;
+  } catch {
+    editRequestId = undefined;
+  }
   const isEditMode = !!editRequestId;
   const scrollViewRef = useRef<ScrollView>(null);
   const [scrollKey, setScrollKey] = useState(0);
