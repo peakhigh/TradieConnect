@@ -5,6 +5,15 @@ fileMatchPattern: "app/components/**"
 
 # UI Component Guidelines
 
+## Common Components (`/app/commonComponents/`)
+
+Reusable components shared across marketplace projects (TradieConnect, BuildOn, Educator). These are borrowed from sibling projects and enhanced.
+
+| Component | Purpose |
+|-----------|---------|
+| `FileUpload` | Cross-platform file upload with camera, gallery, document picker, progress, and size validation |
+| `FileList` | Displays uploaded files with remove button and file size |
+
 ## Available Components (`/app/components/UI/`)
 
 | Component | Purpose |

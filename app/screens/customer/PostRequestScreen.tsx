@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Modal, Pressable } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
@@ -10,40 +10,27 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
-import { Calendar, Clock, DollarSign, MapPin, FileText, Plus, X, Camera, Image as ImageIcon, Mic, ArrowLeft } from 'lucide-react-native';
-import DateTimePicker from 'react-native-ui-datepicker';
+import { Clock, MapPin, FileText, X, Image as ImageIcon, Mic, ArrowLeft, AlertTriangle } from 'lucide-react-native';
 import { useRoute } from '@react-navigation/native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
-import { FileUpload } from '../../components/UI/FileUpload';
+import { FileUpload, FileList, UploadedFile, FileUploadHandle, StagedFile } from '../../commonComponents/FileUpload';
 import { TradeSelector } from '../../components/UI/TradeSelector';
 import { AudioPlayer } from '../../components/UI/AudioPlayer';
 import { secureLog, secureError } from '../../utils/logger';
+import { featureFlags } from '../../utils/featureFlags';
 
-const POPULAR_TRADES = [
-  'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Gardening'
-];
+// --- Constants ---
 
-const OTHER_TRADES = [
-  'Roofing', 'HVAC', 'Flooring', 'General Handyman', 'Tiling', 'Fencing',
-  'Demolition', 'Landscaping', 'Pest Control', 'Security Systems'
-];
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const URGENCY_LEVELS = [
   { label: 'Low', value: 'low', color: '#16a34a' },
   { label: 'Medium', value: 'medium', color: '#ca8a04' },
   { label: 'High', value: 'high', color: '#dc2626' }
 ];
-
-type TabParamList = {
-  Dashboard: undefined;
-  PostRequest: undefined;
-  History: undefined;
-  Profile: undefined;
-};
 
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
@@ -57,12 +44,17 @@ export default function PostRequestScreen() {
   }
   const isEditMode = !!editRequestId;
   const scrollViewRef = useRef<ScrollView>(null);
+  const fileUploadRef = useRef<FileUploadHandle>(null);
   const [scrollKey, setScrollKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
-
-
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+
+  // Error modal state (cross-platform replacement for Alert.alert)
+  const [errorModal, setErrorModal] = useState<{ visible: boolean; title: string; message: string }>({
+    visible: false, title: '', message: ''
+  });
 
   // Autofill support
   const autofillData = (() => {
@@ -72,116 +64,55 @@ export default function PostRequestScreen() {
     } catch { return null; }
   })();
   
-  const { control, handleSubmit, watch, formState: { errors: formErrors }, setError, clearErrors, reset, setValue } = useForm({
+  const { control, watch, reset, setValue } = useForm({
     defaultValues: {
       description: autofillData?.description || '',
       postcode: autofillData?.postcode || user?.postcode || '',
       urgency: (autofillData?.urgency || 'medium') as 'low' | 'medium' | 'high',
-      additionalNotes: ''
     }
   });
 
-  // Set autofill trades on mount
   const [autofilledTrades] = useState<string[]>(autofillData?.trades || []);
   
-  // Clear form data on every load, then load edit data if needed
+  // Already uploaded files (for edit mode — files that are already in Storage)
+  const [existingFiles, setExistingFiles] = useState<UploadedFile[]>([]);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const [recording, setRecording] = useState<any>(null);
+
+  const formData = watch();
+
+  // Total file count (existing + staged)
+  const totalFileCount = existingFiles.length + stagedFiles.length;
+
+  // --- Lifecycle ---
+
   useEffect(() => {
-    // Always clear form first (unless autofill)
     if (!autofillData) {
       setSelectedTrades([]);
     } else {
       setSelectedTrades(autofilledTrades);
     }
-    setSelectedFiles([]);
+    setStagedFiles([]);
+    setExistingFiles([]);
     setVoiceMessage(null);
     setErrors({});
     reset({
       description: '',
       postcode: user?.postcode || '',
       urgency: 'medium',
-      additionalNotes: ''
     });
     
-    // Scroll to top
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }, 100);
     
-    // Then load edit data if in edit mode
     if (isEditMode && editRequestId) {
       loadRequestData(editRequestId);
     }
   }, [isEditMode, editRequestId]);
-  
-  const loadRequestData = async (requestId: string) => {
-    try {
-      const { doc, getDoc } = await import('firebase/firestore');
-      const { db } = await import('../../services/firebase');
-      
-      const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
-      if (requestDoc.exists()) {
-        const data = requestDoc.data();
-        secureLog('Loading request data:', data);
-        
-        // Set form values
-        setValue('description', data.description || '');
-        setValue('postcode', data.postcode || '');
-        setValue('urgency', data.urgency || 'medium');
-        
-        // Set selected trades
-        if (data.trades && Array.isArray(data.trades)) {
-          setSelectedTrades(data.trades);
-        } else if (data.tradeType) {
-          // Handle both array and string formats
-          if (Array.isArray(data.tradeType)) {
-            setSelectedTrades(data.tradeType);
-          } else {
-            // Fallback for old string format
-            setSelectedTrades(data.tradeType.split(', '));
-          }
-        }
-        
-        // Set files (photos and documents)
-        const files = [];
-        if (data.photos && data.photos.length > 0) {
-          files.push(...data.photos.map((url: string, index: number) => ({
-            uri: url,
-            name: `photo_${index + 1}.jpg`,
-            type: 'image'
-          })));
-        }
-        if (data.documents && data.documents.length > 0) {
-          files.push(...data.documents.map((url: string, index: number) => ({
-            uri: url,
-            name: `document_${index + 1}`,
-            type: 'document'
-          })));
-        }
-        setSelectedFiles(files);
-        secureLog('Loaded files:', files);
-        
-        // Set voice message
-        if (data.voiceMessage) {
-          setVoiceMessage(data.voiceMessage);
-          secureLog('Loaded voice message:', data.voiceMessage);
-        }
-        
-        secureLog('Data loaded successfully');
-      } else {
-        secureLog('Request document not found');
-        Alert.alert('Error', 'Request not found');
-      }
-    } catch (error) {
-      secureError('Error loading request data:', error);
-      Alert.alert('Error', 'Failed to load request data');
-    }
-  };
-  
-  const formData = watch();
-  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
-  const [recording, setRecording] = useState<any>(null);
 
   useEffect(() => {
     if (navigation && 'addListener' in navigation) {
@@ -194,106 +125,85 @@ export default function PostRequestScreen() {
       return unsubscribe;
     }
   }, [navigation]);
+  
+  // --- Load Edit Data ---
 
-
-
-
-
-  const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const file = {
-        uri: result.assets[0].uri,
-        name: `photo_${Date.now()}.jpg`,
-        type: 'image'
-      };
-      setSelectedFiles(prev => [...prev, file]);
-    }
-  };
-
-  const handlePickImage = async () => {
-    if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*,.pdf,.doc,.docx,.txt';
-      input.multiple = true;
-      input.style.display = 'none';
-      
-      input.onchange = (e: any) => {
-        const files = Array.from(e.target.files || []);
-        const fileObjs = files.map((file: any, index: number) => {
-          const isImage = file.type.startsWith('image/');
-          return {
-            uri: URL.createObjectURL(file),
-            name: file.name || `file_${Date.now()}_${index}`,
-            type: isImage ? 'image' : 'document'
-          };
-        });
-        setSelectedFiles(prev => [...prev, ...fileObjs]);
-        document.body.removeChild(input);
-      };
-      
-      document.body.appendChild(input);
-      input.click();
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Media library permission is required to pick images');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        const files = result.assets.map((asset, index) => ({
-          uri: asset.uri,
-          name: asset.fileName || `image_${Date.now()}_${index}.jpg`,
-          type: 'image'
-        }));
-        setSelectedFiles(prev => [...prev, ...files]);
-      }
-    }
-  };
-
-  const handlePickDocument = async () => {
+  const loadRequestData = async (requestId: string) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        multiple: true,
-      });
-
-      if (!result.canceled) {
-        const files = result.assets.map(asset => ({
-          uri: asset.uri,
-          name: asset.name,
-          type: 'document'
-        }));
-        setSelectedFiles(prev => [...prev, ...files]);
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('../../services/firebase');
+      
+      const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));
+      if (requestDoc.exists()) {
+        const data = requestDoc.data();
+        secureLog('Loading request data:', data);
+        
+        setValue('description', data.description || '');
+        setValue('postcode', data.postcode || '');
+        setValue('urgency', data.urgency || 'medium');
+        
+        if (data.trades && Array.isArray(data.trades)) {
+          setSelectedTrades(data.trades);
+        } else if (data.tradeType) {
+          if (Array.isArray(data.tradeType)) {
+            setSelectedTrades(data.tradeType);
+          } else {
+            setSelectedTrades(data.tradeType.split(', '));
+          }
+        }
+        
+        // Load existing files (already uploaded to Storage)
+        const files: UploadedFile[] = [];
+        if (data.photos && data.photos.length > 0) {
+          files.push(...data.photos.map((url: string, index: number) => ({
+            downloadURL: url,
+            name: `photo_${index + 1}.jpg`,
+            type: 'image/jpeg',
+            size: 0,
+            uploadedAt: '',
+          })));
+        }
+        if (data.documents && data.documents.length > 0) {
+          files.push(...data.documents.map((url: string, index: number) => ({
+            downloadURL: url,
+            name: `document_${index + 1}`,
+            type: 'application/octet-stream',
+            size: 0,
+            uploadedAt: '',
+          })));
+        }
+        setExistingFiles(files);
+        
+        if (data.voiceMessage) {
+          setVoiceMessage(data.voiceMessage);
+        }
+        
+        secureLog('Data loaded successfully');
+      } else {
+        showError('Error', 'Request not found');
       }
     } catch (error) {
-      secureError('Error picking document:', error);
+      secureError('Error loading request data:', error);
+      showError('Error', 'Failed to load request data');
     }
   };
 
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  // --- Helpers ---
+
+  const showError = (title: string, message: string) => {
+    setErrorModal({ visible: true, title, message });
   };
+
+  const handleFileError = (error: Error) => {
+    secureError('File upload/pick error:', error.message);
+    showError('File Error', error.message);
+  };
+
+  const removeExistingFile = (index: number) => {
+    setExistingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // --- Voice Recording ---
 
   const startRecording = async () => {
     try {
@@ -310,6 +220,7 @@ export default function PostRequestScreen() {
       setIsRecording(true);
     } catch (err) {
       console.error('Failed to start recording', err);
+      showError('Recording Error', 'Failed to start voice recording. Please check microphone permissions.');
     }
   };
 
@@ -320,7 +231,6 @@ export default function PostRequestScreen() {
     const uri = recording.getURI();
     setVoiceMessage(uri);
     
-    // Clear description error if voice message is recorded
     if (errors.description) {
       setErrors(prev => ({...prev, description: ''}));
     }
@@ -330,143 +240,113 @@ export default function PostRequestScreen() {
     setVoiceMessage(null);
   };
 
-  const onSubmit = async () => {
-    secureLog('Form submission started');
-    secureLog('Selected trades:', selectedTrades);
-    secureLog('Form data:', formData);
-    
-    // Validate form
+  // --- Validation ---
+
+  const validateForm = (): boolean => {
     const newErrors: {[key: string]: string} = {};
+
+    // Trade types - required
     if (selectedTrades.length === 0) {
       newErrors.trades = 'Please select at least one trade type';
     }
+
+    // Description - required (unless voice message)
     if (!formData.description.trim() && !voiceMessage) {
-      newErrors.description = 'Notes or voice message is required';
-    }
-    if (!formData.postcode.trim()) {
-      newErrors.postcode = 'Postcode is required';
-    }
-    
-    setErrors(newErrors);
-    
-    if (Object.keys(newErrors).length > 0) {
-      return;
+      newErrors.description = 'Please describe the work or record a voice message';
+    } else if (formData.description.trim() && formData.description.trim().length < 10) {
+      newErrors.description = 'Please provide at least 10 characters describing the work';
     }
 
-    secureLog('Validation passed, starting submission');
+    // Postcode - required + format validation (Australian: 4 digits)
+    const postcode = formData.postcode.trim();
+    if (!postcode) {
+      newErrors.postcode = 'Postcode is required';
+    } else if (!/^\d{4}$/.test(postcode)) {
+      newErrors.postcode = 'Enter a valid 4-digit Australian postcode';
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      // Scroll to top to show errors
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      return false;
+    }
+
+    return true;
+  };
+
+  // --- Submit ---
+
+  const onSubmit = async () => {
+    secureLog('Form submission started');
+    
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
-      const descriptionStr = formData.description;
+      const descriptionStr = formData.description.trim();
       
-      const serviceRequest: Omit<ServiceRequest, 'id' | 'createdAt' | 'updatedAt'> = {
-        customerId: user!.id,
-        trades: selectedTrades,
-        description: descriptionStr,
-        postcode: formData.postcode,
-        urgency: formData.urgency,
-        status: 'new',
-        photos: selectedFiles.map(file => file.uri),
-        documents: selectedFiles.filter(file => file.type === 'document').map(file => file.uri),
-        voiceMessage: null,
-        // Computed search fields for array-contains-any search
-        searchKeywords: [
-          ...selectedTrades.map(trade => trade.toLowerCase()),
-          ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
-          descriptionStr.toLowerCase(), // Full description for exact/partial match
-          formData.postcode.toLowerCase()
-        ].filter((word, index, arr) => arr.indexOf(word) === index), // Remove duplicates
-        notesWords: descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 0),
-        descriptionLower: descriptionStr.toLowerCase()
-      };
-
-      secureLog('About to upload files and save to Firestore:', serviceRequest);
-      
-      // Upload files to Firebase Storage (or mock)
-      const uploadedPhotos: string[] = [];
-      const uploadedDocuments: string[] = [];
-      let uploadedVoiceMessage: string | null = null;
-
-      const { featureFlags } = require('../../utils/featureFlags');
-      
-      if (featureFlags.useMocks) {
-        // Mock mode: skip real uploads, use placeholder URLs
-        selectedFiles.forEach(file => {
-          if (file.type === 'image') {
-            uploadedPhotos.push('https://via.placeholder.com/400x300?text=Mock+Photo');
-          } else {
-            uploadedDocuments.push('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
-          }
-        });
-        if (voiceMessage) {
-          uploadedVoiceMessage = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-        }
-      } else {
-      
-      for (const file of selectedFiles) {
-        try {
-          // Skip uploading if it's already a Firebase Storage URL
-          if (file.uri.startsWith('https://firebasestorage.googleapis.com')) {
-            if (file.type === 'image') {
-              uploadedPhotos.push(file.uri);
-            } else {
-              uploadedDocuments.push(file.uri);
-            }
-            continue;
-          }
-          
-          const response = await fetch(file.uri);
-          const blob = await response.blob();
-          const fileName = `${Date.now()}_${file.name}`;
-          const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
-          
-          await uploadBytes(storageRef, blob);
-          const downloadURL = await getDownloadURL(storageRef);
-          
-          if (file.type === 'image') {
-            uploadedPhotos.push(downloadURL);
-          } else {
-            uploadedDocuments.push(downloadURL);
-          }
-        } catch (error) {
-          secureError('Error uploading file:', file.name, error);
-        }
+      // 1. Upload staged files (deferred upload)
+      let newlyUploadedFiles: UploadedFile[] = [];
+      if (stagedFiles.length > 0 && fileUploadRef.current) {
+        newlyUploadedFiles = await fileUploadRef.current.uploadStagedFiles();
       }
-      
-      // Upload voice message if exists
+
+      // 2. Combine existing files + newly uploaded files
+      const allFiles = [...existingFiles, ...newlyUploadedFiles];
+      const photos = allFiles.filter(f => f.type.startsWith('image/')).map(f => f.downloadURL);
+      const documents = allFiles.filter(f => !f.type.startsWith('image/')).map(f => f.downloadURL);
+
+      // 3. Upload voice message if exists
+      let uploadedVoiceMessage: string | null = null;
       if (voiceMessage) {
-        try {
-          // Skip uploading if it's already a Firebase Storage URL
-          if (voiceMessage.startsWith('https://firebasestorage.googleapis.com')) {
-            uploadedVoiceMessage = voiceMessage;
-          } else {
+        if (featureFlags.useMocks) {
+          uploadedVoiceMessage = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+        } else if (voiceMessage.startsWith('https://firebasestorage.googleapis.com')) {
+          uploadedVoiceMessage = voiceMessage;
+        } else {
+          try {
             const response = await fetch(voiceMessage);
             const blob = await response.blob();
             const fileName = `voice_${Date.now()}.m4a`;
             const storageRef = ref(storage, `service-requests/${user!.id}/${Date.now()}/${fileName}`);
-            
             await uploadBytes(storageRef, blob);
             uploadedVoiceMessage = await getDownloadURL(storageRef);
+          } catch (error) {
+            secureError('Error uploading voice message:', error);
           }
-        } catch (error) {
-          secureError('Error uploading voice message:', error);
         }
       }
-      } // end else (non-mock upload)
-      
-      // Update service request with uploaded file URLs
-      serviceRequest.photos = uploadedPhotos;
-      serviceRequest.documents = uploadedDocuments;
-      serviceRequest.voiceMessage = uploadedVoiceMessage;
-      
+
+      // 4. Build service request document
+      const serviceRequest: Omit<ServiceRequest, 'id' | 'createdAt' | 'updatedAt'> = {
+        customerId: user!.id,
+        trades: selectedTrades,
+        description: descriptionStr,
+        postcode: formData.postcode.trim(),
+        urgency: formData.urgency,
+        status: 'new',
+        photos,
+        documents,
+        voiceMessage: uploadedVoiceMessage,
+        searchKeywords: [
+          ...selectedTrades.map(trade => trade.toLowerCase()),
+          ...descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 2),
+          formData.postcode.trim()
+        ].filter((word, index, arr) => arr.indexOf(word) === index),
+        notesWords: descriptionStr.toLowerCase().split(/\s+/).filter(word => word.length > 2),
+        descriptionLower: descriptionStr.toLowerCase()
+      };
+
+      // 5. Save to Firestore
       if (isEditMode && editRequestId) {
-        // Update existing request
         const { doc, updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'serviceRequests', editRequestId), {
           ...serviceRequest,
           updatedAt: serverTimestamp()
         });
       } else {
-        // Create new request
         await addDoc(collection(db, 'serviceRequests'), {
           ...serviceRequest,
           createdAt: serverTimestamp(),
@@ -474,35 +354,27 @@ export default function PostRequestScreen() {
         });
       }
 
-      secureLog(isEditMode ? 'Successfully updated request' : 'Successfully saved to Firestore');
-      
-      // Reset form only if not in edit mode
+      // 6. Reset & navigate
       if (!isEditMode) {
         setSelectedTrades([]);
-        reset({
-          description: '',
-          postcode: user?.postcode || '',
-          urgency: 'medium',
-          additionalNotes: ''
-        });
-        setSelectedFiles([]);
+        reset({ description: '', postcode: user?.postcode || '', urgency: 'medium' });
+        setStagedFiles([]);
+        setExistingFiles([]);
         setVoiceMessage(null);
       }
 
-      // Navigate to Dashboard and show success message
-      secureLog('About to navigate and show success message');
       showSuccessMessage(isEditMode ? 'Service request updated successfully!' : 'Service request posted successfully!');
-      secureLog('Success message set, now navigating');
       navigation.navigate('Dashboard');
-      secureLog('Navigation triggered');
 
     } catch (error) {
       secureError('Error posting service request:', error);
-      Alert.alert('Error', 'Failed to post service request. Please try again.');
+      showError('Submission Failed', 'Failed to post service request. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // --- Render ---
 
   return (
     <Container style={styles.container}>
@@ -536,11 +408,8 @@ export default function PostRequestScreen() {
             selectedTrades={selectedTrades}
             onTradesChange={(trades) => {
               setSelectedTrades(trades);
-              // Clear trade error if trades are selected
               if (trades.length > 0 && errors.trades) {
-                setTimeout(() => {
-                  setErrors(prev => ({...prev, trades: ''}));
-                }, 0);
+                setErrors(prev => ({...prev, trades: ''}));
               }
             }}
             error={errors.trades}
@@ -555,6 +424,7 @@ export default function PostRequestScreen() {
               Notes *
             </Text>
           </View>
+          <Text style={styles.helpText}>Describe the work you need done (min 10 characters) or record a voice message</Text>
           <View style={styles.notesContainer}>
             <Controller
               control={control}
@@ -563,12 +433,16 @@ export default function PostRequestScreen() {
                 <Input
                   placeholder="Describe the work you need done..."
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text: string) => {
+                    onChange(text);
+                    if (text.trim().length >= 10 && errors.description) {
+                      setErrors(prev => ({...prev, description: ''}));
+                    }
+                  }}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
                   style={[styles.textAreaInput, errors.description && styles.errorInput]}
-                  onSubmitEditing={() => onSubmit()}
                   returnKeyType="done"
                 />
               )}
@@ -604,12 +478,19 @@ export default function PostRequestScreen() {
             name="postcode"
             render={({ field: { onChange, value } }) => (
               <Input
-                placeholder="Enter your postcode"
+                placeholder="e.g. 2000"
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text: string) => {
+                  // Only allow digits, max 4
+                  const cleaned = text.replace(/[^0-9]/g, '').slice(0, 4);
+                  onChange(cleaned);
+                  if (/^\d{4}$/.test(cleaned) && errors.postcode) {
+                    setErrors(prev => ({...prev, postcode: ''}));
+                  }
+                }}
                 keyboardType="numeric"
+                maxLength={4}
                 style={[styles.standardInput, errors.postcode && styles.errorInput]}
-                onSubmitEditing={() => onSubmit()}
                 returnKeyType="done"
               />
             )}
@@ -621,9 +502,7 @@ export default function PostRequestScreen() {
         <View style={styles.section}>
           <View style={styles.labelRow}>
             <Clock size={16} color="#4b5563" />
-            <Text style={styles.label}>
-              Urgency Level *
-            </Text>
+            <Text style={styles.label}>Urgency Level</Text>
           </View>
           <View style={styles.urgencyButtons}>
             {URGENCY_LEVELS.map((level) => (
@@ -646,44 +525,37 @@ export default function PostRequestScreen() {
           </View>
         </View>
 
-
-
-
-
-
-
         {/* Photos & Documents */}
         <View style={styles.section}>
           <View style={styles.labelRow}>
             <ImageIcon size={16} color="#4b5563" />
             <Text style={styles.label}>
-              Photos & Documents (Optional)
+              Photos & Documents ({totalFileCount}/{MAX_FILES})
             </Text>
           </View>
+          <Text style={styles.helpText}>
+            Upload up to {MAX_FILES} files (max {MAX_FILE_SIZE / (1024 * 1024)}MB each). Photos, PDFs, and documents accepted.
+          </Text>
           
           <FileUpload
-            onTakePhoto={handleTakePhoto}
-            onPickImage={handlePickImage}
-            onPickDocument={handlePickDocument}
+            ref={fileUploadRef}
+            deferUpload={true}
+            onFilesChange={setStagedFiles}
+            onError={handleFileError}
+            uploadPath="service-requests"
+            multiple={true}
+            maxFiles={MAX_FILES}
+            maxFileSize={MAX_FILE_SIZE}
+            currentFileCount={existingFiles.length + stagedFiles.length}
+            text="Upload Photos/Files"
           />
-          
-          {selectedFiles.length > 0 && (
-            <View style={styles.selectedFiles}>
-              {selectedFiles.map((file, index) => (
-                <View key={index} style={styles.fileItem}>
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {file.name || `File ${index + 1}`}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeFile(index)}>
-                    <X size={16} color="#dc2626" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
+
+          {/* Show existing files (edit mode) */}
+          <FileList
+            files={existingFiles}
+            onRemove={removeExistingFile}
+          />
         </View>
-
-
 
         {/* Submit Button */}
         <Button
@@ -695,8 +567,29 @@ export default function PostRequestScreen() {
         />
       </ScrollView>
       
+      {loading && <ProjectLoader message="Uploading files and submitting request..." />}
 
-      {loading && <ProjectLoader message="Uploading files and creating request..." />}
+      {/* Error Modal (cross-platform replacement for Alert.alert) */}
+      <Modal visible={errorModal.visible} transparent animationType="fade" onRequestClose={() => setErrorModal(prev => ({...prev, visible: false}))}>
+        <Pressable style={styles.modalOverlay} onPress={() => setErrorModal(prev => ({...prev, visible: false}))}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconRow}>
+              <View style={styles.modalIconCircle}>
+                <AlertTriangle size={24} color="#DC2626" />
+              </View>
+            </View>
+            <Text style={styles.modalTitle}>{errorModal.title}</Text>
+            <Text style={styles.modalSubtitle}>{errorModal.message}</Text>
+            <TouchableOpacity
+              style={styles.modalDismissBtn}
+              onPress={() => setErrorModal(prev => ({...prev, visible: false}))}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalDismissBtnText}>OK</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Container>
   );
 }
@@ -738,61 +631,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
     color: '#4b5563',
   },
-  subLabel: {
+  helpText: {
     fontSize: 12,
-    fontWeight: '500',
     color: '#6b7280',
     marginBottom: 8,
-  },
-  tradeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  tradeTag: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#ffffff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  selectedTradeTag: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  tradeTagText: {
-    fontSize: 14,
-    color: '#4b5563',
-  },
-  selectedTradeTagText: {
-    color: '#ffffff',
-  },
-  removeIcon: {
-    marginLeft: 4,
-  },
-  otherTradesToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    gap: 4,
-  },
-  otherTradesText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
   },
   urgencyButtons: {
     flexDirection: 'row',
@@ -817,55 +666,6 @@ const styles = StyleSheet.create({
   selectedUrgencyText: {
     color: '#ffffff',
   },
-  budgetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  budgetInput: {
-    flex: 1,
-  },
-  budgetSeparator: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dateInput: {
-    flex: 1,
-  },
-  dateLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4b5563',
-    marginBottom: 4,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#ffffff',
-    minHeight: Platform.OS === 'web' ? 48 : 44,
-  },
-  dateButtonText: {
-    fontSize: 14,
-    color: '#1f2937',
-  },
-  datePickerContainer: {
-    marginTop: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
   standardInput: {
     minHeight: Platform.OS === 'web' ? 48 : 44,
   },
@@ -886,44 +686,6 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 12,
     marginTop: 4,
-  },
-  fileButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  fileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    backgroundColor: '#ffffff',
-  },
-  fileButtonText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  selectedFiles: {
-    gap: 8,
-  },
-  fileItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-  },
-  fileName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1f2937',
   },
   notesContainer: {
     position: 'relative',
@@ -961,5 +723,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Error Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIconRow: { alignItems: 'center', marginBottom: 12 },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalDismissBtn: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+  },
+  modalDismissBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });
