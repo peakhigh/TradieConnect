@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { User, Customer, Tradie } from '../../types';
+import { useAlert } from '../../components/UI/AlertProvider';
 
 interface AdminStats {
   totalUsers: number;
@@ -24,6 +25,7 @@ export default function AdminDashboard() {
     totalUnlocks: 0
   });
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     loadAdminStats();
@@ -63,7 +65,7 @@ export default function AdminDashboard() {
       });
     } catch (error) {
       console.error('Error loading admin stats:', error);
-      Alert.alert('Error', 'Failed to load admin statistics');
+      showAlert('Error', 'Failed to load admin statistics', undefined, { tone: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -71,32 +73,32 @@ export default function AdminDashboard() {
 
   const handleUserManagement = () => {
     // TODO: Navigate to user management screen
-    Alert.alert('User Management', 'User management functionality coming soon');
+    showAlert('User Management', 'User management functionality coming soon');
   };
 
   const handleAccountsManagement = () => {
     // TODO: Navigate to accounts management screen
-    Alert.alert('Accounts Management', 'Accounts management functionality coming soon');
+    showAlert('Accounts Management', 'Accounts management functionality coming soon');
   };
 
   const handleMoneyManagement = () => {
     // TODO: Navigate to money management screen
-    Alert.alert('Money Management', 'Money management functionality coming soon');
+    showAlert('Money Management', 'Money management functionality coming soon');
   };
 
   const handleApproveTradie = (tradieId: string) => {
     // TODO: Implement tradie approval
-    Alert.alert('Approve Tradie', 'Tradie approval functionality coming soon');
+    showAlert('Approve Tradie', 'Tradie approval functionality coming soon');
   };
 
   const handleViewUserDetails = (userId: string) => {
     // TODO: Navigate to user details screen
-    Alert.alert('User Details', 'User details functionality coming soon');
+    showAlert('User Details', 'User details functionality coming soon');
   };
 
   const handleViewTransactions = () => {
     // TODO: Navigate to transactions screen
-    Alert.alert('Transactions', 'Transactions functionality coming soon');
+    showAlert('Transactions', 'Transactions functionality coming soon');
   };
 
   return (
@@ -270,21 +272,21 @@ export default function AdminDashboard() {
           <View className="space-y-3">
             <Button
               title="Generate User Report"
-              onPress={() => Alert.alert('Report', 'Report generation coming soon')}
+              onPress={() => showAlert('Report', 'Report generation coming soon')}
               variant="outline"
               size="medium"
             />
             
             <Button
               title="Generate Financial Report"
-              onPress={() => Alert.alert('Report', 'Report generation coming soon')}
+              onPress={() => showAlert('Report', 'Report generation coming soon')}
               variant="outline"
               size="medium"
             />
             
             <Button
               title="Generate Performance Report"
-              onPress={() => Alert.alert('Report', 'Report generation coming soon')}
+              onPress={() => showAlert('Report', 'Report generation coming soon')}
               variant="outline"
               size="medium"
             />

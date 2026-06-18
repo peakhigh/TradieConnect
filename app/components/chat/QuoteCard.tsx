@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { theme } from '../../theme/theme';
 import { DollarSign, Clock, FileText, CheckCircle, XCircle } from 'lucide-react-native';
 import { functions, httpsCallable } from '../../services/firebase';
+import { useAlert } from '../UI/AlertProvider';
 
 interface QuoteData {
   quoteId: string;
@@ -28,9 +29,10 @@ interface QuoteCardProps {
 
 export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCardProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const { showAlert } = useAlert();
 
   const handleAccept = async () => {
-    Alert.alert(
+    showAlert(
       'Accept Quote',
       `Accept this $${quoteData.totalPrice.toFixed(2)} quote from ${quoteData.tradieName}? Your contact details will be shared.`,
       [
@@ -46,9 +48,9 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
                 customerAddress: '', // TODO: get from user profile
                 customerPhone: '',
               });
-              Alert.alert('Success', 'Quote accepted! You can now chat freely.');
+              showAlert('Success', 'Quote accepted! You can now chat freely.', undefined, { tone: 'success' });
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to accept quote');
+              showAlert('Error', error.message || 'Failed to accept quote', undefined, { tone: 'destructive' });
             } finally {
               setLoading(null);
             }
@@ -59,7 +61,7 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
   };
 
   const handleDecline = () => {
-    Alert.alert(
+    showAlert(
       'Not Interested',
       'Are you sure? The tradie will be notified.',
       [

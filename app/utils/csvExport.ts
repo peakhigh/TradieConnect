@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Share } from 'react-native';
 
 interface Column {
   key: string;
@@ -24,7 +24,10 @@ export function toCSV(data: any[], columns: Column[]): string {
 }
 
 /**
- * Download CSV — web: blob download, mobile: requires expo-sharing (add later).
+ * Download/share CSV.
+ * - Web: triggers a blob download via an anchor element.
+ * - iOS/Android: opens the native share sheet with the CSV contents
+ *   (uses the built-in React Native Share API, no extra deps).
  */
 export async function downloadCSV(csvContent: string, filename = 'export') {
   const fullName = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -39,9 +42,12 @@ export async function downloadCSV(csvContent: string, filename = 'export') {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  } else {
-    // Mobile: requires expo-file-system + expo-sharing
-    // TODO: Implement when needed
-    console.log('CSV download on mobile not yet implemented');
+    return;
   }
+
+  // Mobile (iOS/Android): share the CSV content through the native share sheet.
+  await Share.share({
+    title: fullName,
+    message: csvContent,
+  });
 }

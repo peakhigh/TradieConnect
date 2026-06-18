@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { View, Text, StyleSheet, Alert, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Platform, Dimensions } from 'react-native';
 import { secureLog, secureError } from '../../utils/logger';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
@@ -13,6 +13,8 @@ import { Phone, Shield, Home, Wrench } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useAlert } from '../../components/UI/AlertProvider';
+import { featureFlags } from '../../utils/featureFlags';
 
 type RootStackParamList = {
   Login: { userType: 'customer' | 'tradie' };
@@ -46,6 +48,7 @@ export default function LoginScreen() {
   const userType = getUserType();
   
   const { setUser } = useAuth();
+  const { showAlert } = useAlert();
   
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -93,15 +96,21 @@ export default function LoginScreen() {
         ? data.phoneNumber 
         : '+61' + data.phoneNumber;
       
-      // Create reCAPTCHA verifier for web
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.recaptchaVerifier) {
+      // Create reCAPTCHA verifier for web (skipped when SKIP_CAPTCHA is set,
+      // e.g. local testing against the auth emulator).
+      if (
+        !featureFlags.skipCaptcha &&
+        Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        !window.recaptchaVerifier
+      ) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
           callback: () => {}
         });
       }
       
-      const appVerifier = Platform.OS === 'web' && typeof window !== 'undefined' ? window.recaptchaVerifier : undefined;
+      const appVerifier = !featureFlags.skipCaptcha && Platform.OS === 'web' && typeof window !== 'undefined' ? window.recaptchaVerifier : undefined;
       const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.confirmationResult = confirmationResult;
@@ -112,10 +121,10 @@ export default function LoginScreen() {
       setTimeout(() => setValue('otp', ''), 100);
       clearErrors('otp');
       setOtpSent(true);
-      Alert.alert('OTP Sent', 'Please check your phone for the verification code');
+      showAlert('OTP Sent', 'Please check your phone for the verification code', undefined, { tone: 'success' });
     } catch (error) {
       secureError('Error sending OTP:', error);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      showAlert('Error', 'Failed to send OTP. Please try again.', undefined, { tone: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -198,7 +207,7 @@ export default function LoginScreen() {
       secureLog('LOGIN SUCCESS - User set in AuthContext');
     } catch (error) {
       secureError('Error verifying OTP:', error);
-      Alert.alert('Error', 'Invalid OTP. Please try again.');
+      showAlert('Error', 'Invalid OTP. Please try again.', undefined, { tone: 'destructive' });
     } finally {
       setLoading(false);
     }

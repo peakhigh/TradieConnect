@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
 import { useSave } from '../../hooks/useSave';
 import { theme } from '../../theme/theme';
-import { User, X } from 'lucide-react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
+import { useAlert } from '../../components/UI/AlertProvider';
 
 export default function CustomerProfileScreen() {
   const { user, signOut, setUser } = useAuth();
   const navigation = useScreenNavigation();
+  const { showAlert } = useAlert();
   const { updateDocument, loading: saving } = useSave('users');
   const [editing, setEditing] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [formData, setFormData] = useState({
     firstName: (user as any)?.firstName || '',
     lastName: (user as any)?.lastName || '',
@@ -39,21 +39,28 @@ export default function CustomerProfileScreen() {
       };
       setUser(updatedUser as any);
       setEditing(false);
-      Alert.alert('Success', 'Profile updated successfully!');
+      showAlert('Success', 'Profile updated successfully!', undefined, { tone: 'success' });
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      showAlert('Error', 'Failed to update profile', undefined, { tone: 'destructive' });
     }
   };
 
   const handleLogout = () => {
-    setShowLogoutModal(true);
+    showAlert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: confirmLogout },
+      ],
+      { tone: 'destructive' }
+    );
   };
 
   const confirmLogout = async () => {
     try {
       await signOut();
-      setShowLogoutModal(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -167,40 +174,6 @@ export default function CustomerProfileScreen() {
             variant="outline"
             style={styles.logoutButton}
           />
-
-          {/* Logout Modal */}
-          <Modal
-            visible={showLogoutModal}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowLogoutModal(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Logout</Text>
-                  <TouchableOpacity onPress={() => setShowLogoutModal(false)}>
-                    <X size={24} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.modalText}>Are you sure you want to logout?</Text>
-                <View style={styles.modalButtons}>
-                  <SimpleButton
-                    title="Cancel"
-                    onPress={() => setShowLogoutModal(false)}
-                    variant="outline"
-                    style={styles.modalButton}
-                  />
-                  <SimpleButton
-                    title="Logout"
-                    onPress={confirmLogout}
-                    variant="danger"
-                    style={styles.modalButton}
-                  />
-                </View>
-              </View>
-            </View>
-          </Modal>
         </View>
       </ScrollView>
     </Container>
@@ -291,42 +264,5 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: theme.fontWeight.bold as any,
-    color: theme.colors.text.primary,
-  },
-  modalText: {
-    fontSize: 16,
-    color: theme.colors.text.secondary,
-    marginBottom: 24,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
   },
 });

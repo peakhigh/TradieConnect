@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { Filter, TrendingUp, MapPin, Clock, DollarSign, ChevronUp, X, ChevronDown, HelpCircle } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
@@ -12,6 +12,7 @@ import { fetchServiceRequests, checkUnlockedRequests } from '../../services/expl
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { useAuth } from '../../context/AuthContext';
 import { secureLog, secureError } from '../../utils/logger';
+import { useAlert } from '../../components/UI/AlertProvider';
 
 // Combined filter state
 interface FilterState {
@@ -42,6 +43,7 @@ const PAGINATION_CONFIG = {
 export default function ExplorerScreen() {
   const { navigate } = useScreenNavigation();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [activeSort, setActiveSort] = useState('newest');
   const [unlockedRequestIds, setUnlockedRequestIds] = useState<Set<string>>(new Set());
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
@@ -166,7 +168,7 @@ export default function ExplorerScreen() {
     } catch (error) {
       console.error('Full error object:', error);
       secureError('Error loading requests:', error);
-      Alert.alert('Error', 'Failed to load service requests');
+      showAlert('Error', 'Failed to load service requests', undefined, { tone: 'destructive' });
     } finally {
       setLoading(false);
       setLoadingMore(false);

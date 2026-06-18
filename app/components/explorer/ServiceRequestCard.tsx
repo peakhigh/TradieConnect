@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { ExplorerRequest } from '../../types/explorer';
 import { StatusBadge } from '../UI/StatusBadge';
 import {
@@ -16,6 +16,7 @@ import {
   AlertTriangle
 } from 'lucide-react-native';
 import { functions, httpsCallable } from '../../services/firebase';
+import { useAlert } from '../UI/AlertProvider';
 
 interface ServiceRequestCardProps {
   request: ExplorerRequest;
@@ -38,6 +39,7 @@ export default function ServiceRequestCard({
 }: ServiceRequestCardProps) {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
+  const { showAlert } = useAlert();
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -95,9 +97,9 @@ export default function ServiceRequestCard({
       if (errorMessage.includes('already unlocked') || errorMessage.includes('already-exists') || error?.code === 'already-exists') {
         onUnlock(request.id);
       } else if (errorMessage.includes('Insufficient') || errorMessage.includes('wallet')) {
-        Alert.alert('Insufficient Balance', 'Please recharge your wallet to unlock this request.');
+        showAlert('Insufficient Balance', 'Please recharge your wallet to unlock this request.', undefined, { tone: 'warning' });
       } else {
-        Alert.alert('Error', errorMessage);
+        showAlert('Error', errorMessage, undefined, { tone: 'destructive' });
       }
     } finally {
       setUnlocking(false);

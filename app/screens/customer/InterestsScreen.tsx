@@ -4,12 +4,6 @@ import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 
-type TabParamList = {
-  Dashboard: undefined;
-  PostRequest: undefined;
-  History: undefined;
-  Profile: undefined;
-};
 import { Filter, MessageCircle, Star, MapPin, ArrowLeft } from 'lucide-react-native';
 import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -31,21 +25,17 @@ interface Interest {
   isRead: boolean;
 }
 
-export default function InterestsScreen() {
-  let requestId: string | undefined;
-  try {
-    const route = useRoute();
-    requestId = (route.params as any)?.requestId;
-  } catch {
-    requestId = undefined;
-  }
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+export default function InterestsScreen({ requestId: requestIdProp }: { requestId?: string } = {}) {
+  const requestId = requestIdProp;
+  const navigation = useScreenNavigation();
   const [interests, setInterests] = useState<Interest[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [request, setRequest] = useState<any>(null);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
 
   useEffect(() => {
+    if (!requestId) return;
+
     const fetchRequest = async () => {
       try {
         const requestDoc = await getDoc(doc(db, 'serviceRequests', requestId));

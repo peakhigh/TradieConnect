@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Platform, Modal, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { Container } from '../../components/UI/Container';
 import { theme } from '../../theme/theme';
@@ -16,14 +16,14 @@ import { ThumbnailImage } from '../../components/UI/ThumbnailImage';
 import { RequestCard } from '../../components/UI/RequestCard';
 import { ImageViewer } from '../../components/UI/ImageViewer';
 import { ResultsHeader } from '../../components/UI/ResultsHeader';
+import { useAlert } from '../../components/UI/AlertProvider';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
   const { serviceRequests, quotes, unreadMessageCount } = useUser();
   const navigation = useScreenNavigation();
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [requestToCancel, setRequestToCancel] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -47,7 +47,7 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     if (successMessage) {
-      Alert.alert('Success', successMessage);
+      showAlert('Success', successMessage, undefined, { tone: 'success' });
       clearSuccessMessage();
     }
   }, [successMessage, clearSuccessMessage]);
@@ -70,27 +70,31 @@ export default function CustomerDashboard() {
   };
 
   const handleCancelRequest = (requestId: string) => {
-    setRequestToCancel(requestId);
-    setShowCancelModal(true);
+    showAlert(
+      'Cancel Request',
+      'Are you sure you want to cancel this service request? This action cannot be undone.',
+      [
+        { text: 'Go Back', style: 'cancel' },
+        { text: 'Confirm', style: 'destructive', onPress: () => confirmCancelRequest(requestId) },
+      ],
+      { tone: 'destructive' }
+    );
   };
-  
-  const confirmCancelRequest = async () => {
-    if (!requestToCancel) return;
-    
+
+  const confirmCancelRequest = async (requestId: string) => {
+    if (!requestId) return;
+
     try {
       const { doc, updateDoc } = await import('firebase/firestore');
       const { db } = await import('../../services/firebase');
-      
-      await updateDoc(doc(db, 'serviceRequests', requestToCancel), {
+
+      await updateDoc(doc(db, 'serviceRequests', requestId), {
         status: 'cancelled',
         updatedAt: new Date()
       });
-      
-      setShowCancelModal(false);
-      setRequestToCancel(null);
     } catch (error) {
       console.error('Error cancelling request:', error);
-      Alert.alert('Error', 'Failed to cancel request');
+      showAlert('Error', 'Failed to cancel request', undefined, { tone: 'destructive' });
     }
   };
   
@@ -102,11 +106,11 @@ export default function CustomerDashboard() {
 
 
   const handleChatWithTradie = (tradieId: string) => {
-    Alert.alert('Info', 'Chat functionality coming soon');
+    showAlert('Info', 'Chat functionality coming soon');
   };
 
   const handleAcceptQuote = (quoteId: string) => {
-    Alert.alert('Info', 'Quote acceptance functionality coming soon');
+    showAlert('Info', 'Quote acceptance functionality coming soon');
   };
 
   const handlePostRequest = () => {
@@ -244,36 +248,6 @@ export default function CustomerDashboard() {
       </View>
       
 
-      <Modal
-        visible={showCancelModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCancelModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Request</Text>
-            <Text style={styles.modalMessage}>
-              Are you sure you want to cancel this service request? This action cannot be undone.
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelModalButton]}
-                onPress={() => setShowCancelModal(false)}
-              >
-                <Text style={styles.cancelModalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={confirmCancelRequest}
-              >
-                <Text style={styles.confirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      
       <RequestDetailsDrawer
         visible={showRequestDetails}
         onClose={() => setShowRequestDetails(false)}
@@ -579,57 +553,6 @@ const styles = StyleSheet.create({
   stopButtonText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelModalButton: {
-    backgroundColor: '#f3f4f6',
-  },
-  cancelModalButtonText: {
-    color: '#374151',
-    fontWeight: '500',
-  },
-  confirmButton: {
-    backgroundColor: '#dc2626',
-  },
-  confirmButtonText: {
-    color: '#ffffff',
     fontWeight: '500',
   },
   allIcons: {

@@ -1,0 +1,22 @@
+.responsive-drawer {
+    width: 50%;
+    padding: 50px 30px;
+}
+
+@media (max-width: 768px) {
+    .responsive-drawer {
+        width: 50%;
+        padding: 30px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .responsive-drawer {
+        width: 85%;
+        padding: 30px 20px;
+    }
+}
+
+.legal-content h2 { font-size: 28px; margin-bottom: 8px; }
+.legal-content h3 { font-size: 18px; margin-top: 24px; }
+.legal-content p, .legal-content li { color: #4C5967; line-height: 1.6; }

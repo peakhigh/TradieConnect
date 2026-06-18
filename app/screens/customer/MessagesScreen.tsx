@@ -5,12 +5,6 @@ import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { theme } from '../../theme/theme';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 
-type TabParamList = {
-  Dashboard: undefined;
-  PostRequest: undefined;
-  History: undefined;
-  Profile: undefined;
-};
 import { useAuth } from '../../context/AuthContext';
 import { Send, Filter, ArrowLeft } from 'lucide-react-native';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -29,17 +23,11 @@ interface Message {
   senderName: string;
 }
 
-export default function MessagesScreen() {
-  let routeParams: { requestId?: string; tradieId?: string } = {};
-  try {
-    const route = useRoute();
-    routeParams = (route.params || {}) as { requestId?: string; tradieId?: string };
-  } catch {
-    // Not inside a navigator — no route params
-  }
-  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+export default function MessagesScreen({ requestId: requestIdProp, tradieId: tradieIdProp }: { requestId?: string; tradieId?: string } = {}) {
+  const navigation = useScreenNavigation();
   const { user } = useAuth();
-  const { requestId, tradieId } = routeParams;
+  const requestId = requestIdProp;
+  const tradieId = tradieIdProp;
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread'>('all');

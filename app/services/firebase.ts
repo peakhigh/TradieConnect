@@ -30,24 +30,36 @@ const emulatorHost =
   process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ||
   (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
 
+// Emulator ports are configurable so multiple sibling projects can run their
+// emulators side by side without collisions. Defaults match a standard
+// single-project Firebase setup.
+const emulatorPort = (envVar: string | undefined, fallback: number) => {
+  const parsed = parseInt(envVar || '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const functionsPort = emulatorPort(process.env.EXPO_PUBLIC_EMULATOR_FUNCTIONS_PORT, 5001);
+const firestorePort = emulatorPort(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT, 8080);
+const authPort = emulatorPort(process.env.EXPO_PUBLIC_EMULATOR_AUTH_PORT, 9099);
+const storagePort = emulatorPort(process.env.EXPO_PUBLIC_EMULATOR_STORAGE_PORT, 9199);
+
 const isLocalFunctionsEnabled = process.env.EXPO_PUBLIC_LOCAL_FUNCTIONS === 'true';
 if (isLocalFunctionsEnabled) {
-  connectFunctionsEmulator(functions, emulatorHost, 5001);
+  connectFunctionsEmulator(functions, emulatorHost, functionsPort);
 }
 
 const isLocalFirestoreEnabled = process.env.EXPO_PUBLIC_LOCAL_FIRESTORE === 'true';
 if (isLocalFirestoreEnabled) {
-  connectFirestoreEmulator(db, emulatorHost, 8080);
+  connectFirestoreEmulator(db, emulatorHost, firestorePort);
 }
 
 const isLocalAuthEnabled = process.env.EXPO_PUBLIC_LOCAL_AUTH === 'true';
 if (isLocalAuthEnabled) {
-  connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
+  connectAuthEmulator(auth, `http://${emulatorHost}:${authPort}`);
 }
 
 const isLocalStorageEnabled = process.env.EXPO_PUBLIC_LOCAL_STORAGE === 'true';
 if (isLocalStorageEnabled) {
-  connectStorageEmulator(storage, emulatorHost, 9199);
+  connectStorageEmulator(storage, emulatorHost, storagePort);
 }
 
 // --- App Check (disabled until production) ---

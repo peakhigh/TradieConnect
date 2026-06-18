@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Image,
   Platform,
 } from 'react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
+import { useAlert } from '../../components/UI/AlertProvider';
 import { useForm, Controller } from 'react-hook-form';
 import { Container } from '../../components/UI/Container';
 import { Input } from '../../components/UI/Input';
@@ -39,6 +39,7 @@ interface QuoteFormData {
 
 export default function SubmitQuoteScreen({ request: requestProp }: { request?: any }) {
   const navigation = useScreenNavigation();
+  const { showAlert } = useAlert();
   const request = requestProp;
   const [submitting, setSubmitting] = useState(false);
 
@@ -93,11 +94,11 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
     const timeline = parseInt(data.timelineDays);
 
     if (!totalPrice || totalPrice <= 0) {
-      Alert.alert('Error', 'Please enter a valid total price');
+      showAlert('Error', 'Please enter a valid total price', undefined, { tone: 'destructive' });
       return;
     }
     if (!timeline || timeline <= 0) {
-      Alert.alert('Error', 'Please enter a valid timeline');
+      showAlert('Error', 'Please enter a valid timeline', undefined, { tone: 'destructive' });
       return;
     }
 
@@ -115,11 +116,11 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
         notes: data.notes || '',
       });
 
-      Alert.alert('Success', 'Your quote has been submitted successfully!');
+      showAlert('Success', 'Your quote has been submitted successfully!', undefined, { tone: 'success' });
       navigation.navigate('Explorer');
     } catch (error: any) {
       const msg = error?.message || 'Failed to submit quote';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg, undefined, { tone: 'destructive' });
     } finally {
       setSubmitting(false);
     }

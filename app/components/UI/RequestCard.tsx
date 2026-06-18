@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView, Linking } from 'react-native';
 import { Edit3, Lock, Image as ImageIcon, FileText, Users, MessageCircle, X } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { createTextDecoration, createCursorStyle } from '../../theme/crossPlatform';
@@ -174,8 +174,10 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                 if (Platform.OS === 'web' && typeof window !== 'undefined') {
                   window.open(doc, '_blank');
                 } else {
-                  // For mobile, you could use Linking.openURL(doc) or a document viewer
-                  // For mobile, you could use Linking.openURL(doc) or a document viewer
+                  // Native: open the document URL in the default viewer/browser.
+                  Linking.openURL(doc).catch((err) =>
+                    secureLog('Failed to open document:', err)
+                  );
                 }
               }}
             >

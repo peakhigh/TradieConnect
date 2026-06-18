@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Platform, Linking } from 'react-native';
 import { X, FileText } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { AudioPlayer } from './AudioPlayer';
@@ -146,8 +146,10 @@ export const RequestDetailsDrawer: React.FC<RequestDetailsDrawerProps> = ({
                     key={index} 
                     style={styles.documentCard}
                     onPress={() => {
-                      if (typeof window !== 'undefined') {
+                      if (Platform.OS === 'web' && typeof window !== 'undefined') {
                         window.open(doc, '_blank');
+                      } else {
+                        Linking.openURL(doc).catch(() => {});
                       }
                     }}
                   >
