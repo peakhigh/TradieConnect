@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Dimensi
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme/theme';
 import { Home, Wrench, Shield, Clock, DollarSign, MessageCircle, Star, Smartphone, Menu, X, CheckCircle, Users, TrendingUp } from 'lucide-react-native';
+import { PhoneDemoNative } from '../components/UI/PhoneDemoNative';
 
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 768;
@@ -180,6 +181,11 @@ export default function HomeScreen() {
               <Wrench size={20} color="#ffffff" />
               <Text style={styles.tradieHeroButtonText}>Find Work - $10 Bonus</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Interactive demo */}
+          <View style={styles.heroDemo}>
+            <PhoneDemoNative />
           </View>
         </View>
       </View>
@@ -634,6 +640,11 @@ const styles = StyleSheet.create({
     gap: 16,
     width: '100%',
     maxWidth: 500,
+  },
+  heroDemo: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 48,
   },
   heroButton: {
     flexDirection: 'row',
