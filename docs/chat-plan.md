@@ -2,60 +2,95 @@
 
 ## Concept
 
-When a tradie submits a quote, a chat room is automatically created between the tradie and the customer. The quote is displayed as a special "quote card" message in the chat window. The customer can accept or decline directly from the chat. Both parties can then communicate, share files, and coordinate the job.
+When a tradie **submits a quote**, a chat room is automatically created between that tradie and the customer. The quote is rendered as a special **quote card** message inside the chat. The customer can accept or decline directly from the chat. After that both parties communicate freely, share files/images, and coordinate the job.
+
+> **Phase 1 policy:** open a chatroom for **every quote** (one room per quote). This keeps the model simple and lets customers talk to any tradie who quoted. Later we can tighten this to "only accepted/shortlisted tradies" with a single config flag (`appConfig.chat.openRoomOn = 'quote' | 'accept'`). Designing it as a flag now means no schema change later.
+
+This plan follows the **BuildOn chat architecture** (`_buildon/frontend/components/chatscreen/`) and reuses as much of its proven message-type and card system as possible.
 
 ---
 
 ## How It Works (Flow)
 
 ```
-1. Tradie submits quote → Cloud Function creates chatRoom + sends quote as first message
-2. Customer sees chat in Messages tab → opens chat → sees quote card
-3. Customer can: Accept Quote / Not Interested (action buttons in chat)
-4. If accepted: request status → 'assigned', contact details shared
-5. Both parties can now chat freely, share images/docs
-6. Job completes → customer rates from chat or dashboard
+1. Tradie submits quote → Cloud Function (submitQuote) creates chatRoom + first "quote" message + system message
+2. Customer sees room in Messages/Contacts tab → opens chat → sees quote card
+3. Customer acts on the quote card: Accept Quote / Not Interested
+4. If accepted: request status → 'assigned', other quotes → rejected, contact details shared, system message added
+5. Both parties chat freely — text, images, documents
+6. Job completes → customer rates tradie → system message added
 ```
 
 ---
 
-## Firestore Collections Needed
+## Reuse Map — BuildOn → TradieConnect
 
-### `chatRooms` (new)
+BuildOn is the most mature reference. Map its chat pieces onto ours:
+
+| BuildOn file | What it does | TradieConnect target |
+|--------------|--------------|----------------------|
+| `chatview/ChatView.jsx` | FlatList of messages, scroll-anchoring, load-previous, renders by `type` | `app/components/chat/ChatView.tsx` |
+| `chatview/MessageBubble.jsx` | Text / image / document / tagged / event bubbles, avatar, timestamp grouping | `app/components/chat/MessageBubble.tsx` |
+| `chatview/SendInput.jsx` | Composer: text input + send + attachment trigger + action buttons slot | `app/components/chat/ChatComposer.tsx` |
+| `chatview/AttachmentViewer.jsx` | Full-screen image/file viewer | reuse `app/components/UI/ImageViewer.tsx` + wrapper |
+| `chatscreen/AttachmentMenu.jsx` (+ `.native.jsx`) | Camera / gallery / document picker sheet | `app/components/chat/AttachmentMenu.tsx` (already started) |
+| `chatview/ConnectionEventMessage.js` | Centered styled "system event" card (declined, accepted, completed…) | `app/components/chat/SystemMessage.tsx` |
+| `chatview/TaskEventCard.jsx` / `OrderEventCard.jsx` | Left-border colored "entity event" cards | pattern reused for **QuoteEventCard** (price changed, accepted) |
+| `chatscreen/ConnectionActionButtons.js` | Role/status-aware action buttons above composer (with cross-platform modals) | `app/components/chat/ChatActionButtons.tsx` |
+| `chatscreen/ConnectionCard.js` | Chat-list row card (status badge, name, unread dot) | `app/components/chat/ChatRoomCard.tsx` |
+| `chatscreen/ContactsList.jsx` | The chat-list screen (ownership switch, filters, search) | `app/screens/chat/ContactsListScreen.tsx` |
+| `chatscreen/ChatFilterBar.jsx` | In-chat filter bar (All / Messages / Tasks / Orders) | `app/components/chat/ChatFilterBar.tsx` (adapt to Messages / Quote) |
+| `notifications/UnreadMessagesBadge.js` | Unread dot/badge for nav | `app/components/UI/MessageNotification.tsx` (exists) |
+
+> The existing `app/components/chat/QuoteCard.tsx` already renders a quote with Accept / Not Interested buttons and matches the BuildOn event-card style. Keep it; wire it into `ChatView` for `type: 'quote'` messages and switch its confirmations to the cross-platform `Modal` pattern (see `modal-pattern.md`) instead of `Alert.alert`.
+
+---
+
+## Firestore Collections
+
+### `chatRooms`
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | string | Auto-generated |
 | `serviceRequestId` | string | The request this chat is about |
-| `quoteId` | string | The quote doc ID |
+| `quoteId` | string | The quote that opened this room |
 | `customerId` | string | |
 | `customerName` | string | Denormalized |
 | `tradieId` | string | |
 | `tradieName` | string | Denormalized |
-| `status` | `'active' \| 'closed'` | |
-| `lastMessage` | string | Preview text for chat list |
-| `lastMessageAt` | Timestamp | For sorting chat list |
+| `trades` | string[] | Denormalized from request (for list display) |
+| `suburb` | string | Denormalized from request |
+| `quoteStatus` | `'pending' \| 'accepted' \| 'rejected'` | Mirror of the quote's status for fast list filtering |
+| `status` | `'active' \| 'closed'` | Room lifecycle |
+| `lastMessage` | string | Preview text for the chat list |
+| `lastMessageAt` | Timestamp | Sort key for chat list |
+| `lastMessageType` | string | So the list can show "📷 Photo", "📎 File" previews |
 | `unreadByCustomer` | number | Unread count |
 | `unreadByTradie` | number | Unread count |
+| `participants` | string[] | `[customerId, tradieId]` — enables `array-contains` query for one combined list |
 | `createdAt` | Timestamp | |
+| `updatedAt` | Timestamp | |
 
 ### `chatRooms/{roomId}/messages` (subcollection)
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | string | Auto-generated |
-| `type` | `'text' \| 'quote' \| 'system' \| 'image' \| 'document'` | Message type |
-| `text` | string | Message text |
-| `senderId` | string | Who sent it |
+| `type` | `'text' \| 'quote' \| 'system' \| 'image' \| 'document'` | Drives rendering |
+| `text` | string | Message text / caption |
+| `senderId` | string | UID, or `'system'` |
 | `senderName` | string | |
 | `receiverId` | string | |
 | `receiverName` | string | |
+| `image` | string \| null | Storage URL (type: 'image') |
+| `document` | `{ name, downloadURL, size, type } \| null` | (type: 'document') |
+| `attachments` | array \| null | Optional multi-file array `[{ name, downloadURL, type }]` |
+| `quoteData` | object \| null | Full quote snapshot (type: 'quote') |
+| `systemAction` | string \| null | e.g. `'quote_accepted'`, `'quote_rejected'`, `'job_completed'` |
 | `createdAt` | Timestamp | |
-| `quoteData` | object \| null | Full quote details (for type: 'quote') |
-| `imageUrl` | string \| null | For type: 'image' |
-| `documentUrl` | string \| null | For type: 'document' |
-| `documentName` | string \| null | |
-| `systemAction` | string \| null | For type: 'system' (e.g. 'quote_accepted', 'quote_rejected') |
+
+> **Shape note:** BuildOn nests the sender as `user: { id, name }`. To reuse `MessageBubble` with minimal changes, the chat service can map `senderId/senderName` → `user.id/user.name` when reading, or we store both. Pick one convention and document it in `chatService.ts`.
 
 ---
 
@@ -63,65 +98,64 @@ When a tradie submits a quote, a chat room is automatically created between the 
 
 | Type | Rendered As | Who Creates |
 |------|-------------|-------------|
-| `quote` | Quote card with price, timeline, materials breakdown + Accept/Decline buttons | System (on quote submit) |
-| `text` | Normal chat bubble | Either party |
-| `image` | Image thumbnail + tap to view | Either party |
-| `document` | File icon + name + tap to download | Either party |
-| `system` | Centered gray text (e.g. "Quote accepted", "Job completed") | System |
+| `quote` | `QuoteCard` — price, materials/labor, timeline, notes + Accept/Decline (customer) or "Waiting…" (tradie) | System on quote submit |
+| `text` | Chat bubble (left = other, right = me) | Either party |
+| `image` | Thumbnail → tap to open `ImageViewer` | Either party |
+| `document` | File row (paperclip + name) → tap to open/download | Either party |
+| `system` | Centered gray pill / styled event card | System (accept, reject, complete, reopen) |
+
+Color conventions for left-border event/system cards (from BuildOn):
+- Quote / price events → primary blue `#3B82F6`
+- Document → green `#10B981`
+- Accepted / success → `#059669`
+- Declined / cancelled → `#DC2626`
 
 ---
 
-## Implementation Steps
+## Contacts / Chat List Screen
 
-### Step 1: Create `chatRooms` collection + update `submitQuote` Cloud Function
-- When a quote is submitted, create a `chatRooms` document
-- Add the first message (type: 'quote') with full quote data
-- Add a system message: "Tradie submitted a quote"
+Models BuildOn's `ContactsList.jsx`. This is the "all my conversations" screen, rendered from `chatRooms`.
 
-### Step 2: Chat List Screen (`MessagesScreen`)
-- Query `chatRooms` where `customerId == user.id` OR `tradieId == user.id`
-- Show: other party's name, last message preview, timestamp, unread badge
-- Sort by `lastMessageAt` desc
-- Tap → navigate to ChatScreen
+**Data source:** query `chatRooms` where `participants array-contains uid`, ordered by `lastMessageAt desc`.
 
-### Step 3: Chat Screen (core)
-- Subscribe to `chatRooms/{roomId}/messages` ordered by `createdAt desc`
-- Render messages based on `type`:
-  - `text` → chat bubble (left/right based on sender)
-  - `quote` → QuoteCard component with action buttons
-  - `image` → image thumbnail
-  - `document` → file attachment row
-  - `system` → centered gray text
-- Message composer at bottom (text input + send button)
-- Attachment button (camera, gallery, document picker)
+**Card (`ChatRoomCard`)** shows:
+- Other party's name (customer sees tradie, tradie sees customer)
+- Trade + suburb line
+- Last message preview (with type icon for photo/file)
+- Timestamp (`formatTimeAgo`)
+- Unread dot / count badge
+- Quote-status badge (Pending / Accepted / Declined)
 
-### Step 4: Quote Card in Chat
-- Shows: trade type, total price, materials/labor breakdown, timeline, notes
-- **Customer sees**: "Accept Quote" + "Not Interested" buttons
-- **Tradie sees**: "Waiting for response" status
-- On accept: calls `acceptQuote` Cloud Function, adds system message
-- On decline: updates quote status, adds system message
+**Filters (right-sliding `FilterDrawer`)** — see `ui-interaction-rules.md`:
+- Quote status: All / Pending / Accepted / Declined
+- Unread only (toggle)
+- By trade
+- By suburb
+- Search by name (client-side over the loaded rooms, or `_tokens` field if we add search indexing)
 
-### Step 5: Action Buttons (above composer)
-- Similar to BuildOn's `ConnectionActionButtons`
-- Show different buttons based on role + quote status:
-  - Customer + pending quote → "Accept" / "Not Interested"
-  - Tradie + pending quote → disabled (waiting)
-  - After acceptance → no action buttons (free chat)
+**Sort:** Latest activity (default), Oldest, Name A–Z.
 
-### Step 6: File/Image Upload in Chat
-- Attachment menu: Camera, Gallery, Document
-- Upload to Firebase Storage → send message with URL
-- Render as image thumbnail or document link
+**Navigation:** tap a card → `ChatScreen` with `{ roomId, otherName, ... }`. We render this list "via quotes" conceptually (each room originates from a quote) and redirect into the chat window — matching BuildOn's connection→chat flow.
 
-### Step 7: Update Cloud Functions
-- `submitQuote`: also create chatRoom + first quote message
-- `acceptQuote`: add system message to chat ("Quote accepted! Contact details shared.")
-- New trigger: on message created → increment unread count + send push notification
+---
 
-### Step 8: Unread Badges
-- Show unread count on Messages tab/sidebar
-- Mark messages as read when chat is opened
+## Chat Screen Composition
+
+```
+<ChatScreen>
+  <Header: other party name, trade/suburb, back />
+  <ChatFilterBar />            // optional: All / Messages / Quote
+  <ChatView                    // FlatList, renders by message.type
+     messages
+     onSendMessage
+     onLoadMoreMessages
+     onUpload />
+  <ChatActionButtons />        // role + quoteStatus aware (Accept / Not Interested / Reopen)
+  <ChatComposer />             // text + send + attachment menu
+</ChatScreen>
+```
+
+Reuse BuildOn's scroll-anchoring logic in `ChatView` (keep position when loading older messages, auto-scroll to bottom on new message).
 
 ---
 
@@ -129,47 +163,78 @@ When a tradie submits a quote, a chat room is automatically created between the 
 
 | # | File | Purpose |
 |---|------|---------|
-| 1 | `app/screens/chat/ChatListScreen.tsx` | List of chat rooms |
-| 2 | `app/screens/chat/ChatScreen.tsx` | Individual chat conversation |
-| 3 | `app/components/chat/QuoteCard.tsx` | Quote display in chat with action buttons |
-| 4 | `app/components/chat/MessageBubble.tsx` | Text message bubble |
-| 5 | `app/components/chat/SystemMessage.tsx` | System event message |
-| 6 | `app/components/chat/ImageMessage.tsx` | Image message |
-| 7 | `app/components/chat/DocumentMessage.tsx` | Document/file message |
-| 8 | `app/components/chat/ChatComposer.tsx` | Text input + send + attachment |
-| 9 | `app/components/chat/AttachmentMenu.tsx` | Camera/gallery/document picker |
-| 10 | `app/components/chat/ChatActionButtons.tsx` | Accept/decline buttons above composer |
-| 11 | `app/services/chatService.ts` | Chat CRUD operations |
-| 12 | `functions/src/modules/chat/onMessageCreated.ts` | Trigger: update lastMessage, unread counts, push notification |
-
----
+| 1 | `app/screens/chat/ContactsListScreen.tsx` | List of chat rooms (replaces/upgrades `ChatListScreen`) |
+| 2 | `app/screens/chat/ChatScreen.tsx` | Conversation screen (exists — wire to new components) |
+| 3 | `app/components/chat/ChatView.tsx` | Message FlatList + scroll anchoring |
+| 4 | `app/components/chat/MessageBubble.tsx` | Text/image/document bubble |
+| 5 | `app/components/chat/SystemMessage.tsx` | Centered system/event message |
+| 6 | `app/components/chat/QuoteCard.tsx` | Quote display + actions (exists — refine) |
+| 7 | `app/components/chat/ChatComposer.tsx` | Composer (text + send + attach) |
+| 8 | `app/components/chat/AttachmentMenu.tsx` | Camera / gallery / document (exists — refine) |
+| 9 | `app/components/chat/ChatActionButtons.tsx` | Accept/decline/reopen above composer |
+| 10 | `app/components/chat/ChatRoomCard.tsx` | Chat-list row card |
+| 11 | `app/components/chat/ChatFilterBar.tsx` | In-chat type filter |
+| 12 | `app/services/chatService.ts` | Chat CRUD + subscriptions + field mapping |
+| 13 | `app/hooks/useChatRooms.ts` | Subscribe to `chatRooms` for current user |
+| 14 | `app/hooks/useChatMessages.ts` | Paginated message subscription for a room |
 
 ## Files to Modify
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `functions/src/modules/requests/submitQuote.ts` | Create chatRoom + first quote message |
-| 2 | `functions/src/modules/requests/acceptQuote.ts` | Add system message to chat |
-| 3 | `functions/src/index.ts` | Export new chat trigger |
-| 4 | `app/navigation/CustomerTabs.tsx` | Wire Messages to ChatListScreen |
-| 5 | `app/navigation/TradieTabs.tsx` | Wire Messages to ChatListScreen |
+| 1 | `functions/src/modules/requests/submitQuote.ts` | Create `chatRoom` + first `quote` message + system message |
+| 2 | `functions/src/modules/requests/acceptQuote.ts` | Add `system` message ("Quote accepted, details shared"); set `quoteStatus` on rooms |
+| 3 | `functions/src/modules/chat/onMessageCreated.ts` | Already updates lastMessage/unread/push — extend for `lastMessageType` + dedup |
+| 4 | `app/navigation/CustomerTabs.tsx` | Point Messages tab to `ContactsListScreen` |
+| 5 | `app/navigation/TradieTabs.tsx` | Point Messages tab to `ContactsListScreen` |
 
 ---
 
-## Dependencies Needed
+## Cloud Function Behavior
 
-- `react-native-gifted-chat` — OR build custom (BuildOn uses custom ChatView)
-- No new packages needed if we build custom (recommended for full control)
+### `submitQuote` (extend existing)
+After the quote doc is written and intelligence recalculated:
+1. Create `chatRooms/{roomId}` (denormalize names, trade, suburb, `participants`, `quoteStatus: 'pending'`).
+2. Add first message `type: 'quote'` with a full `quoteData` snapshot.
+3. Add `type: 'system'` message: "{tradieName} submitted a quote".
+4. Increment `unreadByCustomer`.
+
+### `acceptQuote` (extend existing)
+1. Mark winning quote `accepted`, others `rejected`.
+2. Update each affected room's `quoteStatus`.
+3. Add `system` message to the accepted room: "Quote accepted — contact details shared".
+4. Optionally add `system` message to rejected rooms: "Customer chose another quote".
+
+### `onChatMessageCreated` (exists)
+Already maintains `lastMessage`, unread counts, push + in-app notification. Add:
+- Set `lastMessageType`.
+- Notification **dedup** (BuildOn pattern): skip creating a new unread `notifications` doc if one already exists for the same `userId + type + itemId(roomId)` that is still unread. See `notifications-plan.md`.
 
 ---
 
-## Recommended Order
+## Indexes
 
-1. **Step 1** — Backend: create chatRoom on quote submit
-2. **Step 2** — Chat List Screen (see your conversations)
-3. **Step 3** — Chat Screen (basic text messaging)
-4. **Step 4** — Quote Card in chat (the special first message)
-5. **Step 5** — Action buttons (accept/decline from chat)
-6. **Step 6** — File uploads in chat
-7. **Step 7** — Cloud Function triggers (unread counts, push)
-8. **Step 8** — Unread badges on nav
+| Collection | Fields | Purpose |
+|-----------|--------|---------|
+| `chatRooms` | `participants` ARRAY, `lastMessageAt` DESC | Combined chat list |
+| `chatRooms` | `participants` ARRAY, `quoteStatus` ASC, `lastMessageAt` DESC | Filter list by status |
+| `messages` (subcollection) | `createdAt` DESC | Message pagination (collection scope) |
+
+---
+
+## Dependencies
+
+No new packages required — build custom (full control), reusing `expo-image-picker` and `expo-document-picker` already in the stack. `react-native-gifted-chat` is **not** used (BuildOn also rolls its own `ChatView`).
+
+---
+
+## Recommended Build Order
+
+1. Backend: `submitQuote` creates room + quote message (Step 1)
+2. `chatService.ts` + `useChatRooms` + `ContactsListScreen` (see your conversations)
+3. `ChatView` + `MessageBubble` + `ChatComposer` (basic text messaging)
+4. Wire `QuoteCard` into `ChatView` for `type: 'quote'`
+5. `ChatActionButtons` (accept/decline/reopen) with cross-platform modals
+6. Attachments (image/document) end-to-end
+7. `onChatMessageCreated` unread counts + dedup + push
+8. Unread badges on nav (`MessageNotification`) + chat-list filters

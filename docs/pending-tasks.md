@@ -1,5 +1,7 @@
 # Pending Tasks
 
+> **For the full, current build plan** (chat room-per-quote, notifications/push, root-level intelligence, tradie reporting/insights, contacts list, mock-data tooling) see **`tasks.md`**. This file remains the running backlog of BuildOn-derived patterns we still want to port.
+
 ## From BuildOn — Components & UI Patterns
 
 - [ ] **CollapsibleControls** — Expandable/collapsible filter sections with animation (for Explorer filter drawer)

@@ -7,7 +7,7 @@ fileMatchPattern: "app/components/**"
 
 ## Common Components (`/app/commonComponents/`)
 
-Reusable components shared across marketplace projects (TradieConnect, BuildOn, Educator). These are borrowed from sibling projects and enhanced.
+Reusable components shared across marketplace projects (TradieConnect, BuildOn, Educator, TripsNTrucks). These are borrowed from sibling projects and enhanced.
 
 | Component | Purpose |
 |-----------|---------|

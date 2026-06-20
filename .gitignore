@@ -96,6 +96,7 @@ temp/
 # Symlinks to sibling projects
 _buildon
 _educator
+_tripsNtrucks
 
 # OS generated files
 .DS_Store

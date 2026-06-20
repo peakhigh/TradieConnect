@@ -2,13 +2,16 @@
 
 ## Active Projects
 
-This workspace is part of a multi-project ecosystem. All three projects share the same core stack and design patterns.
+This workspace is part of a multi-project ecosystem. All four projects share the same core stack and design patterns.
 
 | Project | Path | Maturity | Purpose |
 |---------|------|----------|---------|
 | TradieConnect | `/Users/tbk/Documents/Projects/tradie-app` | Active development | Tradie marketplace |
 | BuildOn | `/Users/tbk/Documents/Projects/buildon` | Most mature | Construction/building platform |
 | Educator | `/Users/tbk/Documents/Projects/educator` | Active development | Education platform |
+| TripsNTrucks | `/Users/tbk/Documents/Projects/tripsNtrucks` | New | Trips/trucking platform |
+
+Sibling projects are symlinked into this workspace as `_buildon`, `_educator`, and `_tripsNtrucks` (all gitignored), so their code can be read and referenced directly.
 
 ## Shared Tech Stack (All Projects)
 
@@ -26,7 +29,7 @@ All code written for any of these projects **must work on iOS, Android, and Web*
 
 ### When to look at sibling projects
 
-Before building something new, check if BuildOn or Educator already has a working implementation. BuildOn is the most mature project and should be the first reference.
+Before building something new, check if BuildOn, Educator, or TripsNTrucks already has a working implementation. BuildOn is the most mature project and should be the first reference.
 
 ### Reusable Components (copy/adapt from sibling projects)
 
@@ -57,11 +60,12 @@ Before building something new, check if BuildOn or Educator already has a workin
 
 ### How to Reuse
 
-1. Check BuildOn first (`/Users/tbk/Documents/Projects/buildon`) — it's the most mature
-2. Check Educator second (`/Users/tbk/Documents/Projects/educator`)
-3. Copy the component/pattern into this project
-4. Adapt naming, types, and business logic to fit TradieConnect
-5. Ensure it works on all three platforms (iOS, Android, Web)
+1. Check BuildOn first (`_buildon`) — it's the most mature
+2. Check Educator second (`_educator`)
+3. Check TripsNTrucks (`_tripsNtrucks`)
+4. Copy the component/pattern into this project
+5. Adapt naming, types, and business logic to fit TradieConnect
+6. Ensure it works on all three platforms (iOS, Android, Web)
 
 ## Cross-Project Conventions
 

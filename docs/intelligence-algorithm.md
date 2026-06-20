@@ -1,5 +1,7 @@
 # Intelligence Computation Algorithm
 
+> **Decision (confirmed): intelligence fields live at the root of the `serviceRequests` document** as flat `intel_*` fields — **not** in a separate `requestIntelligence` collection. This lets the Explorer read everything in a single query (no join), supports `FieldValue.increment()`, and keeps composite indexes simple. The standalone `requestIntelligence` collection referenced in older `data-model.md`/`index.html` notes is superseded by this flat design. See the full schema in "Final `serviceRequests` Document Schema (Flat)" below.
+
 ## The Problem
 
 The Explorer screen shows rich market intelligence on every request card:
