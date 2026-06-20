@@ -36,4 +36,23 @@ module.exports = {
     firestorePort: 8080,
     useEmulator: true, // Set to false to seed production (careful!)
   },
+
+  // Cleanup safety: clean.js will refuse to delete from any project whose
+  // projectId is NOT in this allowlist unless --force is also passed.
+  // This prevents accidentally wiping the live project.
+  cleanup: {
+    allowedProjectIds: ['demo-tradie', 'tradie-mate-dev'],
+    // Collections that seed.js writes into (cleared by clean.js).
+    collections: [
+      'serviceRequests',
+      'quotes',
+      'walletTransactions',
+      'chatRooms',
+      'notifications',
+      'suburbTradeStats',
+      'suburbStats',
+      'tradeStats',
+      'suburbAdjacency',
+    ],
+  },
 };

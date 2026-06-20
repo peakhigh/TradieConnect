@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator, Modal, Pressable, TextInput, TouchableOpacity } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { EmptyState } from '../../components/UI/EmptyState';
@@ -14,6 +14,13 @@ import { WalletTransaction } from '../../types';
 export default function WalletScreen() {
   const { user, refreshUser } = useAuth();
   const [recharging, setRecharging] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState<number>(10);
+  const [customAmount, setCustomAmount] = useState('');
+  const [rechargeError, setRechargeError] = useState<string | null>(null);
+
+  const RECHARGE_OPTIONS = [5, 10, 20, 50];
+  const MIN_RECHARGE = 5;
 
   const { documents: transactions, loading, refresh } = useFetchDocs<WalletTransaction>({
     collectionName: 'walletTransactions',
@@ -23,14 +30,30 @@ export default function WalletScreen() {
     subscribe: false,
   });
 
+  const resolveAmount = (): number => {
+    if (customAmount.trim()) {
+      const parsed = parseFloat(customAmount);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return selectedAmount;
+  };
+
   const handleRecharge = async () => {
+    const amount = resolveAmount();
+    if (!amount || amount < MIN_RECHARGE) {
+      setRechargeError(`Minimum recharge is $${MIN_RECHARGE.toFixed(2)}.`);
+      return;
+    }
+    setRechargeError(null);
     setRecharging(true);
     try {
-      await runCloudFunction('rechargeWallet', { amount: 10 });
+      await runCloudFunction('rechargeWallet', { amount });
       await refreshUser();
       refresh();
-    } catch (error) {
-      console.error('Recharge error:', error);
+      setShowRechargeModal(false);
+      setCustomAmount('');
+    } catch (error: any) {
+      setRechargeError(error?.message || 'Recharge failed. Please try again.');
     } finally {
       setRecharging(false);
     }
@@ -86,9 +109,8 @@ export default function WalletScreen() {
             <Text style={styles.balanceLabel}>Wallet Balance</Text>
             <Text style={styles.balanceAmount}>{formatCurrency(walletBalance)}</Text>
             <SimpleButton
-              title="Recharge $10"
-              onPress={handleRecharge}
-              loading={recharging}
+              title="Recharge Wallet"
+              onPress={() => { setRechargeError(null); setShowRechargeModal(true); }}
               style={styles.rechargeButton}
               size="medium"
             />
@@ -128,6 +150,63 @@ export default function WalletScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Recharge Modal */}
+      <Modal visible={showRechargeModal} transparent animationType="fade" onRequestClose={() => !recharging && setShowRechargeModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => !recharging && setShowRechargeModal(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconRow}>
+              <View style={styles.modalIconCircle}>
+                <Wallet size={24} color={theme.colors.primary} />
+              </View>
+            </View>
+            <Text style={styles.modalTitle}>Recharge Wallet</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose an amount to add to your wallet. Minimum ${MIN_RECHARGE.toFixed(2)}.
+            </Text>
+
+            <View style={styles.amountGrid}>
+              {RECHARGE_OPTIONS.map((amt) => {
+                const active = !customAmount.trim() && selectedAmount === amt;
+                return (
+                  <TouchableOpacity
+                    key={amt}
+                    style={[styles.amountOption, active && styles.amountOptionActive]}
+                    onPress={() => { setSelectedAmount(amt); setCustomAmount(''); setRechargeError(null); }}
+                  >
+                    <Text style={[styles.amountOptionText, active && styles.amountOptionTextActive]}>${amt}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.fieldLabel}>Or enter a custom amount</Text>
+            <TextInput
+              style={styles.input}
+              value={customAmount}
+              onChangeText={(t) => { setCustomAmount(t); setRechargeError(null); }}
+              placeholder={`e.g. 25 (min $${MIN_RECHARGE})`}
+              placeholderTextColor={theme.colors.text.tertiary}
+              keyboardType="decimal-pad"
+            />
+
+            {rechargeError && <Text style={styles.errorText}>{rechargeError}</Text>}
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity style={styles.modalGoBackBtn} onPress={() => setShowRechargeModal(false)} disabled={recharging}>
+                <Text style={styles.modalGoBackBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalConfirmBtn, recharging && { opacity: 0.6 }]} onPress={handleRecharge} disabled={recharging}>
+                {recharging ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Recharge ${resolveAmount() || 0}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Container>
   );
 }
@@ -213,4 +292,117 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold as any,
   },
+  // Recharge modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIconRow: { alignItems: 'center', marginBottom: 12 },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  amountGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  amountOption: {
+    flexGrow: 1,
+    flexBasis: '22%',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  amountOptionActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  amountOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  amountOptionTextActive: {
+    color: theme.colors.primary,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    color: theme.colors.error,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalButtonRow: { flexDirection: 'row', gap: 12 },
+  modalGoBackBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  modalGoBackBtnText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+  },
+  modalConfirmBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
 });

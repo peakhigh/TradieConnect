@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useUser } from '../context/UserContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { theme } from '../theme/theme';
 import {
   Home,
@@ -13,6 +15,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  TrendingUp,
 } from 'lucide-react-native';
 
 interface SidebarItem {
@@ -26,6 +29,7 @@ interface SidebarItem {
 const TRADIE_MENU: SidebarItem[] = [
   { name: 'Dashboard', label: 'Dashboard', icon: Home, route: 'Dashboard', section: 'primary' },
   { name: 'Explorer', label: 'Explorer', icon: Search, route: 'Explorer', section: 'primary' },
+  { name: 'Insights', label: 'Insights', icon: TrendingUp, route: 'Insights', section: 'primary' },
   { name: 'History', label: 'History', icon: History, route: 'History', section: 'primary' },
   { name: 'Messages', label: 'Messages', icon: MessageCircle, route: 'Messages', section: 'primary' },
   { name: 'Profile', label: 'Profile', icon: User, route: 'Profile', section: 'primary' },
@@ -53,15 +57,24 @@ interface WebSidebarProps {
 
 export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps) {
   const { user, logout } = useAuth();
+  const { unreadMessageCount } = useUser();
+  const { unreadCount: unreadNotifications } = useNotifications();
   const isTradie = user?.userType === 'tradie';
   const menu = isTradie ? TRADIE_MENU : CUSTOMER_MENU;
 
   const primaryItems = menu.filter(item => item.section === 'primary');
   const secondaryItems = menu.filter(item => item.section === 'secondary');
 
+  const badgeFor = (route: string): number => {
+    if (route === 'Messages') return unreadMessageCount;
+    if (route === 'Notifications') return unreadNotifications;
+    return 0;
+  };
+
   const renderItem = (item: SidebarItem) => {
     const isActive = activeRoute === item.route;
     const IconComponent = item.icon;
+    const badge = badgeFor(item.route);
 
     return (
       <TouchableOpacity
@@ -77,6 +90,11 @@ export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps)
         <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>
           {item.label}
         </Text>
+        {badge > 0 && (
+          <View style={styles.navBadge}>
+            <Text style={styles.navBadgeText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -215,10 +233,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.75)',
     marginLeft: 12,
+    flex: 1,
   },
   menuLabelActive: {
     color: '#0A2E5A',
     fontWeight: '600',
+  },
+  navBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  navBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   divider: {
     height: 1,

@@ -34,26 +34,26 @@ Legend: `[ ]` todo · `[~]` exists but incomplete/stubbed · `[x]` done
 
 ## 2. Explorer (consolidate + verify)
 
-- [ ] Retire/remove legacy `ServiceRequestExplorer.tsx` (mock wallet + mock unlock) — keep `ExplorerScreen.tsx`.
-- [ ] Verify unlock goes through `unlockServiceRequest` Cloud Function (balance check, deduct, create quote doc `unlocked`, wallet txn) — no client mock.
-- [ ] Verify locked vs unlocked card states + intelligence (`intel_*`) rendering from flat fields.
-- [ ] Progressive batch scroll (10→50→"Load More") per `architecture-decisions.md`.
-- [ ] Filters via right-slide `FilterDrawer`: trade, suburb/postcode, urgency, competition, opportunity, budget.
-- [ ] Insufficient-balance path → prompt recharge (cross-platform modal).
+- [x] Retire/remove legacy `ServiceRequestExplorer.tsx` (mock wallet + mock unlock) — kept `ExplorerScreen.tsx`.
+- [x] Unlock goes through `unlockServiceRequest` Cloud Function (balance check, deduct, quote doc, wallet txn) — no client mock; handled in `ServiceRequestCard`.
+- [x] Locked vs unlocked card states + intelligence (`intel_*`) rendering from flat fields.
+- [x] Progressive batch scroll (10→…→"Load More").
+- [x] Filters via right-slide `FilterDrawer`.
+- [x] Insufficient-balance path → warning modal prompting recharge.
 
 ## 3. Submit Quote
 
-- [ ] Verify it calls `submitQuote` and handles `already-exists` / `permission-denied` errors with friendly messages.
-- [ ] Confirm chat room + quote message creation (backend `submitQuote` does this) and navigate to chat or show success.
-- [ ] Intelligence/recommended-price panel reads flat `intel_*` fields.
-- [ ] Date pickers cross-platform; timeline auto-calc from start/completion.
+- [x] Calls `submitQuote` and handles `already-exists` / `permission-denied` errors with friendly messages.
+- [x] Backend `submitQuote` creates chat room + quote message; screen shows success and returns to Explorer.
+- [x] Intelligence/recommended-price panel reads flat `intel_*` fields (was reading nonexistent nested fields → fixed).
+- [ ] Replace text date inputs with cross-platform date pickers; timeline auto-calc already works.
 
 ## 4. Wallet & Payments
 
-- [ ] Amount picker for recharge ($5/$10/$20/$50 + custom, min $5) — currently hardcoded $10.
-- [ ] Integrate real payment processor (Stripe) behind `rechargeWallet` (currently just credits) — or document the integration point clearly.
-- [ ] Show signup bonus + unlock debits with correct labels (works); verify `createdAt` vs `timestamp` field consistency.
-- [ ] Handle recharge failure states + Toast.
+- [x] Amount picker for recharge ($5/$10/$20/$50 + custom, min $5) via cross-platform modal — was hardcoded $10.
+- [ ] Integrate real payment processor (Stripe) behind `rechargeWallet` (currently just credits) — documented integration point.
+- [x] Signup bonus + unlock debits show with correct labels.
+- [x] Recharge failure surfaces an inline error in the modal.
 
 ## 5. History
 
@@ -71,12 +71,14 @@ Legend: `[ ]` todo · `[~]` exists but incomplete/stubbed · `[x]` done
 
 ## 7. Reporting & Insights (KEY SELLING FEATURE — see `tradie-reporting.md`)
 
-- [ ] Rollup collections + backend update hooks + nightly reconciliation.
-- [ ] Read callables (`getMySuburbReport`, `getNearbySuburbReport`, `getSuburbDetail`, `rankSuburbs`, `rankTrades`) + `useReport` hook.
-- [ ] Cross-platform chart wrappers (validate `react-native-gifted-charts` on web).
-- [ ] Screens: `InsightsScreen`, `SuburbRankingsScreen`, `SuburbDetailScreen`, `TradeOpportunityScreen`.
-- [ ] `suburbAdjacency` build script (for "nearby suburbs").
-- [ ] Add Insights to `TradieTabs` + web route in `AppNavigator`.
+- [x] Rollup collections (`suburbTradeStats`/`suburbStats`/`tradeStats`) + update hooks in onCreate/unlock/submitQuote/complete.
+- [x] Nightly `reconcileReportingRollups` scheduled function.
+- [x] Read callables + `reportingService` (getMySuburbReport, getNearbySuburbReport, getSuburbDetail, rankSuburbs, rankTrades).
+- [x] Cross-platform charts (`BarComparison`, `DonutShare`) using existing `react-native-svg` — no new lib.
+- [x] Screens: `InsightsScreen`, `SuburbRankingsScreen`, `SuburbDetailScreen`, `TradeOpportunityScreen`; added to `TradieTabs` + web sidebar.
+- [x] `suburbAdjacency` (seeded for dev) powering nearby-suburb reports.
+- [ ] Production `suburbAdjacency` builder from a real AU postcode dataset.
+- [ ] Monthly (`YYYY-MM`) period buckets + trend-over-time line charts (currently `all`-period only).
 
 ## 8. Onboarding
 

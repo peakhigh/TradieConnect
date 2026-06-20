@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,45 +8,27 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
-import {
-  db,
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
-  startAfter,
-  getDocs,
-} from '../../services/firebase';
 import { ArrowLeft, Send, Paperclip, FileText } from 'lucide-react-native';
 import { formatTimeAgo } from '../../utils/helpers';
 import QuoteCard from '../../components/chat/QuoteCard';
 import AttachmentMenu from '../../components/chat/AttachmentMenu';
+import { ImageViewer } from '../../components/UI/ImageViewer';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { ref, uploadBytesResumable, getDownloadURL, storage } from '../../services/firebase';
-
-interface ChatMessage {
-  id: string;
-  type: 'text' | 'quote' | 'system' | 'image' | 'document';
-  text: string;
-  senderId: string;
-  senderName: string;
-  receiverId: string;
-  receiverName: string;
-  createdAt: Date;
-  quoteData?: any;
-  imageUrl?: string;
-  documentUrl?: string;
-  documentName?: string;
-  systemAction?: string;
-}
+import { Linking } from 'react-native';
+import {
+  ChatMessage,
+  subscribeToMessages,
+  sendTextMessage,
+  sendAttachmentMessage,
+  markRoomRead,
+  getChatRoom,
+} from '../../services/chatService';
 
 export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?: string; otherPartyName?: string }) {
   const { user } = useAuth();
@@ -56,169 +38,66 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const receiverRef = useRef<{ receiverId: string; receiverName: string }>({ receiverId: '', receiverName: otherPartyName || '' });
 
-  // Mark as read when chat opens
+  const senderName = (user as any)?.firstName || (user as any)?.displayName || 'User';
+
+  // Resolve the receiver (other party) once so messages carry correct ids.
   useEffect(() => {
     if (!chatRoomId || !user) return;
-    const markAsRead = async () => {
-      try {
-        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
-        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
-        const field = user.userType === 'tradie' ? 'unreadByTradie' : 'unreadByCustomer';
-        await updateDoc(chatRoomRef, { [field]: 0 });
-      } catch (error) {
-        console.error('Error marking as read:', error);
-      }
-    };
-    markAsRead();
+    getChatRoom(chatRoomId).then((room) => {
+      if (!room) return;
+      const isTradie = user.id === room.tradieId;
+      receiverRef.current = isTradie
+        ? { receiverId: room.customerId, receiverName: room.customerName }
+        : { receiverId: room.tradieId, receiverName: room.tradieName };
+    });
   }, [chatRoomId, user?.id]);
 
-  // Subscribe to new messages (real-time)
+  // Mark room read when opened.
+  useEffect(() => {
+    if (!chatRoomId || !user) return;
+    markRoomRead(chatRoomId, user.userType === 'tradie' ? 'tradie' : 'customer').catch(() => {});
+  }, [chatRoomId, user?.id]);
+
+  // Subscribe to messages.
   useEffect(() => {
     if (!chatRoomId) {
       setLoading(false);
       return;
     }
-
-    const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(50));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs: ChatMessage[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          type: data.type || 'text',
-          text: data.text || '',
-          senderId: data.senderId || '',
-          senderName: data.senderName || '',
-          receiverId: data.receiverId || '',
-          receiverName: data.receiverName || '',
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          quoteData: data.quoteData || null,
-          imageUrl: data.imageUrl || null,
-          documentUrl: data.documentUrl || null,
-          documentName: data.documentName || null,
-          systemAction: data.systemAction || null,
-        };
-      });
-      setMessages(msgs);
-      setLoading(false);
-    }, (error) => {
-      console.error('Chat subscription error:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    const unsub = subscribeToMessages(
+      chatRoomId,
+      (msgs) => {
+        setMessages(msgs);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+    return unsub;
   }, [chatRoomId]);
+
+  const buildSender = () => ({
+    senderId: user?.id || '',
+    senderName,
+    receiverId: receiverRef.current.receiverId,
+    receiverName: receiverRef.current.receiverName || otherPartyName || '',
+  });
 
   const handleSend = async () => {
     if (!newMessage.trim() || !chatRoomId || !user) return;
-
-    const messageText = newMessage.trim();
+    const text = newMessage.trim();
     setNewMessage('');
     setSending(true);
-
     try {
-      const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-      await addDoc(messagesRef, {
-        type: 'text',
-        text: messageText,
-        senderId: user.id,
-        senderName: (user as any).firstName || (user as any).displayName || 'User',
-        receiverId: '', // Will be filled by context
-        receiverName: otherPartyName || '',
-        createdAt: serverTimestamp(),
-      });
-
-      // Update lastMessage on chatRoom
-      const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
-      const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
-      await updateDoc(chatRoomRef, {
-        lastMessage: messageText,
-        lastMessageAt: serverTimestamp(),
-      });
+      await sendTextMessage(chatRoomId, text, buildSender());
     } catch (error) {
       console.error('Error sending message:', error);
+      setNewMessage(text);
     } finally {
       setSending(false);
-    }
-  };
-
-  const handleSendImage = async (uri: string, fileName: string) => {
-    if (!chatRoomId || !user) return;
-    try {
-      // Upload to Firebase Storage
-      const path = `chat/${chatRoomId}/${Date.now()}_${fileName}`;
-      const storageRef = ref(storage, path);
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const uploadTask = uploadBytesResumable(storageRef, blob);
-
-      uploadTask.on('state_changed', null, null, async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-        // Send image message
-        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-        await addDoc(messagesRef, {
-          type: 'image',
-          text: '📷 Photo',
-          imageUrl: downloadURL,
-          senderId: user.id,
-          senderName: (user as any).firstName || 'User',
-          receiverId: '',
-          receiverName: otherPartyName || '',
-          createdAt: serverTimestamp(),
-        });
-
-        // Update lastMessage
-        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
-        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
-        await updateDoc(chatRoomRef, {
-          lastMessage: '📷 Photo',
-          lastMessageAt: serverTimestamp(),
-        });
-      });
-    } catch (error) {
-      console.error('Error sending image:', error);
-    }
-  };
-
-  const handleSendDocument = async (uri: string, fileName: string) => {
-    if (!chatRoomId || !user) return;
-    try {
-      const path = `chat/${chatRoomId}/${Date.now()}_${fileName}`;
-      const storageRef = ref(storage, path);
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const uploadTask = uploadBytesResumable(storageRef, blob);
-
-      uploadTask.on('state_changed', null, null, async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-        await addDoc(messagesRef, {
-          type: 'document',
-          text: `📎 ${fileName}`,
-          documentUrl: downloadURL,
-          documentName: fileName,
-          senderId: user.id,
-          senderName: (user as any).firstName || 'User',
-          receiverId: '',
-          receiverName: otherPartyName || '',
-          createdAt: serverTimestamp(),
-        });
-
-        const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore');
-        const chatRoomRef = firestoreDoc(db, 'chatRooms', chatRoomId);
-        await updateDoc(chatRoomRef, {
-          lastMessage: `📎 ${fileName}`,
-          lastMessageAt: serverTimestamp(),
-        });
-      });
-    } catch (error) {
-      console.error('Error sending document:', error);
     }
   };
 
@@ -227,8 +106,8 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) {
-      handleSendImage(result.assets[0].uri, result.assets[0].fileName || `image_${Date.now()}.jpg`);
+    if (!result.canceled && result.assets[0] && chatRoomId) {
+      await sendAttachmentMessage(chatRoomId, result.assets[0].uri, result.assets[0].fileName || `image_${Date.now()}.jpg`, 'image', buildSender());
     }
   };
 
@@ -236,15 +115,15 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') return;
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled && result.assets[0]) {
-      handleSendImage(result.assets[0].uri, `photo_${Date.now()}.jpg`);
+    if (!result.canceled && result.assets[0] && chatRoomId) {
+      await sendAttachmentMessage(chatRoomId, result.assets[0].uri, `photo_${Date.now()}.jpg`, 'image', buildSender());
     }
   };
 
   const handlePickDocument = async () => {
     const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
-    if (!result.canceled && result.assets[0]) {
-      handleSendDocument(result.assets[0].uri, result.assets[0].name);
+    if (!result.canceled && result.assets[0] && chatRoomId) {
+      await sendAttachmentMessage(chatRoomId, result.assets[0].uri, result.assets[0].name, 'document', buildSender());
     }
   };
 
@@ -271,31 +150,60 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
       );
     }
 
+    // Image message — real thumbnail, tap to view
+    if (item.type === 'image' && item.imageUrl) {
+      return (
+        <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowRight]}>
+          <View style={[styles.imageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
+            {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+            <TouchableOpacity onPress={() => setViewerImage(item.imageUrl!)} activeOpacity={0.9}>
+              <Image source={{ uri: item.imageUrl }} style={styles.messageImage} />
+            </TouchableOpacity>
+            <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
+              {formatTimeAgo(item.createdAt)}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Document message — tap to open
+    if (item.type === 'document' && item.documentUrl) {
+      return (
+        <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowRight]}>
+          <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
+            {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+            <TouchableOpacity
+              style={styles.documentMessage}
+              onPress={() => {
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                  window.open(item.documentUrl!, '_blank');
+                } else {
+                  Linking.openURL(item.documentUrl!).catch(() => {});
+                }
+              }}
+            >
+              <FileText size={16} color={isMe ? '#ffffff' : theme.colors.primary} />
+              <Text style={[styles.messageText, isMe && styles.myMessageText, { marginLeft: 6 }]} numberOfLines={1}>
+                {item.documentName || 'Document'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
+              {formatTimeAgo(item.createdAt)}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
     // Text message
     return (
       <View style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowRight]}>
         <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
-          {!isMe && (
-            <Text style={styles.senderName}>{item.senderName}</Text>
-          )}
-          {item.type === 'image' && item.imageUrl && (
-            <TouchableOpacity style={styles.imageMessage}>
-              <Text style={[styles.messageText, isMe && styles.myMessageText]}>📷 Photo attached</Text>
-            </TouchableOpacity>
-          )}
-          {item.type === 'document' && item.documentUrl && (
-            <TouchableOpacity style={styles.documentMessage}>
-              <FileText size={14} color={isMe ? '#ffffff' : theme.colors.primary} />
-              <Text style={[styles.messageText, isMe && styles.myMessageText, { marginLeft: 6 }]}>
-                {item.documentName || 'Document'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {(item.type === 'text' || (!item.imageUrl && !item.documentUrl)) && (
-            <Text style={[styles.messageText, isMe && styles.myMessageText]}>
-              {item.text}
-            </Text>
-          )}
+          {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+          <Text style={[styles.messageText, isMe && styles.myMessageText]}>
+            {item.text}
+          </Text>
           <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
             {formatTimeAgo(item.createdAt)}
           </Text>
@@ -376,6 +284,13 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
         onPickImage={handlePickImage}
         onTakePhoto={handleTakePhoto}
         onPickDocument={handlePickDocument}
+      />
+
+      {/* Full-screen image viewer */}
+      <ImageViewer
+        visible={!!viewerImage}
+        onClose={() => setViewerImage(null)}
+        images={viewerImage ? [viewerImage] : []}
       />
     </KeyboardAvoidingView>
   );
@@ -526,6 +441,16 @@ const styles = StyleSheet.create({
   },
   imageMessage: {
     marginBottom: 4,
+  },
+  imageBubble: {
+    maxWidth: '75%',
+    padding: 4,
+    borderRadius: 16,
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
   },
   documentMessage: {
     flexDirection: 'row',

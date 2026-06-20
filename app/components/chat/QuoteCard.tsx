@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, TextInput } from 'react-native';
 import { theme } from '../../theme/theme';
-import { DollarSign, Clock, FileText, CheckCircle, XCircle } from 'lucide-react-native';
-import { functions, httpsCallable } from '../../services/firebase';
-import { useAlert } from '../UI/AlertProvider';
+import { DollarSign, Clock, FileText, CheckCircle, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { runCloudFunction } from '../../services/cloudFunctions';
+import { useAuth } from '../../context/AuthContext';
 
 interface QuoteData {
   quoteId: string;
@@ -28,55 +28,49 @@ interface QuoteCardProps {
 }
 
 export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCardProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
-  const { showAlert } = useAlert();
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState(user?.phoneNumber || '');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAccept = async () => {
-    showAlert(
-      'Accept Quote',
-      `Accept this $${quoteData.totalPrice.toFixed(2)} quote from ${quoteData.tradieName}? Your contact details will be shared.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Accept',
-          onPress: async () => {
-            setLoading('accept');
-            try {
-              const acceptFn = httpsCallable(functions, 'acceptQuote');
-              await acceptFn({
-                quoteId: quoteData.quoteId,
-                customerAddress: '', // TODO: get from user profile
-                customerPhone: '',
-              });
-              showAlert('Success', 'Quote accepted! You can now chat freely.', undefined, { tone: 'success' });
-            } catch (error: any) {
-              showAlert('Error', error.message || 'Failed to accept quote', undefined, { tone: 'destructive' });
-            } finally {
-              setLoading(null);
-            }
-          },
-        },
-      ]
-    );
+  const handleAcceptConfirm = async () => {
+    if (!address.trim()) {
+      setError('Please enter the job address so the tradie can reach the site.');
+      return;
+    }
+    if (!phone.trim()) {
+      setError('Please enter a contact phone number.');
+      return;
+    }
+    setError(null);
+    setLoading('accept');
+    try {
+      await runCloudFunction('acceptQuote', {
+        quoteId: quoteData.quoteId,
+        customerAddress: address.trim(),
+        customerPhone: phone.trim(),
+      });
+      setShowAcceptModal(false);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to accept quote');
+    } finally {
+      setLoading(null);
+    }
   };
 
-  const handleDecline = () => {
-    showAlert(
-      'Not Interested',
-      'Are you sure? The tradie will be notified.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Decline',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading('decline');
-            // TODO: Implement decline Cloud Function
-            setTimeout(() => setLoading(null), 1000);
-          },
-        },
-      ]
-    );
+  const handleDeclineConfirm = async () => {
+    setLoading('decline');
+    try {
+      await runCloudFunction('declineQuote', { quoteId: quoteData.quoteId });
+      setShowDeclineModal(false);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to decline quote');
+    } finally {
+      setLoading(null);
+    }
   };
 
   const isAccepted = quoteData.status === 'accepted';
@@ -154,32 +148,20 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
       {isCustomer && isPending && (
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.declineButton, loading === 'decline' && styles.buttonDisabled]}
-            onPress={handleDecline}
+            style={styles.declineButton}
+            onPress={() => { setError(null); setShowDeclineModal(true); }}
             disabled={!!loading}
           >
-            {loading === 'decline' ? (
-              <ActivityIndicator size="small" color={theme.colors.error} />
-            ) : (
-              <>
-                <XCircle size={16} color={theme.colors.error} />
-                <Text style={styles.declineText}>Not Interested</Text>
-              </>
-            )}
+            <XCircle size={16} color={theme.colors.error} />
+            <Text style={styles.declineText}>Not Interested</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.acceptButton, loading === 'accept' && styles.buttonDisabled]}
-            onPress={handleAccept}
+            style={styles.acceptButton}
+            onPress={() => { setError(null); setPhone(user?.phoneNumber || ''); setShowAcceptModal(true); }}
             disabled={!!loading}
           >
-            {loading === 'accept' ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <>
-                <CheckCircle size={16} color="#ffffff" />
-                <Text style={styles.acceptText}>Accept Quote</Text>
-              </>
-            )}
+            <CheckCircle size={16} color="#ffffff" />
+            <Text style={styles.acceptText}>Accept Quote</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -191,6 +173,81 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
           <Text style={styles.waitingText}>Waiting for customer response...</Text>
         </View>
       )}
+
+      {/* Accept Modal — collects address/phone then accepts */}
+      <Modal visible={showAcceptModal} transparent animationType="fade" onRequestClose={() => !loading && setShowAcceptModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => !loading && setShowAcceptModal(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconRow}>
+              <View style={[styles.modalIconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <CheckCircle2 size={24} color="#059669" />
+              </View>
+            </View>
+            <Text style={styles.modalTitle}>Accept Quote</Text>
+            <Text style={styles.modalSubtitle}>
+              Accept this <Text style={styles.modalBold}>${quoteData.totalPrice.toFixed(2)}</Text> quote from{' '}
+              <Text style={styles.modalBold}>{quoteData.tradieName}</Text>. Your contact details below will be shared so they can start the job.
+            </Text>
+
+            <Text style={styles.fieldLabel}>Job Address</Text>
+            <TextInput
+              style={styles.input}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="e.g. 12 Smith St, Bondi NSW 2026"
+              placeholderTextColor={theme.colors.text.tertiary}
+            />
+            <Text style={styles.fieldLabel}>Contact Phone</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="04xx xxx xxx"
+              placeholderTextColor={theme.colors.text.tertiary}
+              keyboardType="phone-pad"
+            />
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity style={styles.modalGoBackBtn} onPress={() => setShowAcceptModal(false)} disabled={!!loading}>
+                <Text style={styles.modalGoBackBtnText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalConfirmBtn, { backgroundColor: '#059669' }, loading === 'accept' && styles.buttonDisabled]} onPress={handleAcceptConfirm} disabled={loading === 'accept'}>
+                {loading === 'accept' ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.modalConfirmBtnText}>Accept &amp; Share</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Decline Modal */}
+      <Modal visible={showDeclineModal} transparent animationType="fade" onRequestClose={() => !loading && setShowDeclineModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => !loading && setShowDeclineModal(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconRow}>
+              <View style={[styles.modalIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <AlertTriangle size={24} color="#D97706" />
+              </View>
+            </View>
+            <Text style={styles.modalTitle}>Not Interested</Text>
+            <Text style={styles.modalSubtitle}>
+              Decline this quote from <Text style={styles.modalBold}>{quoteData.tradieName}</Text>? They will be notified. You can still accept other quotes.
+            </Text>
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity style={styles.modalGoBackBtn} onPress={() => setShowDeclineModal(false)} disabled={!!loading}>
+                <Text style={styles.modalGoBackBtnText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalConfirmBtn, { backgroundColor: '#D97706' }, loading === 'decline' && styles.buttonDisabled]} onPress={handleDeclineConfirm} disabled={loading === 'decline'}>
+                {loading === 'decline' ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.modalConfirmBtnText}>Yes, Decline</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -378,4 +435,89 @@ const styles = StyleSheet.create({
     color: theme.colors.text.tertiary,
     fontStyle: 'italic',
   },
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIconRow: { alignItems: 'center', marginBottom: 12 },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  modalBold: { fontWeight: '700', color: '#1F2937' },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    color: theme.colors.error,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalButtonRow: { flexDirection: 'row', gap: 12 },
+  modalGoBackBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  modalGoBackBtnText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalConfirmBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
 });

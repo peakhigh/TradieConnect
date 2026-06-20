@@ -26,7 +26,7 @@ import {
   Calendar,
   FileText,
 } from 'lucide-react-native';
-import { EnrichedServiceRequest } from '../../types/explorer';
+import { ExplorerRequest } from '../../types/explorer';
 
 interface QuoteFormData {
   materialsCost: string;
@@ -37,7 +37,7 @@ interface QuoteFormData {
   notes: string;
 }
 
-export default function SubmitQuoteScreen({ request: requestProp }: { request?: any }) {
+export default function SubmitQuoteScreen({ request: requestProp }: { request?: ExplorerRequest }) {
   const navigation = useScreenNavigation();
   const { showAlert } = useAlert();
   const request = requestProp;
@@ -221,13 +221,13 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
               <View style={styles.intelItem}>
                 <Users size={14} color="#6b7280" />
                 <Text style={styles.intelLabel}>Quotes</Text>
-                <Text style={styles.intelValue}>{request.quotes?.totalQuotes || 0}</Text>
+                <Text style={styles.intelValue}>{request.intel_totalQuotes || 0}</Text>
               </View>
               <View style={styles.intelItem}>
                 <DollarSign size={14} color="#6b7280" />
                 <Text style={styles.intelLabel}>Range</Text>
                 <Text style={styles.intelValue}>
-                  ${request.quotes?.priceRange?.min?.toFixed(0) || 0} - ${request.quotes?.priceRange?.max?.toFixed(0) || 0}
+                  ${(request.intel_priceMin || 0).toFixed(0)} - ${(request.intel_priceMax || 0).toFixed(0)}
                 </Text>
               </View>
             </View>
@@ -236,13 +236,13 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
                 <TrendingUp size={14} color="#16a34a" />
                 <Text style={styles.intelLabel}>Recommended</Text>
                 <Text style={[styles.intelValue, { color: '#16a34a' }]}>
-                  ${request.intelligence?.recommendedPriceRange?.optimal?.toFixed(2) || '0.00'}
+                  ${(request.intel_recommendedPriceOptimal || 0).toFixed(2)}
                 </Text>
               </View>
               <View style={styles.intelItem}>
-                <View style={[styles.competitionDot, { backgroundColor: getCompetitionColor(request.quotes?.competitionLevel || 'low') }]} />
+                <View style={[styles.competitionDot, { backgroundColor: getCompetitionColor(request.intel_competitionLevel || 'low') }]} />
                 <Text style={styles.intelLabel}>Competition</Text>
-                <Text style={styles.intelValue}>{request.quotes?.competitionLevel || 'low'}</Text>
+                <Text style={styles.intelValue}>{request.intel_competitionLevel || 'low'}</Text>
               </View>
             </View>
             <View style={styles.intelRow}>
@@ -250,7 +250,7 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
                 <Clock size={14} color="#6b7280" />
                 <Text style={styles.intelLabel}>Win Probability</Text>
                 <Text style={styles.intelValue}>
-                  {((request.intelligence?.winProbability || 0) * 100).toFixed(0)}%
+                  {((request.intel_winProbability || 0) * 100).toFixed(0)}%
                 </Text>
               </View>
             </View>

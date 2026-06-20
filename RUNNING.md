@@ -90,20 +90,21 @@ npm run seed
 
 ---
 
-## Running all 3 apps together (BuildOn + TradieConnect + Educator)
+## Running all 4 apps together (BuildOn + TradieConnect + Educator + TripsNTrucks)
 
-All three projects historically shared the **same** emulator and Metro ports,
+All four projects historically shared the **same** emulator and Metro ports,
 so only one could run at a time. To run them simultaneously, each project gets
-its own port block. **BuildOn keeps the defaults**; TradieConnect and Educator
-are offset.
+its own port block. **BuildOn keeps the defaults**; TradieConnect, Educator,
+and TripsNTrucks are offset.
 
 | Project        | Emulator UI | functions | firestore | auth | storage | Metro |
 |----------------|-------------|-----------|-----------|------|---------|-------|
 | BuildOn        | 4000        | 5001      | 8080      | 9099 | 9199    | 8081  |
 | TradieConnect  | 4040        | 5101      | 8180      | 9190 | 9290    | 8082  |
 | Educator       | 4080        | 5201      | 8280      | 9390 | 9490    | 8083  |
+| TripsNTrucks   | 4120        | 5301      | 8380      | 9590 | 9690    | 8084  |
 
-### Start order (6 terminals, or 3 if you only need web)
+### Start order (8 terminals, or 4 if you only need web)
 
 ```bash
 # --- BuildOn (defaults) ---
@@ -117,14 +118,18 @@ cd ~/Documents/Projects/tradie-app         && npm run web             # terminal
 # --- Educator (offset) ---
 cd ~/Documents/Projects/educator           && npm run emulators       # terminal 5
 cd ~/Documents/Projects/educator           && npm run web             # terminal 6
+
+# --- TripsNTrucks (offset) ---
+cd ~/Documents/Projects/tripsNtrucks       && npm run emulators       # terminal 7
+cd ~/Documents/Projects/tripsNtrucks       && npm run web             # terminal 8
 ```
 
-Each app's web bundler prints its own URL (8081 / 8082 / 8083). Open all three
-in separate browser tabs.
+Each app's web bundler prints its own URL (8081 / 8082 / 8083 / 8084). Open all
+four in separate browser tabs.
 
 ### Native emulators / simulators
 
-A single iOS Simulator (or Android emulator) can run all three app builds at
+A single iOS Simulator (or Android emulator) can run all four app builds at
 once — they're separate bundle IDs. Just run `npm run run:ios` / `npm run
 run:android` in each project. Each connects to its own Metro port and its own
 Firebase emulator ports automatically (the ports are read from each project's
@@ -135,12 +140,14 @@ Firebase emulator ports automatically (the ports are read from each project's
 
 ### One-time setup status
 
-All three projects are now configured to run side by side:
+All four projects are now configured to run side by side:
 
 - **BuildOn** — unchanged (keeps the default ports).
 - **TradieConnect** — emulator ports offset (4040/5101/8180/9190/9290), Metro on 8082.
 - **Educator** — emulator ports offset (4080/5201/8280/9390/9490), Metro on 8083.
   Edited via the `_educator` symlink in this workspace.
+- **TripsNTrucks** — emulator ports offset (4120/5301/8380/9590/9690), Metro on 8084.
+  Edited via the `_tripsNtrucks` symlink in this workspace.
 
-Educator's client emulator ports are env-driven (in its `.env.local`) and match
-its `firebase.json`, the same pattern TradieConnect uses.
+Each app's client emulator ports are env-driven (in its `.env.local`) and match
+its `firebase.json`, the same pattern across all projects.

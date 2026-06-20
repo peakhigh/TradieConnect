@@ -89,7 +89,7 @@ export const acceptQuote = https.onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // 5. Notify rejected tradies
+  // 5. Notify rejected tradies + flip their chat rooms' quoteStatus
   const rejectedDocs = otherQuotes.docs.filter(doc => doc.id !== quoteId);
   for (const rejectedDoc of rejectedDocs) {
     const rejectedData = rejectedDoc.data();
@@ -103,6 +103,15 @@ export const acceptQuote = https.onCall(async (request) => {
       read: false,
       createdAt: FieldValue.serverTimestamp(),
     });
+
+    // Reflect rejected status on that quote's chat room (if any).
+    const rejectedRoomQuery = await db.collection('chatRooms')
+      .where('quoteId', '==', rejectedDoc.id)
+      .limit(1)
+      .get();
+    if (!rejectedRoomQuery.empty) {
+      await rejectedRoomQuery.docs[0].ref.update({ quoteStatus: 'rejected' });
+    }
   }
 
   // 6. Add system message to the chat room for this quote
@@ -113,6 +122,11 @@ export const acceptQuote = https.onCall(async (request) => {
 
   if (!chatRoomQuery.empty) {
     const chatRoomId = chatRoomQuery.docs[0].id;
+
+    // Reflect accepted status on the room (drives the chat-list status filter).
+    await db.collection('chatRooms').doc(chatRoomId).update({
+      quoteStatus: 'accepted',
+    });
 
     // Add system message about acceptance
     await db.collection('chatRooms').doc(chatRoomId).collection('messages').add({

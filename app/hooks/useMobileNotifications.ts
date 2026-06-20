@@ -16,14 +16,14 @@ import { isWeb } from '../utils/helpers';
  * - npx expo run:ios
  */
 export default function useMobileNotifications(onRefresh?: () => void) {
-  // Skip entirely on web
-  if (isWeb()) return null;
-
+  const web = isWeb();
   const { user } = useAuth();
   const { updateDocument } = useSave('users');
   const isSubscribed = useRef(false);
 
   useEffect(() => {
+    // Skip entirely on web — push lifecycle is native-only.
+    if (web) return;
     if (!user?.id || isSubscribed.current) return;
 
     let unsubscribe: (() => void) | undefined;
@@ -87,11 +87,11 @@ export default function useMobileNotifications(onRefresh?: () => void) {
     return () => {
       unsubscribe?.();
     };
-  }, [user?.id]);
+  }, [user?.id, web]);
 
   // Refresh notifications when app comes to foreground
   useEffect(() => {
-    if (isWeb()) return;
+    if (web) return;
 
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
@@ -100,7 +100,7 @@ export default function useMobileNotifications(onRefresh?: () => void) {
     });
 
     return () => subscription.remove();
-  }, [onRefresh]);
+  }, [onRefresh, web]);
 
   return null;
 }

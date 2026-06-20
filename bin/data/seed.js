@@ -222,6 +222,23 @@ async function seed() {
 
     await addDoc(collection(db, 'quotes'), quoteData);
     quotesCreated++;
+
+    // Keep the parent request status consistent with its quotes so the
+    // customer's dashboard sections (Active Jobs, etc.) reflect reality.
+    if (status === 'accepted') {
+      await setDoc(doc(db, 'serviceRequests', request.id), {
+        status: 'assigned',
+        acceptedQuoteId: 'seed',
+        customerAddress: '12 Test St, Bondi NSW',
+        customerPhone: config.customer.phoneNumber,
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+    } else if (status === 'quoted') {
+      await setDoc(doc(db, 'serviceRequests', request.id), {
+        status: 'quoted',
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+    }
   }
   console.log(`  ✅ ${quotesCreated} quotes created (10 unlocked, 15 quoted, 5 accepted)`);
 
@@ -255,6 +272,8 @@ async function seed() {
   console.log('\n💬 Creating chat rooms...');
   for (let i = 10; i < 15; i++) {
     const request = requests[i];
+    const quotePrice = randomNum(200, 800);
+    const roomStatus = i < 12 ? 'pending' : i < 14 ? 'accepted' : 'rejected';
     const chatRoomRef = await addDoc(collection(db, 'chatRooms'), {
       serviceRequestId: request.id,
       quoteId: `quote_${i}`,
@@ -262,8 +281,13 @@ async function seed() {
       customerName: `${config.customer.firstName} ${config.customer.lastName}`,
       tradieId: config.tradie.userId,
       tradieName: `${config.tradie.firstName} ${config.tradie.lastName}`,
+      trades: request.trades,
+      suburb: request.postcode,
+      quoteStatus: roomStatus,
+      participants: [config.customer.userId, config.tradie.userId],
       status: 'active',
-      lastMessage: `Quote: $${randomNum(200, 800)} for ${request.trades[0]}`,
+      lastMessage: `Quote: $${quotePrice} for ${request.trades[0]}`,
+      lastMessageType: 'quote',
       lastMessageAt: Timestamp.fromDate(randomDate(7)),
       unreadByCustomer: randomNum(0, 3),
       unreadByTradie: 0,
@@ -274,14 +298,14 @@ async function seed() {
     // Add a quote message
     await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
       type: 'quote',
-      text: `Quote: $${randomNum(200, 800)} for ${request.trades[0]}`,
+      text: `Quote: $${quotePrice} for ${request.trades[0]}`,
       senderId: config.tradie.userId,
       senderName: config.tradie.firstName,
       receiverId: config.customer.userId,
       receiverName: config.customer.firstName,
       quoteData: {
         quoteId: `quote_${i}`,
-        totalPrice: randomNum(200, 800),
+        totalPrice: quotePrice,
         materialsCost: randomNum(50, 300),
         laborCost: randomNum(100, 500),
         timelineDays: randomNum(1, 7),
@@ -290,10 +314,22 @@ async function seed() {
         tradieRating: config.tradie.rating,
         trades: request.trades,
         postcode: request.postcode,
-        status: 'pending',
+        status: roomStatus,
       },
       mock: true,
       createdAt: Timestamp.fromDate(randomDate(14)),
+    });
+
+    // Add a couple of text messages so the window isn't empty.
+    await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
+      type: 'text',
+      text: 'Hi, are you available next week?',
+      senderId: config.customer.userId,
+      senderName: config.customer.firstName,
+      receiverId: config.tradie.userId,
+      receiverName: config.tradie.firstName,
+      mock: true,
+      createdAt: Timestamp.fromDate(randomDate(6)),
     });
 
     // Add a system message
@@ -308,6 +344,32 @@ async function seed() {
   }
   console.log('  ✅ 5 chat rooms created with messages');
 
+  // 6. Create notifications (mix of read/unread + types) for both users
+  console.log('\n🔔 Creating notifications...');
+  const notifications = [
+    { userId: config.customer.userId, title: 'New Quote Received', message: 'You received a $450 quote for your Plumbing request', type: 'new_quote', read: false },
+    { userId: config.customer.userId, title: 'New Quote Received', message: 'You received a $620 quote for your Electrical request', type: 'new_quote', read: false },
+    { userId: config.customer.userId, title: 'Message from Mike', message: 'Hi, are you available next week?', type: 'chat_message', goto: 'chatscreen', read: false },
+    { userId: config.customer.userId, title: 'Job Completed', message: 'Your Tiling job has been marked complete', type: 'job_completed', read: true },
+    { userId: config.tradie.userId, title: 'Quote Accepted!', message: 'Your $780 quote has been accepted. Customer details shared.', type: 'quote_accepted', goto: 'chatscreen', read: false },
+    { userId: config.tradie.userId, title: 'Quote Declined', message: 'Your $300 quote for the Painting request was declined.', type: 'quote_rejected', read: true },
+    { userId: config.tradie.userId, title: 'Wallet Recharged', message: '$20.00 added to your wallet', type: 'wallet', goto: 'wallet', read: true },
+  ];
+  for (const n of notifications) {
+    await addDoc(collection(db, 'notifications'), {
+      ...n,
+      goto: n.goto || '',
+      itemId: '',
+      mock: true,
+      createdAt: Timestamp.fromDate(randomDate(10)),
+    });
+  }
+  console.log(`  ✅ ${notifications.length} notifications created`);
+
+  // 7. Compute reporting rollups from the seeded requests + quotes.
+  console.log('\n📊 Building reporting rollups...');
+  await buildReportingRollups(requests);
+
   console.log('\n🎉 Seed complete! Data ready for testing.');
   console.log(`\n📊 Summary:`);
   console.log(`   Users: 2 (1 customer, 1 tradie)`);
@@ -315,7 +377,111 @@ async function seed() {
   console.log(`   Quotes: 30 (10 unlocked, 15 quoted, 5 accepted)`);
   console.log(`   Wallet Transactions: ${txTypes.length}`);
   console.log(`   Chat Rooms: 5`);
+  console.log(`   Notifications: ${notifications.length}`);
   process.exit(0);
+}
+
+// --- Reporting rollups builder ---
+const PERIOD = 'all';
+function suburbKeyOf(suburb, postcode) {
+  const s = (suburb || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const p = (postcode || '').trim().toLowerCase();
+  if (s && p) return `${s}-${p}`;
+  return s || p || 'unknown';
+}
+function tradeKeyOf(trade) {
+  return (trade || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'unknown';
+}
+function competitionFromAvgQuotes(a) { return a < 3 ? 'low' : a < 7 ? 'medium' : 'high'; }
+function demandFromRequests(req, unlocks) { const i = req + unlocks; return i > 40 ? 'high' : i > 12 ? 'medium' : 'low'; }
+
+async function buildReportingRollups(requests) {
+  const blank = () => ({ requestCount: 0, activeRequestCount: 0, completedCount: 0, quoteCount: 0, unlockCount: 0, totalQuotedValue: 0, acceptedValue: 0 });
+  const suburbTrade = {}, suburb = {}, trade = {};
+  const ensure = (map, key, seed) => { if (!map[key]) map[key] = { ...blank(), ...seed }; return map[key]; };
+
+  for (const r of requests) {
+    const sKey = suburbKeyOf(r.suburb, r.postcode);
+    const trades = (r.trades && r.trades.length ? r.trades : ['unknown']);
+    const isActive = r.status === 'new' || r.status === 'quoted';
+    const isCompleted = r.status === 'completed';
+    // Derive value figures from the request's intel_* (seeded).
+    const quoteCount = r.intel_totalQuotes || 0;
+    const unlockCount = r.intel_totalUnlocks || 0;
+    const avgPrice = r.intel_priceAverage || 0;
+    const totalQuoted = avgPrice * quoteCount;
+    const acceptedValue = r.status === 'assigned' || r.status === 'completed' ? avgPrice : 0;
+
+    const sAcc = ensure(suburb, sKey, { suburb: r.suburb || r.postcode || 'Unknown', postcode: r.postcode, state: '' });
+    sAcc.requestCount += 1; if (isActive) sAcc.activeRequestCount += 1; if (isCompleted) sAcc.completedCount += 1;
+    sAcc.quoteCount += quoteCount; sAcc.unlockCount += unlockCount; sAcc.totalQuotedValue += totalQuoted; sAcc.acceptedValue += acceptedValue;
+
+    for (const t of trades) {
+      const tKey = tradeKeyOf(t);
+      const stAcc = ensure(suburbTrade, `${sKey}__${tKey}`, { suburb: r.suburb || r.postcode || 'Unknown', postcode: r.postcode, state: '', trade: t });
+      stAcc.requestCount += 1; if (isActive) stAcc.activeRequestCount += 1; if (isCompleted) stAcc.completedCount += 1;
+      stAcc.quoteCount += quoteCount; stAcc.unlockCount += unlockCount; stAcc.totalQuotedValue += totalQuoted; stAcc.acceptedValue += acceptedValue;
+
+      const tAcc = ensure(trade, tKey, { trade: t });
+      tAcc.requestCount += 1; if (isActive) tAcc.activeRequestCount += 1; if (isCompleted) tAcc.completedCount += 1;
+      tAcc.quoteCount += quoteCount; tAcc.unlockCount += unlockCount; tAcc.totalQuotedValue += totalQuoted; tAcc.acceptedValue += acceptedValue;
+    }
+  }
+
+  const derive = (a) => {
+    const avgQuoteValue = a.quoteCount > 0 ? Math.round(a.totalQuotedValue / a.quoteCount) : 0;
+    const avgQuotesPerRequest = a.requestCount > 0 ? Math.round((a.quoteCount / a.requestCount) * 10) / 10 : 0;
+    return {
+      avgQuoteValue,
+      avgAcceptedValue: a.completedCount > 0 ? Math.round(a.acceptedValue / a.completedCount) : 0,
+      avgQuotesPerRequest,
+      competitionLevel: competitionFromAvgQuotes(avgQuotesPerRequest),
+      demandLevel: demandFromRequests(a.requestCount, a.unlockCount),
+    };
+  };
+
+  let count = 0;
+  for (const [key, a] of Object.entries(suburbTrade)) {
+    const [sKey, tKey] = key.split('__');
+    await setDoc(doc(db, 'suburbTradeStats', `${sKey}__${tKey}__${PERIOD}`), {
+      suburbKey: sKey, suburb: a.suburb, postcode: a.postcode || '', state: '', tradeKey: tKey, trade: a.trade, period: PERIOD,
+      requestCount: a.requestCount, activeRequestCount: a.activeRequestCount, completedCount: a.completedCount,
+      quoteCount: a.quoteCount, unlockCount: a.unlockCount, totalQuotedValue: Math.round(a.totalQuotedValue), acceptedValue: Math.round(a.acceptedValue),
+      ...derive(a), mock: true, updatedAt: Timestamp.now(),
+    }); count++;
+  }
+  for (const [sKey, a] of Object.entries(suburb)) {
+    await setDoc(doc(db, 'suburbStats', `${sKey}__${PERIOD}`), {
+      suburbKey: sKey, suburb: a.suburb, postcode: a.postcode || '', state: '', period: PERIOD,
+      requestCount: a.requestCount, activeRequestCount: a.activeRequestCount, completedCount: a.completedCount,
+      quoteCount: a.quoteCount, unlockCount: a.unlockCount, totalQuotedValue: Math.round(a.totalQuotedValue), acceptedValue: Math.round(a.acceptedValue),
+      ...derive(a), mock: true, updatedAt: Timestamp.now(),
+    }); count++;
+  }
+  for (const [tKey, a] of Object.entries(trade)) {
+    await setDoc(doc(db, 'tradeStats', `${tKey}__${PERIOD}`), {
+      tradeKey: tKey, trade: a.trade, period: PERIOD,
+      requestCount: a.requestCount, activeRequestCount: a.activeRequestCount, completedCount: a.completedCount,
+      quoteCount: a.quoteCount, unlockCount: a.unlockCount, totalQuotedValue: Math.round(a.totalQuotedValue), acceptedValue: Math.round(a.acceptedValue),
+      ...derive(a), mock: true, updatedAt: Timestamp.now(),
+    }); count++;
+  }
+
+  // Suburb adjacency: link the seed postcodes so "nearby suburbs" works.
+  const allPostcodes = ['2026', '2027', '2029', '2030', '2031', '2035', '2037', '2040', '2042', '2050'];
+  for (const pc of allPostcodes) {
+    const sKey = suburbKeyOf('', pc);
+    const neighbors = allPostcodes
+      .filter((o) => o !== pc)
+      .map((o) => ({ suburbKey: suburbKeyOf('', o), suburb: o, postcode: o, distanceKm: Math.abs(parseInt(o) - parseInt(pc)) / 5 }))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 6);
+    await setDoc(doc(db, 'suburbAdjacency', sKey), {
+      suburb: pc, postcode: pc, state: 'NSW', neighbors, mock: true, updatedAt: Timestamp.now(),
+    });
+  }
+
+  console.log(`  ✅ ${count} rollup docs + ${allPostcodes.length} adjacency docs created`);
 }
 
 seed().catch(err => {

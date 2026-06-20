@@ -34,6 +34,7 @@ export const onChatMessageCreated = firestore
       // Update chatRoom: lastMessage + increment unread for receiver
       const updates: Record<string, any> = {
         lastMessage: data.text || 'New message',
+        lastMessageType: data.type || 'text',
         lastMessageAt: FieldValue.serverTimestamp(),
       };
 
@@ -59,26 +60,49 @@ export const onChatMessageCreated = firestore
               },
               data: {
                 type: 'chat_message',
-                chatRoomId,
+                goto: 'chatscreen',
+                itemId: chatRoomId,
               },
               token: receiverData.fcmToken,
             });
           } catch (pushError: any) {
-            // Token might be invalid — don't fail the trigger
+            // Token might be invalid — clear it so we stop trying.
+            if (pushError?.code === 'messaging/registration-token-not-registered') {
+              await db.collection('users').doc(receiverId).update({ fcmToken: null });
+            }
             console.log('Push notification failed:', pushError.message);
           }
         }
 
-        // Also create in-app notification
-        await db.collection('notifications').add({
-          userId: receiverId,
-          title: `Message from ${data.senderName || 'Someone'}`,
-          message: data.text || 'New message',
-          type: 'chat_message',
-          referenceId: chatRoomId,
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+        // Create/refresh an in-app notification — deduped per (userId + type + itemId)
+        // while still unread, so we don't spam the feed for the same room.
+        const existing = await db.collection('notifications')
+          .where('userId', '==', receiverId)
+          .where('type', '==', 'chat_message')
+          .where('itemId', '==', chatRoomId)
+          .where('read', '==', false)
+          .limit(1)
+          .get();
+
+        if (existing.empty) {
+          await db.collection('notifications').add({
+            userId: receiverId,
+            title: `Message from ${data.senderName || 'Someone'}`,
+            message: data.text || 'New message',
+            type: 'chat_message',
+            itemId: chatRoomId,
+            referenceId: chatRoomId,
+            goto: 'chatscreen',
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Refresh preview + timestamp on the existing unread notification.
+          await existing.docs[0].ref.update({
+            message: data.text || 'New message',
+            createdAt: FieldValue.serverTimestamp(),
+          });
+        }
       }
 
       console.log(`Chat message processed: ${chatRoomId}/${event.params.messageId}`);

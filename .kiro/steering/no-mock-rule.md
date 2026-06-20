@@ -6,9 +6,9 @@ This rule is mandatory and overrides convenience. It applies across all screens,
 
 1. **Never mock code.** Do not write fake implementations, stubbed return values, or "pretend" logic in application code. Build the real functionality against the real backend (Firebase Auth, Firestore, Storage, Cloud Functions).
 
-2. **Never mock functionality.** No `coming soon` handlers, no `Alert('not implemented')`, no hardcoded placeholder data standing in for a real feature, no fake counts/lists/balances. If a feature is in scope, implement it for real. If it is genuinely out of scope, leave it out of the UI entirely rather than faking it.
+2. **Never mock functionality.** No `coming soon` handlers, no `Alert('not implemented')`, no hardcoded placeholder data standing in for a real feature, no fake counts/lists/balances. **Build incrementally — we do not need every feature on day one, and that is fine.** A feature that isn't built yet is simply left out of the UI; it is never faked. When you do build a feature, build it for real.
 
-3. **Develop the functionality first, then use scripts to generate mock DATA** to exercise it. The only acceptable "mock" is **seed data written to the real database by a script** so we can see how the implemented functionality behaves. Mock *data* is fine; mock *code/behavior* is not.
+3. **Develop the functionality first, then use scripts to generate mock DATA** to exercise and test it. The only acceptable "mock" is **seed data written to the real database by a script** so we can see how the implemented functionality behaves. Mock *data* is fine; mock *code/behavior* is not.
 
 4. **See it work end-to-end.** Every implemented feature must be runnable against script-seeded data and verified on iOS, Android, and Web before it's considered done.
 

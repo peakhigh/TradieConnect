@@ -33,8 +33,7 @@ export const AppNavigator: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  const linking = Platform.OS === 'web' ? {
-    prefixes: ['http://localhost:8081', 'https://tradie-mate-f852a.web.app'],
+  const linking = Platform.OS === 'web' ? {    prefixes: ['http://localhost:8081', 'https://tradie-mate-f852a.web.app'],
     config: {
       screens: {
         Home: '/',
@@ -62,12 +61,7 @@ export const AppNavigator: React.FC = () => {
     },
   } : undefined;
 
-  console.log('APPNAVIGATOR - Current user:', user);
-  console.log('APPNAVIGATOR - User type:', user?.userType);
-  console.log('APPNAVIGATOR - Onboarding completed:', user?.onboardingCompleted);
-  
   if (!user) {
-    console.log('APPNAVIGATOR - No user, showing auth screens');
     return (
       <NavigationContainer linking={linking}>
         <Stack.Navigator
@@ -85,9 +79,6 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
-  console.log('APPNAVIGATOR - User authenticated, determining screen...');
-  
-  // Minimal test — render CustomerTabs or TradieTabs directly without Stack wrapper
   if (user.userType === 'customer') {
     return (
       <NavigationContainer linking={linking}>

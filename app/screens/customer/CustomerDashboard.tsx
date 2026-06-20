@@ -17,6 +17,7 @@ import { RequestCard } from '../../components/UI/RequestCard';
 import { ImageViewer } from '../../components/UI/ImageViewer';
 import { ResultsHeader } from '../../components/UI/ResultsHeader';
 import { useAlert } from '../../components/UI/AlertProvider';
+import { CompleteJobModal } from '../../components/customer/CompleteJobModal';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
@@ -32,6 +33,7 @@ export default function CustomerDashboard() {
   const [showDocuments, setShowDocuments] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<{requestId: string, type: string} | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [completeJob, setCompleteJob] = useState<any>(null);
   
   const PAGE_SIZE = 5;
 
@@ -53,6 +55,7 @@ export default function CustomerDashboard() {
   }, [successMessage, clearSuccessMessage]);
 
   const activeRequests = serviceRequests.filter(req => req.status === 'new');
+  const assignedRequests = serviceRequests.filter(req => req.status === 'assigned' || (req.status as string) === 'in-progress');
   
   // Pagination for active requests
   const totalActiveRequests = activeRequests.length;
@@ -105,12 +108,13 @@ export default function CustomerDashboard() {
   
 
 
-  const handleChatWithTradie = (tradieId: string) => {
-    showAlert('Info', 'Chat functionality coming soon');
+  const handleChatWithTradie = (quote: any) => {
+    // Open the conversation tied to this quote's request.
+    navigation.navigate('Messages', { requestId: quote.serviceRequestId });
   };
 
-  const handleAcceptQuote = (quoteId: string) => {
-    showAlert('Info', 'Quote acceptance functionality coming soon');
+  const handleViewQuotes = (requestId: string) => {
+    navigation.navigate('Interests', { requestId });
   };
 
   const handlePostRequest = () => {
@@ -206,6 +210,38 @@ export default function CustomerDashboard() {
         </View>
 
 
+        {assignedRequests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Active Jobs ({assignedRequests.length.toString()})
+            </Text>
+            {assignedRequests.map((req) => {
+              const tradeLabel = (req as any).trades?.join(', ') || (req as any).tradeType || 'Service';
+              return (
+                <View key={req.id} style={styles.quoteCard}>
+                  <Text style={styles.quoteTitle}>{tradeLabel}</Text>
+                  <Text style={styles.quoteMeta}>
+                    {(req as any).postcode || (req as any).suburb || ''} • In progress
+                  </Text>
+                  <View style={styles.buttonRow}>
+                    <Button
+                      title="Message"
+                      onPress={() => handleViewMessages(req.id)}
+                      variant="outline"
+                      size="small"
+                    />
+                    <Button
+                      title="Mark Complete"
+                      onPress={() => setCompleteJob({ id: req.id, tradeLabel })}
+                      size="small"
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {quotes.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
@@ -215,25 +251,27 @@ export default function CustomerDashboard() {
             {quotes.slice(0, 3).map((quote) => (
               <View key={quote.id} style={styles.quoteCard}>
                 <Text style={styles.quoteTitle}>
-                  ${quote.amount} - {quote.tradie.firstName} {quote.tradie.lastName}
+                  ${quote.totalPrice.toFixed(2)} - {quote.tradieName}
                 </Text>
-                <Text style={styles.quoteNotes}>
-                  {quote.notes}
-                </Text>
+                {quote.notes ? (
+                  <Text style={styles.quoteNotes}>
+                    {quote.notes}
+                  </Text>
+                ) : null}
                 <Text style={styles.quoteMeta}>
-                  Start: {quote.estimatedStartDate.toDateString()} • 
-                  Completion: {quote.estimatedCompletionDate.toDateString()}
+                  {quote.timelineDays > 0 ? `${quote.timelineDays} day${quote.timelineDays > 1 ? 's' : ''}` : 'Timeline n/a'}
+                  {quote.estimatedStartDate ? ` • Start: ${quote.estimatedStartDate.toDateString()}` : ''}
                 </Text>
                 
                 <View style={styles.buttonRow}>
                   <Button
-                    title="Accept Quote"
-                    onPress={() => handleAcceptQuote(quote.id)}
+                    title="View Quotes"
+                    onPress={() => handleViewQuotes(quote.serviceRequestId)}
                     size="small"
                   />
                   <Button
                     title="Chat with Tradie"
-                    onPress={() => handleChatWithTradie(quote.tradieId)}
+                    onPress={() => handleChatWithTradie(quote)}
                     variant="outline"
                     size="small"
                   />
@@ -259,6 +297,13 @@ export default function CustomerDashboard() {
         onClose={() => setShowImageViewer(false)}
         images={selectedRequestPhotos}
         initialIndex={selectedPhotoIndex}
+      />
+
+      <CompleteJobModal
+        visible={!!completeJob}
+        onClose={() => setCompleteJob(null)}
+        serviceRequestId={completeJob?.id || ''}
+        tradeLabel={completeJob?.tradeLabel}
       />
     </Container>
   );
@@ -467,6 +512,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     marginBottom: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
   },
   quoteTitle: {
     fontSize: 18,

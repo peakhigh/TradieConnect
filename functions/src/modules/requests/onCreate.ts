@@ -1,6 +1,7 @@
 import { firestore } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
@@ -57,6 +58,12 @@ export const onServiceRequestCreated = firestore
     try {
       await db.collection('serviceRequests').doc(requestId).update(updates);
       console.log(`Initialized intel fields for request ${requestId}`);
+
+      // Reporting rollups: a new request adds to request + active counts.
+      await applyRollupDelta(
+        { suburb: data.suburb, postcode: data.postcode, state: data.state, trades },
+        { requestCount: 1, activeRequestCount: 1 }
+      );
     } catch (error) {
       console.error(`Error initializing intel for request ${requestId}:`, error);
     }

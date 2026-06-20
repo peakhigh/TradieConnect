@@ -2,6 +2,7 @@ import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { recalculateIntelligence } from './intelligence';
+import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
@@ -121,9 +122,19 @@ export const submitQuote = https.onCall(async (request) => {
     ...(serviceRequestData?.status === 'new' ? { status: 'quoted' } : {}),
   });
 
+  // 6b. Reporting rollups: a new quote adds quoteCount + quoted value.
+  await applyRollupDelta(
+    {
+      suburb: serviceRequestData?.suburb,
+      postcode: serviceRequestData?.postcode,
+      state: serviceRequestData?.state,
+      trades: serviceRequestData?.trades || [],
+    },
+    { quoteCount: 1, totalQuotedValue: totalPrice }
+  );
+
   // 7. Create notification for customer
-  if (serviceRequestData?.customerId) {
-    await db.collection('notifications').add({
+  if (serviceRequestData?.customerId) {    await db.collection('notifications').add({
       userId: serviceRequestData.customerId,
       title: 'New Quote Received',
       message: `You received a $${totalPrice.toFixed(2)} quote for your ${serviceRequestData.trades ? serviceRequestData.trades.join(', ') : 'service'} request`,
@@ -148,8 +159,13 @@ export const submitQuote = https.onCall(async (request) => {
     customerName,
     tradieId,
     tradieName,
+    trades: serviceRequestData?.trades || [],
+    suburb: serviceRequestData?.suburb || serviceRequestData?.postcode || '',
+    quoteStatus: 'pending',
+    participants: [customerId, tradieId],
     status: 'active',
     lastMessage: `Quote: $${totalPrice.toFixed(2)} for ${tradeDisplay}`,
+    lastMessageType: 'quote',
     lastMessageAt: FieldValue.serverTimestamp(),
     unreadByCustomer: 1,
     unreadByTradie: 0,

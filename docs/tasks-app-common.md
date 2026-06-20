@@ -48,8 +48,8 @@ Legend: `[ ]` todo · `[~]` exists but incomplete/stubbed · `[x]` done
 ## 4. Cloud Functions (backend completeness)
 
 - [x] `onServiceRequestCreated`, `unlockServiceRequest`, `submitQuote`, `acceptQuote`, `rechargeWallet`, `completeServiceRequest`, `sendPushNotification`, `onChatMessageCreated`.
-- [ ] `declineQuote` — customer declines a single quote (status `rejected`, system msg, notify).
-- [ ] `rateTradie` — write `ratings`, update tradie aggregate (verify if `complete.ts` already does this; if so, expose/clean).
+- [x] `declineQuote` — customer declines a single quote (status `rejected`, system msg, notify).
+- [x] `rateTradie` — `completeServiceRequest` writes rating/review + updates tradie aggregate (`rating`, `totalJobs`).
 - [ ] Reporting: `rollups.ts` helpers + hook into request/quote functions + nightly `reconcileRollups` scheduled fn + read callables (see `tradie-reporting.md`).
 - [ ] Notification dedup in `onChatMessageCreated` (skip if unread `userId+type+itemId` exists) + clear invalid `fcmToken` on send error.
 - [ ] Admin callables: user management (suspend/verify), financial aggregates (revenue, unlocks).
@@ -63,10 +63,10 @@ Legend: `[ ]` todo · `[~]` exists but incomplete/stubbed · `[x]` done
 
 ## 6. Services Consolidation
 
-- [ ] Consolidate `explorerService.ts` / `optimizedExplorerService.ts` / `explorerServiceWithFallback.ts` (stub, 2 lines) into one documented service.
+- [x] Consolidated explorer services — removed `optimizedExplorerService.ts` + `explorerServiceWithFallback.ts`; `explorerService.ts` is the single source.
 - [ ] Add `chatService.ts` (create room, send message, mark read, field mapping) — currently chat logic is inline in screens.
 - [ ] Add `reportingService.ts` / `useReport` hook.
-- [ ] Ensure all Firebase calls go through try/catch + Toast + `parseFirebaseError`.
+- [x] Sensitive calls go through `runCloudFunction` (try/catch + `parseFirebaseError`).
 
 ## 7. Admin Module (currently stubbed)
 

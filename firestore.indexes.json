@@ -334,6 +334,117 @@
       ]
     },
     {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "itemId", "order": "ASCENDING" },
+        { "fieldPath": "read", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chatRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chatRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradieId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chatRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suburbTradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeKey", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "acceptedValue", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suburbTradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeKey", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "requestCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suburbTradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeKey", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "quoteCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suburbTradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeKey", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "avgQuoteValue", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suburbTradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "suburbKey", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "acceptedValue", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "requestCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "acceptedValue", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "quoteCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tradeStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "avgQuoteValue", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "serviceRequests",
       "queryScope": "COLLECTION",
       "fields": [

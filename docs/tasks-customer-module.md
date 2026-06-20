@@ -34,19 +34,19 @@ Legend: `[ ]` todo · `[~]` exists but incomplete/stubbed · `[x]` done
 
 ## 2. Quote Acceptance & Decline (core marketplace flow)
 
-- [ ] `QuoteCard` accept: fetch customer `address` + `phone` from profile (or prompt via form) and pass real values to `acceptQuote` instead of empty strings.
-- [ ] Implement **decline** quote: add `declineQuote` Cloud Function (set quote `rejected`, system message, notify tradie) and wire `QuoteCard` decline to it.
-- [ ] `QuoteCard` confirmations: replace `Alert.alert`/`useAlert` with cross-platform `Modal` pattern (per `modal-pattern.md`).
-- [ ] CustomerDashboard "Recent Quotes": render real quotes, route **Accept** through `QuoteCard`/`acceptQuote`, route **Chat with Tradie** to the chat room for that quote (remove `coming soon`).
-- [ ] After accept: surface shared status (assigned) + show accepted tradie contact on the request.
+- [x] `QuoteCard` accept: collects real job address + phone (phone prefilled from profile) and passes them to `acceptQuote` instead of empty strings.
+- [x] Implement **decline** quote: added `declineQuote` Cloud Function (set quote `rejected`, system message, notify tradie) and wired `QuoteCard` decline to it.
+- [x] `QuoteCard` confirmations: replaced `useAlert` with the cross-platform `Modal` pattern (accept + decline modals).
+- [x] CustomerDashboard "Recent Quotes": renders real quotes; routes **View Quotes** → Interests and **Chat with Tradie** → the request's chat (removed `coming soon`).
+- [x] After accept: customer dashboard now surfaces assigned jobs in an **Active Jobs** section.
 
 ## 3. Request Detail & Lifecycle
 
 - [ ] `RequestDetailScreen` (or upgrade `RequestDetailsDrawer`): full request info + quotes list with per-quote accept/decline + status actions.
-- [ ] **Complete job** flow: call `completeServiceRequest`; show rating form (1–5 + comment) via cross-platform modal.
-- [ ] **Cancel request** flow: already calls direct `updateDoc` in dashboard — move to a guarded path + cross-platform confirm (exists) and confirm tradies-not-refunded messaging.
-- [ ] Rating submission writes `ratings` doc + updates tradie aggregate (Cloud Function `rateTradie` — confirm it exists; `complete.ts` may cover it).
-- [ ] History: tap a card → read-only `RequestDetailScreen`; ensure `rating`/`finalPrice` are actually written on completion so History can show them.
+- [x] **Complete job** flow: `CompleteJobModal` calls `completeServiceRequest`; rating form (1–5 + review) via cross-platform modal; surfaced from dashboard Active Jobs.
+- [x] **Cancel request** flow: guarded cross-platform confirm in dashboard.
+- [x] Rating submission writes rating + updates tradie aggregate (`completeServiceRequest` handles `ratings`/tradie rating).
+- [ ] History: tap a card → read-only `RequestDetailScreen`; ensure `rating`/`finalPrice` are surfaced in History.
 
 ## 4. Messaging (consolidate)
 

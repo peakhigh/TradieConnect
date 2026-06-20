@@ -7,17 +7,16 @@ import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
 import InterestsScreen from '../screens/customer/InterestsScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import { Home, Plus, History, User, MessageCircle } from 'lucide-react-native';
 import WebLayout from './WebLayout';
 import BottomTabBar, { TabItem } from './BottomTabBar';
 import { AppNavigationProvider } from './NavigationContext';
+import { useUser } from '../context/UserContext';
 
 const WEB_SIDEBAR_BREAKPOINT = 768;
 
 // Placeholder screens
-function NotificationsScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
 function SettingsScreen() {
   return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
 }
@@ -75,6 +74,7 @@ function CustomerWebLayout() {
 function CustomerMobileLayout() {
   const [activeRoute, setActiveRoute] = useState('Dashboard');
   const [routeParams, setRouteParams] = useState<any>(null);
+  const { unreadMessageCount } = useUser();
 
   const navContext = useMemo(() => ({
     navigate: (screen: string, params?: any) => {
@@ -87,6 +87,10 @@ function CustomerMobileLayout() {
   // Hide bottom tabs on Chat screen
   const showTabs = activeRoute !== 'Chat';
 
+  const tabs = useMemo<TabItem[]>(() => CUSTOMER_TABS.map((t) =>
+    t.name === 'Messages' ? { ...t, badge: unreadMessageCount } : t
+  ), [unreadMessageCount]);
+
   return (
     <AppNavigationProvider value={navContext}>
       <View style={styles.mobileContainer}>
@@ -95,7 +99,7 @@ function CustomerMobileLayout() {
         </View>
         {showTabs && (
           <BottomTabBar
-            tabs={CUSTOMER_TABS}
+            tabs={tabs}
             activeTab={activeRoute}
             onTabPress={(tab) => { setActiveRoute(tab); setRouteParams(null); }}
           />

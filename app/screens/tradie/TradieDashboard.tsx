@@ -112,7 +112,7 @@ export default function TradieDashboard() {
                 <Text style={styles.actionSubtitle}>Chat with customers</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Insights')}>
                 <TrendingUp size={32} color={theme.colors.warning} />
                 <Text style={styles.actionTitle}>Analytics</Text>
                 <Text style={styles.actionSubtitle}>View performance</Text>

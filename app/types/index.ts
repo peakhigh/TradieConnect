@@ -1,9 +1,23 @@
 export interface User {
   id: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   userType: 'customer' | 'tradie' | 'admin';
-  createdAt: Date;
-  updatedAt: Date;
+  // Common profile fields (present on customer & tradie user docs)
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  email?: string;
+  fcmToken?: string | null;
+  // Tradie-only fields (optional on the base type for convenience)
+  walletBalance?: number;
+  rating?: number;
+  totalJobs?: number;
+  onboardingCompleted?: boolean;
+  interestedTrades?: string[];
+  interestedSuburbs?: string[];
+  isApproved?: boolean;
+  createdAt?: Date | any;
+  updatedAt?: Date | any;
 }
 
 export interface Customer extends User {

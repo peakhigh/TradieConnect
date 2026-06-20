@@ -1,6 +1,7 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
@@ -125,6 +126,17 @@ export const unlockServiceRequest = https.onCall(async (request) => {
   }
 
   await db.collection('serviceRequests').doc(serviceRequestId).update(intelUpdates);
+
+  // Reporting rollups: record the unlock.
+  await applyRollupDelta(
+    {
+      suburb: serviceRequestData.suburb,
+      postcode: serviceRequestData.postcode,
+      state: serviceRequestData.state,
+      trades: serviceRequestData.trades || [],
+    },
+    { unlockCount: 1 }
+  );
 
   // 5. Return success with full request data
   return {

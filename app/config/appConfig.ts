@@ -99,8 +99,17 @@ export interface FeatureFlags {
   // Admin features
   userManagement: boolean;
   contentModeration: boolean;
-  analytics: boolean;
   reporting: boolean;
+}
+
+export interface ChatConfig {
+  /**
+   * When to open a chat room between a tradie and a customer.
+   * 'quote'  → a room opens as soon as a tradie submits a quote (default).
+   * 'accept' → a room opens only once the customer accepts a quote.
+   * Designed as a flag so the policy can change later without a schema change.
+   */
+  openRoomOn: 'quote' | 'accept';
 }
 
 export interface NotificationConfig {
@@ -160,6 +169,9 @@ export interface AppConfig {
   // Notification system
   notifications: NotificationConfig;
   
+  // Chat / messaging behavior
+  chat: ChatConfig;
+  
   // API configuration
   api: {
     baseUrl: string;
@@ -189,7 +201,7 @@ export interface AppConfig {
 
 // Default configuration for TradieConnect
 export const defaultAppConfig: AppConfig = {
-  name: 'TradieConnect',
+  name: 'TripsNtrucks',
   version: '1.0.0',
   description: 'Connect customers with trusted tradies',
   
@@ -336,7 +348,7 @@ export const defaultAppConfig: AppConfig = {
       ],
       navigationTabs: [
         { id: 'dashboard', name: 'Dashboard', icon: 'home', screen: 'TradieDashboard' },
-        { id: 'explorer', name: 'Jobs', icon: 'search', screen: 'ServiceRequestExplorer', badge: true },
+        { id: 'explorer', name: 'Jobs', icon: 'search', screen: 'ExplorerScreen', badge: true },
         { id: 'quotes', name: 'Quotes', icon: 'file-text', screen: 'QuoteManagement' },
         { id: 'wallet', name: 'Wallet', icon: 'credit-card', screen: 'WalletScreen' },
         { id: 'profile', name: 'Profile', icon: 'user', screen: 'Profile' },
@@ -406,12 +418,15 @@ export const defaultAppConfig: AppConfig = {
     },
   },
   
-  api: {
-    baseUrl: 'https://us-central1-tradie-mate-f852a.cloudfunctions.net',
-    timeout: 30000,
-    retryAttempts: 3,
+  chat: {
+    openRoomOn: 'quote',
   },
   
+  api: {
+    baseUrl: 'https://us-central1-tripsntrucks-2a6bc.cloudfunctions.net',
+    timeout: 30000,
+    retryAttempts: 3,
+  },  
   firebase: {
     projectId: 'tradie-mate-f852a',
     region: 'us-central1',

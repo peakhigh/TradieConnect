@@ -1,6 +1,7 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
@@ -50,8 +51,10 @@ export const completeServiceRequest = https.onCall(async (request) => {
     .limit(1)
     .get();
 
+  let acceptedValue = 0;
   if (!quoteQuery.empty) {
     const quoteData = quoteQuery.docs[0].data();
+    acceptedValue = quoteData.totalPrice || 0;
     const tradieRef = db.collection('users').doc(quoteData.tradieId);
     const tradieDoc = await tradieRef.get();
     const tradieData = tradieDoc.data();
@@ -67,6 +70,18 @@ export const completeServiceRequest = https.onCall(async (request) => {
       });
     }
   }
+
+  // Reporting rollups: job completed — record completion + accepted value,
+  // and remove it from the active count.
+  await applyRollupDelta(
+    {
+      suburb: serviceRequestData.suburb,
+      postcode: serviceRequestData.postcode,
+      state: serviceRequestData.state,
+      trades: serviceRequestData.trades || [],
+    },
+    { completedCount: 1, acceptedValue, activeRequestCount: -1 }
+  );
 
   return {
     success: true,
