@@ -119,7 +119,7 @@ async function seed() {
     const postcode = random(POSTCODES);
     const description = random(DESCRIPTIONS);
     const urgency = random(URGENCY);
-    const createdAt = randomDate(30);
+    const createdAt = randomDate(90); // 90-day spread for reporting trends
     const numQuotes = randomNum(0, 8);
 
     // Generate mock quote data for intelligence

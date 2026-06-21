@@ -1,3 +1,7 @@
+import { ServiceRequestStatus } from './serviceRequestStatus';
+
+export type { ServiceRequestStatus };
+
 export interface User {
   id: string;
   phoneNumber?: string;
@@ -7,8 +11,12 @@ export interface User {
   lastName?: string;
   displayName?: string;
   email?: string;
+  address?: string;
+  postcode?: string;
   fcmToken?: string | null;
   // Tradie-only fields (optional on the base type for convenience)
+  businessName?: string;
+  licenseNumber?: string;
   walletBalance?: number;
   rating?: number;
   totalJobs?: number;
@@ -53,7 +61,7 @@ export interface InsuranceDetails {
 export interface ServiceRequest {
   id: string;
   customerId: string;
-  customer: Customer;
+  customer?: Customer; // Not embedded on the Firestore doc; populated client-side when needed
   trades: string[];
   tradeType?: string; // Legacy field for backward compatibility
   description: string;
@@ -63,13 +71,19 @@ export interface ServiceRequest {
   postcode?: string;
   suburb?: string;
   urgency: 'low' | 'medium' | 'high';
-  status: 'active' | 'in-progress' | 'completed' | 'cancelled';
+  status: ServiceRequestStatus;
+  // Set once a quote is accepted
+  acceptedQuoteId?: string;
+  customerAddress?: string;
+  customerPhone?: string;
   createdAt: Date;
   updatedAt: Date;
   budget?: {
     min: number;
     max: number;
   };
+  budgetMin?: number;
+  budgetMax?: number;
   preferredDates?: {
     earliest: Date;
     latest: Date;
@@ -86,19 +100,30 @@ export interface Quote {
   id: string;
   serviceRequestId: string;
   tradieId: string;
-  tradie: Tradie;
-  amount: number;
-  breakdown: {
+  tradieName?: string;
+  tradieRating?: number;
+  tradie?: Tradie; // Optional: populated client-side, not stored on the quote doc
+  // Runtime price fields (as stored in Firestore)
+  totalPrice?: number;
+  materialsCost?: number;
+  laborCost?: number;
+  timelineDays?: number;
+  // Legacy aggregate shape (kept for backward compatibility)
+  amount?: number;
+  breakdown?: {
     materials: number;
     labour: number;
   };
-  estimatedStartDate: Date;
-  estimatedCompletionDate: Date;
-  notes: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  estimatedStartDate?: Date | null;
+  estimatedCompletionDate?: Date | null;
+  notes?: string;
+  status: 'unlocked' | 'quoted' | 'pending' | 'accepted' | 'rejected';
+  quotedAt?: Date;
+  acceptedAt?: Date | null;
   createdAt: Date;
 }
 
+/** @deprecated Chat uses ChatMessage in services/chatService.ts. Kept for legacy references. */
 export interface Message {
   id: string;
   senderId: string;
@@ -107,7 +132,7 @@ export interface Message {
   quoteId?: string;
   content: string;
   timestamp: Date;
-  isRead: boolean;
+  read: boolean;
 }
 
 export interface UnlockTransaction {

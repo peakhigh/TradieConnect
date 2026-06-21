@@ -78,30 +78,3 @@ export type SortOption = 'newest' | 'closest' | 'budget' | 'opportunity';
 // --- Deprecated aliases (for backward compat during migration) ---
 /** @deprecated Use ExplorerRequest instead */
 export type EnrichedServiceRequest = ExplorerRequest;
-
-/** @deprecated Intelligence is now flat intel_* fields on ServiceRequestDoc */
-export interface QuoteAggregation {
-  requestId: string;
-  totalQuotes: number;
-  priceRange: { min: number; max: number; average: number };
-  timelineRange: { minDays: number; maxDays: number; averageDays: number };
-  breakdown: {
-    materials: { min: number; max: number; average: number };
-    labor: { min: number; max: number; average: number };
-  };
-  competitionLevel: 'low' | 'medium' | 'high';
-  lastQuoteAt: Date;
-}
-
-/** @deprecated Intelligence is now flat intel_* fields on ServiceRequestDoc */
-export interface MarketIntelligence {
-  requestId: string;
-  opportunityScore: number;
-  competitivePosition: 'strong' | 'moderate' | 'weak';
-  recommendedPriceRange: { min: number; max: number; optimal: number };
-  winProbability: number;
-  marketTrends: {
-    priceDirection: 'up' | 'down' | 'stable';
-    demandLevel: 'low' | 'medium' | 'high';
-  };
-}

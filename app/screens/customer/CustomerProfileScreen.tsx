@@ -16,10 +16,10 @@ export default function CustomerProfileScreen() {
   const { updateDocument, loading: saving } = useSave('users');
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: (user as any)?.firstName || '',
-    lastName: (user as any)?.lastName || '',
-    email: (user as any)?.email || '',
-    phoneNumber: (user as any)?.phoneNumber || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phoneNumber: user?.phoneNumber || '',
   });
 
   const handleSave = async () => {
@@ -37,7 +37,7 @@ export default function CustomerProfileScreen() {
         lastName: formData.lastName,
         email: formData.email,
       };
-      setUser(updatedUser as any);
+      setUser(updatedUser);
       setEditing(false);
       showAlert('Success', 'Profile updated successfully!', undefined, { tone: 'success' });
     } catch (error) {
@@ -66,8 +66,8 @@ export default function CustomerProfileScreen() {
     }
   };
 
-  const displayName = (user as any)?.firstName || (user as any)?.lastName
-    ? `${(user as any)?.firstName || ''} ${(user as any)?.lastName || ''}`.trim()
+  const displayName = user?.firstName || user?.lastName
+    ? `${user?.firstName || ''} ${user?.lastName || ''}`.trim()
     : 'Customer';
 
   const avatarLetter = displayName.charAt(0).toUpperCase();
@@ -119,10 +119,10 @@ export default function CustomerProfileScreen() {
                   onPress={() => {
                     setEditing(false);
                     setFormData({
-                      firstName: (user as any)?.firstName || '',
-                      lastName: (user as any)?.lastName || '',
-                      email: (user as any)?.email || '',
-                      phoneNumber: (user as any)?.phoneNumber || '',
+                      firstName: user?.firstName || '',
+                      lastName: user?.lastName || '',
+                      email: user?.email || '',
+                      phoneNumber: user?.phoneNumber || '',
                     });
                   }}
                   variant="outline"
@@ -143,19 +143,19 @@ export default function CustomerProfileScreen() {
               <View style={styles.profileView}>
                 <View style={styles.profileItem}>
                   <Text style={styles.profileLabel}>First Name</Text>
-                  <Text style={styles.profileValue}>{(user as any)?.firstName || 'Not set'}</Text>
+                  <Text style={styles.profileValue}>{user?.firstName || 'Not set'}</Text>
                 </View>
                 <View style={styles.profileItem}>
                   <Text style={styles.profileLabel}>Last Name</Text>
-                  <Text style={styles.profileValue}>{(user as any)?.lastName || 'Not set'}</Text>
+                  <Text style={styles.profileValue}>{user?.lastName || 'Not set'}</Text>
                 </View>
                 <View style={styles.profileItem}>
                   <Text style={styles.profileLabel}>Email</Text>
-                  <Text style={styles.profileValue}>{(user as any)?.email || 'Not set'}</Text>
+                  <Text style={styles.profileValue}>{user?.email || 'Not set'}</Text>
                 </View>
                 <View style={styles.profileItem}>
                   <Text style={styles.profileLabel}>Phone</Text>
-                  <Text style={styles.profileValue}>{(user as any)?.phoneNumber || 'Not set'}</Text>
+                  <Text style={styles.profileValue}>{user?.phoneNumber || 'Not set'}</Text>
                 </View>
               </View>
 

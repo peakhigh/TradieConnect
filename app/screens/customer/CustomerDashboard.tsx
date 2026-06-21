@@ -65,7 +65,7 @@ export default function CustomerDashboard() {
   const paginatedActiveRequests = activeRequests.slice(startIndex, endIndex);
 
   const handleViewInterests = (requestId: string) => {
-    navigation.navigate('Interests', { requestId });
+    navigation.navigate('RequestDetail', { requestId });
   };
 
   const handleViewMessages = (requestId?: string) => {
@@ -114,7 +114,7 @@ export default function CustomerDashboard() {
   };
 
   const handleViewQuotes = (requestId: string) => {
-    navigation.navigate('Interests', { requestId });
+    navigation.navigate('RequestDetail', { requestId });
   };
 
   const handlePostRequest = () => {

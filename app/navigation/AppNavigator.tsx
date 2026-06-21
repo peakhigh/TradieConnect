@@ -45,6 +45,7 @@ export const AppNavigator: React.FC = () => {
             Dashboard: '/dashboard',
             PostRequest: '/post-request',
             History: '/history',
+            RequestDetail: '/request',
             Profile: '/profile',
           },
         },

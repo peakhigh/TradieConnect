@@ -201,7 +201,7 @@ export interface AppConfig {
 
 // Default configuration for TradieConnect
 export const defaultAppConfig: AppConfig = {
-  name: 'TripsNtrucks',
+  name: 'TradieConnect',
   version: '1.0.0',
   description: 'Connect customers with trusted tradies',
   
@@ -423,7 +423,7 @@ export const defaultAppConfig: AppConfig = {
   },
   
   api: {
-    baseUrl: 'https://us-central1-tripsntrucks-2a6bc.cloudfunctions.net',
+    baseUrl: 'https://us-central1-tradie-mate-f852a.cloudfunctions.net',
     timeout: 30000,
     retryAttempts: 3,
   },  

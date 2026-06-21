@@ -5,6 +5,7 @@ import PostRequestScreen from '../screens/customer/PostRequestScreen';
 import CustomerHistoryScreen from '../screens/customer/CustomerHistoryScreen';
 import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
 import InterestsScreen from '../screens/customer/InterestsScreen';
+import RequestDetailScreen from '../screens/customer/RequestDetailScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -41,6 +42,7 @@ function renderScreen(activeRoute: string, routeParams?: any) {
     case 'Chat': return <ChatScreen chatRoomId={routeParams?.chatRoomId} otherPartyName={routeParams?.otherPartyName} />;
     case 'Profile': return <CustomerProfileScreen />;
     case 'Interests': return <InterestsScreen requestId={routeParams?.requestId} />;
+    case 'RequestDetail': return <RequestDetailScreen requestId={routeParams?.requestId} />;
     case 'Notifications': return <NotificationsScreen />;
     case 'Settings': return <SettingsScreen />;
     case 'Help': return <HelpScreen />;
