@@ -10,13 +10,13 @@ Legend: `[ ]` todo · `[~]` partial/exists · `[x]` done · **(C)** customer · 
 
 Goal: remove all mock/stub data from app code and seed a real dataset so every later phase can be seen working.
 
-- [x] (A) Fix `UserContext` — replace hardcoded empty `quotes` / `messages` / `unreadMessageCount` with real Firestore subscriptions. (Already wired to real `serviceRequests`/`quotes`/`chatRooms` onSnapshot subscriptions.)
-- [x] (A) Standardize field names project-wide: `fcmToken`, notification `read`, add `goto` + `itemId`. (Consistent across app + functions; legacy `Message` type aligned to `read`.)
-- [x] (A) Confirm intelligence is flat `intel_*` on `serviceRequests`; remove legacy `requestIntelligence` references. (Functions write flat `intel_*` in onCreate/unlock/submitQuote; no `requestIntelligence` collection; deprecated `QuoteAggregation`/`MarketIntelligence` types removed.)
+- [x] (A) Fix `UserContext` — replace hardcoded empty `quotes` / `messages` / `unreadMessageCount` with real Firestore subscriptions.
+- [x] (A) Standardize field names project-wide: `fcmToken`, notification `read`, add `goto` + `itemId`.
+- [x] (A) Confirm intelligence is flat `intel_*` on `serviceRequests`; remove legacy `requestIntelligence` references.
 - [x] (A) Add chat `appConfig` flag `chat.openRoomOn = 'quote' | 'accept'` (default `'quote'`).
-- [x] (A) Tighten core types (`User`/`Customer`/`Tradie`/`Quote`/`ChatRoom`/`ChatMessage`); reduce `(user as any)`. (`User` extended with profile/tradie fields; `ServiceRequest.status` now uses `ServiceRequestStatus`; `Quote` aligned to runtime price fields; `CustomerProfileScreen` casts removed.)
-- [x] (A) Seed scripts: users, requests+quotes (lifecycle + `intel_*` + 90-day spread). npm `seed:all` / `clean:all` with `mock:true` tag + project allowlist guard. (Spread bumped to 90 days; `seed:all`/`clean:all` aliases added; clean guarded by `allowedProjectIds`.)
-- [x] (A) Remove legacy duplicates: `customer/MessagesScreen.tsx`, `tradie/ServiceRequestExplorer.tsx`, `explorerServiceWithFallback.ts`; strip `AppNavigator` debug logs. (Verified none of these exist and `AppNavigator` has no debug logs — nothing to remove.)
+- [x] (A) Tighten core types (`User`/`Customer`/`Tradie`/`Quote`/`ChatRoom`/`ChatMessage`); reduce `(user as any)`.
+- [x] (A) Seed scripts: users, requests+quotes (lifecycle + `intel_*` + 90-day spread). npm `seed:all` / `clean:all` with `mock:true` tag + project allowlist guard.
+- [x] (A) Remove legacy duplicates: `customer/MessagesScreen.tsx`, `tradie/ServiceRequestExplorer.tsx`, `explorerServiceWithFallback.ts`; strip `AppNavigator` debug logs.
 
 **Exit criteria:** App runs on seeded data with zero mock code; dashboards read real counts. ✅
 
@@ -32,7 +32,7 @@ Goal: the money-making path works end-to-end for both roles. Depends on Phase 0.
 - [x] (C) Quote Accept: pass real address/phone to `acceptQuote` (collected in QuoteCard modal).
 - [x] (A) `declineQuote` Cloud Function + wire `QuoteCard` decline.
 - [x] (C) `QuoteCard` confirmations → cross-platform `Modal` (no `Alert.alert`).
-- [x] (C) `RequestDetailScreen`: quotes list + accept/decline + status actions. (New `app/screens/customer/RequestDetailScreen.tsx`: real-time request + quotes subscriptions, accept via `acceptQuote` with address/phone modal, decline via `declineQuote`, cancel-request + mark-complete actions; wired into `CustomerTabs` + web `/request` route; dashboard "View Quotes"/"View Details" now route here.)
+- [x] (C) `RequestDetailScreen`: quotes list + accept/decline + status actions.
 - [x] (C) Complete job flow → `completeServiceRequest` + rating form (`CompleteJobModal`).
 - [x] (A) `rateTradie` (write rating, update tradie aggregate) — handled by `completeServiceRequest`.
 - [x] (C) Dashboard "Recent Quotes": real quotes; Active Jobs section; Chat wired (removed "coming soon").

@@ -28,7 +28,8 @@
     "build:android": "eas build -p android --profile preview --local",
     "build:ios": "eas build -p ios --profile preview --local",
     "run:android": "npx expo run:android",
-    "run:ios": "npx expo run:ios"
+    "run:ios": "npx expo run:ios",
+    "docs": "node docs/serve.js"
   },
   "dependencies": {
     "@expo/config-plugins": "^56.0.8",
