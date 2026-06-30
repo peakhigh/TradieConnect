@@ -12,27 +12,8 @@
  */
 
 require('dotenv').config();
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, query, where, getDocs, Timestamp, connectFirestoreEmulator } = require('firebase/firestore');
+const { db, collection, addDoc, doc, setDoc, Timestamp } = require('./fb');
 const config = require('./config');
-
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Connect to emulator if configured
-if (config.emulator.useEmulator) {
-  connectFirestoreEmulator(db, config.emulator.host, config.emulator.firestorePort);
-  console.log(`🔌 Connected to Firestore emulator at ${config.emulator.host}:${config.emulator.firestorePort}`);
-}
 
 // --- Data generators ---
 const TRADES = ['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Tiling', 'Roofing', 'Landscaping', 'HVAC', 'Flooring', 'Fencing'];
@@ -103,12 +84,87 @@ async function seed() {
     rating: config.tradie.rating,
     totalJobs: config.tradie.totalJobs,
     onboardingCompleted: true,
+    isApproved: true,
+    signupBonusGranted: true,
     status: 'active',
     createdAt: Timestamp.fromDate(new Date('2025-01-01')),
     updatedAt: Timestamp.now(),
   });
+
+  // Admin user (for the admin dashboard). Uses a fixed id; sign in maps via Auth UID.
+  await setDoc(doc(db, 'users', 'admin_test_001'), {
+    id: 'admin_test_001',
+    phoneNumber: '0400000000',
+    userType: 'admin',
+    firstName: 'Ava',
+    lastName: 'Admin',
+    email: 'admin@test.com',
+    status: 'active',
+    createdAt: Timestamp.fromDate(new Date('2025-01-01')),
+    updatedAt: Timestamp.now(),
+  });
+
+  // A couple of pending (unapproved) tradies so the admin has approvals to action.
+  for (let p = 1; p <= 2; p++) {
+    await setDoc(doc(db, 'users', `tradie_pending_${p}`), {
+      id: `tradie_pending_${p}`,
+      phoneNumber: `040000111${p}`,
+      userType: 'tradie',
+      firstName: ['Jordan', 'Riley'][p - 1],
+      lastName: 'Newbie',
+      email: `pending${p}@test.com`,
+      interestedTrades: ['Plumbing'],
+      interestedSuburbs: ['2026'],
+      walletBalance: 10,
+      rating: 0,
+      totalJobs: 0,
+      onboardingCompleted: true,
+      isApproved: false,
+      signupBonusGranted: true,
+      status: 'active',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+  }
   console.log('  ✅ Customer:', config.customer.firstName, config.customer.lastName);
   console.log('  ✅ Tradie:', config.tradie.firstName, config.tradie.lastName);
+  console.log('  ✅ Admin + 2 pending tradies');
+
+  // A few more active tradies so chat/quotes show varied names (not just Mike).
+  const extraTradies = [
+    { id: 'tradie_test_002', firstName: 'Dave', lastName: 'Rivera', businessName: "Rivera Electrical", trades: ['Electrical', 'Air Conditioning'] },
+    { id: 'tradie_test_003', firstName: 'Sam', lastName: 'Kelly', businessName: "Kelly Carpentry", trades: ['Carpentry', 'Flooring'] },
+    { id: 'tradie_test_004', firstName: 'Tom', lastName: 'Nguyen', businessName: "Nguyen Tiling", trades: ['Tiling', 'Painting'] },
+  ];
+  for (let t = 0; t < extraTradies.length; t++) {
+    const et = extraTradies[t];
+    await setDoc(doc(db, 'users', et.id), {
+      id: et.id,
+      phoneNumber: `04060000${t}${t}`,
+      userType: 'tradie',
+      firstName: et.firstName,
+      lastName: et.lastName,
+      email: `${et.firstName.toLowerCase()}@test.com`,
+      businessName: et.businessName,
+      interestedTrades: et.trades,
+      interestedSuburbs: ['2026', '2030', '2042'],
+      walletBalance: randomNum(15, 60),
+      rating: Math.round((3.8 + Math.random()) * 10) / 10,
+      totalJobs: randomNum(3, 25),
+      onboardingCompleted: true,
+      isApproved: true,
+      signupBonusGranted: true,
+      status: 'active',
+      createdAt: Timestamp.fromDate(new Date('2025-02-01')),
+      updatedAt: Timestamp.now(),
+    });
+  }
+  // Pool of tradie identities used when creating chat rooms.
+  const tradiePool = [
+    { id: config.tradie.userId, name: `${config.tradie.firstName} ${config.tradie.lastName}`, firstName: config.tradie.firstName, rating: config.tradie.rating },
+    ...extraTradies.map((et) => ({ id: et.id, name: `${et.firstName} ${et.lastName}`, firstName: et.firstName, rating: 4.3 })),
+  ];
+  console.log(`  ✅ ${extraTradies.length} additional active tradies`);
 
   // 2. Create 100 service requests with flat intel_* fields
   console.log('\n📋 Creating 100 service requests...');
@@ -131,6 +187,18 @@ async function seed() {
     const avgPrice = numQuotes > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / numQuotes) : 0;
     const priceGap = numQuotes > 0 ? Math.max(...prices) - Math.min(...prices) : 0;
 
+    // ~40% of requests carry photos, ~25% carry a document, so the dashboard
+    // Photos/Files counters + viewers have real data to show.
+    const photos = Math.random() < 0.4
+      ? [
+          'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600',
+          'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=600',
+        ].slice(0, randomNum(1, 2))
+      : [];
+    const documents = Math.random() < 0.25
+      ? ['https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf']
+      : [];
+
     const requestData = {
       customerId: config.customer.userId,
       trades: [trade],
@@ -140,8 +208,8 @@ async function seed() {
       postcode,
       urgency,
       status: 'new',
-      photos: [],
-      documents: [],
+      photos,
+      documents,
       voiceMessage: null,
       budgetMin: 0,
       budgetMax: randomNum(200, 2000),
@@ -242,6 +310,141 @@ async function seed() {
   }
   console.log(`  ✅ ${quotesCreated} quotes created (10 unlocked, 15 quoted, 5 accepted)`);
 
+  // 3b. Completed (rated) + cancelled jobs — exercises History, ratings, and the
+  // tradie "Completed Jobs" tab. These are extra requests appended to `requests`
+  // so the reporting rollups (step 7) include them.
+  console.log('\n🏁 Creating completed (rated) + cancelled jobs...');
+  let completedCount = 0;
+  let ratingSum = config.tradie.rating * config.tradie.totalJobs;
+  let ratingJobs = config.tradie.totalJobs;
+  const reviewSamples = [
+    'Great work, very professional and on time.',
+    'Tidy job, would hire again.',
+    'Good communication and fair price.',
+    'Fixed it quickly, very happy.',
+    'Excellent quality, highly recommend.',
+  ];
+
+  for (let i = 0; i < 6; i++) {
+    const trade = random(TRADES);
+    const postcode = random(POSTCODES);
+    const description = random(DESCRIPTIONS);
+    const completedAt = randomDate(60);
+    const totalPrice = randomNum(250, 1400);
+    const rating = randomNum(3, 5);
+    const review = random(reviewSamples);
+
+    // The completed service request.
+    const reqRef = await addDoc(collection(db, 'serviceRequests'), {
+      customerId: config.customer.userId,
+      trades: [trade],
+      tradesLower: [trade.toLowerCase()],
+      description,
+      descriptionLower: description.toLowerCase(),
+      postcode,
+      urgency: random(URGENCY),
+      status: 'completed',
+      photos: [],
+      documents: [],
+      voiceMessage: null,
+      budgetMin: 0,
+      budgetMax: totalPrice + randomNum(0, 300),
+      searchKeywords: [trade.toLowerCase(), postcode],
+      acceptedQuoteId: 'seed',
+      customerAddress: '12 Test St, Bondi NSW',
+      customerPhone: config.customer.phoneNumber,
+      finalPrice: totalPrice,
+      rating,
+      review,
+      completedAt: Timestamp.fromDate(completedAt),
+      intel_totalQuotes: randomNum(2, 6),
+      intel_totalUnlocks: randomNum(3, 9),
+      intel_priceAverage: totalPrice,
+      intel_competitionLevel: 'medium',
+      intel_opportunityScore: 50,
+      intel_winProbability: 0.5,
+      intel_demandLevel: 'medium',
+      intel_updatedAt: Timestamp.now(),
+      mock: true,
+      createdAt: Timestamp.fromDate(new Date(completedAt.getTime() - 7 * 86400000)),
+      updatedAt: Timestamp.fromDate(completedAt),
+    });
+
+    // The accepted quote behind it.
+    await addDoc(collection(db, 'quotes'), {
+      tradieId: config.tradie.userId,
+      serviceRequestId: reqRef.id,
+      status: 'accepted',
+      unlockAmount: 0.5,
+      unlockedAt: Timestamp.fromDate(new Date(completedAt.getTime() - 6 * 86400000)),
+      totalPrice,
+      materialsCost: Math.round(totalPrice * 0.35),
+      laborCost: Math.round(totalPrice * 0.65),
+      timelineDays: randomNum(1, 7),
+      notes: 'Completed job (seed)',
+      quotedAt: Timestamp.fromDate(new Date(completedAt.getTime() - 5 * 86400000)),
+      acceptedAt: Timestamp.fromDate(new Date(completedAt.getTime() - 4 * 86400000)),
+      tradieName: `${config.tradie.firstName} ${config.tradie.lastName}`,
+      tradieRating: config.tradie.rating,
+      mock: true,
+      createdAt: Timestamp.fromDate(new Date(completedAt.getTime() - 6 * 86400000)),
+    });
+
+    // A rating record (audit trail).
+    await addDoc(collection(db, 'ratings'), {
+      serviceRequestId: reqRef.id,
+      customerId: config.customer.userId,
+      tradieId: config.tradie.userId,
+      score: rating,
+      comment: review,
+      mock: true,
+      createdAt: Timestamp.fromDate(completedAt),
+    });
+
+    ratingSum += rating;
+    ratingJobs += 1;
+    completedCount += 1;
+    requests.push({ id: reqRef.id, trades: [trade], postcode, status: 'completed', intel_totalQuotes: 3, intel_totalUnlocks: 5, intel_priceAverage: totalPrice });
+  }
+
+  // Reflect completed jobs on the tradie's aggregate rating + job count.
+  await setDoc(doc(db, 'users', config.tradie.userId), {
+    totalJobs: ratingJobs,
+    rating: Math.round((ratingSum / Math.max(ratingJobs, 1)) * 100) / 100,
+    updatedAt: Timestamp.now(),
+  }, { merge: true });
+
+  // A few cancelled requests for the customer's History.
+  let cancelledCount = 0;
+  for (let i = 0; i < 3; i++) {
+    const trade = random(TRADES);
+    const postcode = random(POSTCODES);
+    const createdAt = randomDate(45);
+    const ref = await addDoc(collection(db, 'serviceRequests'), {
+      customerId: config.customer.userId,
+      trades: [trade],
+      tradesLower: [trade.toLowerCase()],
+      description: random(DESCRIPTIONS),
+      postcode,
+      urgency: random(URGENCY),
+      status: 'cancelled',
+      photos: [],
+      documents: [],
+      budgetMin: 0,
+      budgetMax: randomNum(200, 1500),
+      searchKeywords: [trade.toLowerCase(), postcode],
+      intel_totalQuotes: 0,
+      intel_totalUnlocks: 0,
+      intel_updatedAt: Timestamp.now(),
+      mock: true,
+      createdAt: Timestamp.fromDate(createdAt),
+      updatedAt: Timestamp.fromDate(createdAt),
+    });
+    requests.push({ id: ref.id, trades: [trade], postcode, status: 'cancelled', intel_totalQuotes: 0, intel_totalUnlocks: 0, intel_priceAverage: 0 });
+    cancelledCount += 1;
+  }
+  console.log(`  ✅ ${completedCount} completed (rated) + ${cancelledCount} cancelled jobs`);
+
   // 4. Create wallet transactions for tradie
   console.log('\n💰 Creating wallet transactions...');
   const txTypes = [
@@ -274,17 +477,18 @@ async function seed() {
     const request = requests[i];
     const quotePrice = randomNum(200, 800);
     const roomStatus = i < 12 ? 'pending' : i < 14 ? 'accepted' : 'rejected';
+    const t = tradiePool[(i - 10) % tradiePool.length]; // vary the tradie per room
     const chatRoomRef = await addDoc(collection(db, 'chatRooms'), {
       serviceRequestId: request.id,
       quoteId: `quote_${i}`,
       customerId: config.customer.userId,
       customerName: `${config.customer.firstName} ${config.customer.lastName}`,
-      tradieId: config.tradie.userId,
-      tradieName: `${config.tradie.firstName} ${config.tradie.lastName}`,
+      tradieId: t.id,
+      tradieName: t.name,
       trades: request.trades,
       suburb: request.postcode,
       quoteStatus: roomStatus,
-      participants: [config.customer.userId, config.tradie.userId],
+      participants: [config.customer.userId, t.id],
       status: 'active',
       lastMessage: `Quote: $${quotePrice} for ${request.trades[0]}`,
       lastMessageType: 'quote',
@@ -299,8 +503,8 @@ async function seed() {
     await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
       type: 'quote',
       text: `Quote: $${quotePrice} for ${request.trades[0]}`,
-      senderId: config.tradie.userId,
-      senderName: config.tradie.firstName,
+      senderId: t.id,
+      senderName: t.firstName,
       receiverId: config.customer.userId,
       receiverName: config.customer.firstName,
       quoteData: {
@@ -310,8 +514,8 @@ async function seed() {
         laborCost: randomNum(100, 500),
         timelineDays: randomNum(1, 7),
         notes: 'Test quote from seed script',
-        tradieName: `${config.tradie.firstName} ${config.tradie.lastName}`,
-        tradieRating: config.tradie.rating,
+        tradieName: t.name,
+        tradieRating: t.rating,
         trades: request.trades,
         postcode: request.postcode,
         status: roomStatus,
@@ -326,8 +530,8 @@ async function seed() {
       text: 'Hi, are you available next week?',
       senderId: config.customer.userId,
       senderName: config.customer.firstName,
-      receiverId: config.tradie.userId,
-      receiverName: config.tradie.firstName,
+      receiverId: t.id,
+      receiverName: t.firstName,
       mock: true,
       createdAt: Timestamp.fromDate(randomDate(6)),
     });
@@ -335,12 +539,40 @@ async function seed() {
     // Add a system message
     await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
       type: 'system',
-      text: `${config.tradie.firstName} submitted a quote`,
+      text: `${t.firstName} submitted a quote`,
       senderId: 'system',
       senderName: 'System',
       mock: true,
       createdAt: Timestamp.fromDate(randomDate(14)),
     });
+
+    // On the first room, add image + document messages so attachment rendering
+    // (thumbnail + file open) can be tested.
+    if (i === 10) {
+      await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
+        type: 'image',
+        text: '📷 Photo',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600',
+        senderId: t.id,
+        senderName: t.firstName,
+        receiverId: config.customer.userId,
+        receiverName: config.customer.firstName,
+        mock: true,
+        createdAt: Timestamp.fromDate(randomDate(5)),
+      });
+      await addDoc(collection(db, 'chatRooms', chatRoomRef.id, 'messages'), {
+        type: 'document',
+        text: '📎 quote-breakdown.pdf',
+        documentUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        documentName: 'quote-breakdown.pdf',
+        senderId: t.id,
+        senderName: t.firstName,
+        receiverId: config.customer.userId,
+        receiverName: config.customer.firstName,
+        mock: true,
+        createdAt: Timestamp.fromDate(randomDate(4)),
+      });
+    }
   }
   console.log('  ✅ 5 chat rooms created with messages');
 
@@ -372,11 +604,12 @@ async function seed() {
 
   console.log('\n🎉 Seed complete! Data ready for testing.');
   console.log(`\n📊 Summary:`);
-  console.log(`   Users: 2 (1 customer, 1 tradie)`);
-  console.log(`   Service Requests: 100`);
-  console.log(`   Quotes: 30 (10 unlocked, 15 quoted, 5 accepted)`);
+  console.log(`   Users: 5 (1 customer, 1 tradie, 1 admin, 2 pending tradies)`);
+  console.log(`   Service Requests: 100 + 6 completed + 3 cancelled`);
+  console.log(`   Quotes: 30 (10 unlocked, 15 quoted, 5 accepted) + 6 completed`);
+  console.log(`   Ratings: 6`);
   console.log(`   Wallet Transactions: ${txTypes.length}`);
-  console.log(`   Chat Rooms: 5`);
+  console.log(`   Chat Rooms: 5 (with text/quote/system/image/document messages)`);
   console.log(`   Notifications: ${notifications.length}`);
   process.exit(0);
 }

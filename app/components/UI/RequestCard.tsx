@@ -18,6 +18,10 @@ interface RequestCardProps {
   onPhotoPress?: (photoIndex: number, request: any) => void;
   showEditButton?: boolean;
   showButtons?: boolean;
+  /** Number of tradies who quoted (Interests). Falls back to intel_totalQuotes. */
+  interestsCount?: number;
+  /** Number of conversations for this request (Messages). */
+  messagesCount?: number;
 }
 
 export const RequestCard: React.FC<RequestCardProps> = ({
@@ -29,9 +33,14 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   onCancel,
   onPhotoPress,
   showEditButton = true,
-  showButtons = true
+  showButtons = true,
+  interestsCount,
+  messagesCount,
 }) => {
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+
+  const interests = interestsCount ?? request.intel_totalQuotes ?? 0;
+  const messages = messagesCount ?? 0;
 
   const handleIconPress = (type: string) => {
     setSelectedIcon(selectedIcon === type ? null : type);
@@ -119,7 +128,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           style={styles.iconButton}
         >
           <View style={styles.iconTop}>
-            <Text style={styles.iconCount}>{'0'}</Text>
+            <Text style={styles.iconCount}>{interests.toString()}</Text>
             <Users size={22} color="#3b82f6" />
           </View>
           <Text style={styles.iconLabel}>Interests</Text>
@@ -130,7 +139,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           style={styles.iconButton}
         >
           <View style={styles.iconTop}>
-            <Text style={styles.iconCount}>{'0'}</Text>
+            <Text style={styles.iconCount}>{messages.toString()}</Text>
             <MessageCircle size={22} color="#3b82f6" />
           </View>
           <Text style={styles.iconLabel}>Messages</Text>

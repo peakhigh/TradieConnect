@@ -1,6 +1,7 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { sendPushToUser } from './push';
 
 const db = admin.firestore();
 
@@ -13,7 +14,7 @@ interface SendNotificationData {
 
 /**
  * Callable function: sendPushNotification
- * Sends an FCM push notification to a specific user.
+ * Sends an FCM push notification to a specific user (native + web tokens).
  */
 export const sendPushNotification = https.onCall(async (request) => {
   if (!request.auth) {
@@ -27,26 +28,9 @@ export const sendPushNotification = https.onCall(async (request) => {
   }
 
   try {
-    // Get user's FCM token
-    const userDoc = await db.collection('users').doc(userId).get();
-    const userData = userDoc.data();
-
-    if (!userData) {
-      throw new https.HttpsError('not-found', 'User not found');
-    }
-
-    if (userData.fcmToken) {
-      const payload: admin.messaging.Message = {
-        notification: {
-          title,
-          body: message,
-        },
-        data: notificationData || {},
-        token: userData.fcmToken,
-      };
-
-      await admin.messaging().send(payload);
-    }
+    // Delivers to both native (fcmToken) and web (webPushToken) tokens and
+    // prunes any that are no longer registered.
+    await sendPushToUser(userId, { title, body: message, data: notificationData });
 
     // Also create in-app notification record
     await db.collection('notifications').add({

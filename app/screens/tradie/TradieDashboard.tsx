@@ -1,25 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { StatCard } from '../../components/UI/StatCard';
-import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
-import { Sparkles, Search, Wallet, TrendingUp, MessageCircle, Star } from 'lucide-react-native';
+import { useFetchDocs } from '../../hooks/useFetchDocs';
+import { formatCurrency, formatTimeAgo } from '../../utils/helpers';
+import {
+  Sparkles, Search, Wallet, TrendingUp, MessageCircle,
+  CheckCircle2, XCircle, FileText, Unlock, Gift,
+} from 'lucide-react-native';
+
+// Convert any Firestore timestamp shape to epoch millis for sorting/formatting.
+const toMillis = (ts: any): number => {
+  if (!ts) return 0;
+  if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+  if (ts.seconds || ts._seconds) return (ts.seconds || ts._seconds) * 1000;
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
+interface QuoteDoc {
+  id: string;
+  status: string;
+  amount?: number;
+  totalPrice?: number;
+  trades?: string[];
+  tradeType?: string;
+  suburb?: string;
+  createdAt?: any;
+}
+
+interface WalletTxnDoc {
+  id: string;
+  type: 'recharge' | 'unlock' | 'bonus';
+  amount?: number;
+  description?: string;
+  createdAt?: any;
+}
+
+interface ActivityItem {
+  id: string;
+  icon: any;
+  color: string;
+  title: string;
+  subtitle: string;
+  millis: number;
+}
 
 export default function TradieDashboard() {
   const { user } = useAuth();
   const navigation = useScreenNavigation();
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  const { documents: quotes, loading: quotesLoading } = useFetchDocs<QuoteDoc>({
+    collectionName: 'quotes',
+    wheres: [['tradieId', '==', user?.id || '']],
+    orderBys: [['createdAt', 'desc']],
+    limitCount: 8,
+    subscribe: true,
+  });
+
+  const { documents: walletTxns, loading: txnsLoading } = useFetchDocs<WalletTxnDoc>({
+    collectionName: 'walletTransactions',
+    wheres: [['userId', '==', user?.id || '']],
+    orderBys: [['createdAt', 'desc']],
+    limitCount: 8,
+    subscribe: true,
+  });
+
+  const activityLoading = quotesLoading || txnsLoading;
+
+  const activity = useMemo<ActivityItem[]>(() => {
+    const items: ActivityItem[] = [];
+
+    for (const q of quotes) {
+      const trade = q.trades?.join(', ') || q.tradeType || 'a request';
+      const where = q.suburb ? ` in ${q.suburb}` : '';
+      const value = q.amount ?? q.totalPrice ?? 0;
+      if (q.status === 'accepted') {
+        items.push({ id: `q-${q.id}`, icon: CheckCircle2, color: theme.colors.success, title: 'Quote accepted', subtitle: `${trade}${where} • ${formatCurrency(value)}`, millis: toMillis(q.createdAt) });
+      } else if (q.status === 'rejected') {
+        items.push({ id: `q-${q.id}`, icon: XCircle, color: theme.colors.error, title: 'Quote declined', subtitle: `${trade}${where} • ${formatCurrency(value)}`, millis: toMillis(q.createdAt) });
+      } else if (q.status === 'unlocked') {
+        items.push({ id: `q-${q.id}`, icon: Unlock, color: theme.colors.primary, title: 'Request unlocked', subtitle: `${trade}${where}`, millis: toMillis(q.createdAt) });
+      } else {
+        items.push({ id: `q-${q.id}`, icon: FileText, color: theme.colors.warning, title: 'Quote submitted', subtitle: `${trade}${where} • ${formatCurrency(value)}`, millis: toMillis(q.createdAt) });
+      }
+    }
+
+    for (const t of walletTxns) {
+      const amt = t.amount ?? 0;
+      if (t.type === 'recharge') {
+        items.push({ id: `w-${t.id}`, icon: Wallet, color: theme.colors.success, title: 'Wallet recharged', subtitle: t.description || `+${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
+      } else if (t.type === 'bonus') {
+        items.push({ id: `w-${t.id}`, icon: Gift, color: theme.colors.success, title: 'Bonus credited', subtitle: t.description || `+${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
+      } else if (t.type === 'unlock') {
+        items.push({ id: `w-${t.id}`, icon: Unlock, color: theme.colors.primary, title: 'Request unlocked', subtitle: t.description || `-${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
+      }
+    }
+
+    return items.sort((a, b) => b.millis - a.millis).slice(0, 6);
+  }, [quotes, walletTxns]);
 
   const handleExploreJobs = () => {
     navigation.navigate('Explorer');
@@ -83,11 +165,37 @@ export default function TradieDashboard() {
           {/* Recent Activity */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                No recent activity. Start exploring jobs to get started!
-              </Text>
-            </View>
+            {activityLoading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator color={theme.colors.primary} />
+              </View>
+            ) : activity.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  No recent activity. Start exploring jobs to get started!
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.activityList}>
+                {activity.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <View key={item.id} style={styles.activityRow}>
+                      <View style={[styles.activityIcon, { backgroundColor: item.color + '20' }]}>
+                        <Icon size={18} color={item.color} />
+                      </View>
+                      <View style={styles.activityContent}>
+                        <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.activitySubtitle} numberOfLines={1}>{item.subtitle}</Text>
+                      </View>
+                      {item.millis > 0 && (
+                        <Text style={styles.activityTime}>{formatTimeAgo(new Date(item.millis))}</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           {/* Quick Actions */}
@@ -199,6 +307,48 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     flexWrap: 'wrap',
+  },
+  activityList: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    overflow: 'hidden',
+    ...theme.shadows.sm,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activityContent: {
+    flex: 1,
+    marginLeft: theme.spacing.md,
+  },
+  activityTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+  },
+  activitySubtitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  activityTime: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.text.tertiary,
+    marginLeft: theme.spacing.sm,
   },
   actionGrid: {
     flexDirection: 'row',

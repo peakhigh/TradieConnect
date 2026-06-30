@@ -18,37 +18,15 @@
  */
 
 require('dotenv').config();
-const { initializeApp } = require('firebase/app');
-const {
-  getFirestore, collection, query, where, getDocs, deleteDoc,
-  connectFirestoreEmulator,
-} = require('firebase/firestore');
+const { db, collection, query, where, getDocs, deleteDoc, projectId } = require('./fb');
 const config = require('./config');
 
 const FORCE = process.argv.includes('--force');
-
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-if (config.emulator.useEmulator) {
-  connectFirestoreEmulator(db, config.emulator.host, config.emulator.firestorePort);
-  console.log(`🔌 Connected to Firestore emulator at ${config.emulator.host}:${config.emulator.firestorePort}`);
-}
 
 function assertSafeTarget() {
   // Emulator is always safe.
   if (config.emulator.useEmulator) return;
 
-  const projectId = firebaseConfig.projectId;
   const allowed = config.cleanup.allowedProjectIds.includes(projectId);
   if (!allowed && !FORCE) {
     console.error(

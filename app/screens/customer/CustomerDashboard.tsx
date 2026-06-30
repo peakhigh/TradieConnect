@@ -21,7 +21,7 @@ import { CompleteJobModal } from '../../components/customer/CompleteJobModal';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
-  const { serviceRequests, quotes, unreadMessageCount } = useUser();
+  const { serviceRequests, quotes, unreadMessageCount, quotesByRequest, roomsByRequest } = useUser();
   const navigation = useScreenNavigation();
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
@@ -194,6 +194,8 @@ export default function CustomerDashboard() {
               <RequestCard
                 key={request.id}
                 request={request}
+                interestsCount={quotesByRequest[request.id] || (request as any).intel_totalUnlocks || 0}
+                messagesCount={roomsByRequest[request.id] || 0}
                 onEdit={handleEditRequest}
                 onViewDetails={handleViewRequestDetails}
                 onViewInterests={handleViewInterests}

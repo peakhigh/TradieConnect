@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { EmptyState } from '../../components/UI/EmptyState';
 import { useAuth } from '../../context/AuthContext';
@@ -14,7 +14,7 @@ interface QuoteDoc {
   tradieId: string;
   amount?: number;
   totalPrice?: number;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'unlocked' | 'pending' | 'quoted' | 'accepted' | 'rejected';
   createdAt: any;
   tradeType?: string;
   trades?: string[];
@@ -24,13 +24,20 @@ interface QuoteDoc {
 
 export default function TradieHistoryScreen() {
   const { user } = useAuth();
+  const [tab, setTab] = useState<'quotes' | 'completed'>('quotes');
 
   const { documents: quotes, loading } = useFetchDocs<QuoteDoc>({
     collectionName: 'quotes',
     wheres: [['tradieId', '==', user?.id || '']],
     orderBys: [['createdAt', 'desc']],
-    limitCount: 30,
+    limitCount: 50,
     subscribe: false,
+  });
+
+  // Tab split: "Quotes" = submitted/pending/rejected; "Completed Jobs" = accepted (won).
+  const visibleQuotes = quotes.filter((q) => {
+    const isAccepted = q.status === 'accepted';
+    return tab === 'completed' ? isAccepted : q.status === 'pending' || q.status === 'quoted' || q.status === 'rejected';
   });
 
   const getStatusBadgeStyle = (status: string) => {
@@ -52,7 +59,10 @@ export default function TradieHistoryScreen() {
       case 'rejected':
         return 'Rejected';
       case 'pending':
+      case 'quoted':
         return 'Quoted';
+      case 'unlocked':
+        return 'Unlocked';
       default:
         return status;
     }
@@ -63,19 +73,37 @@ export default function TradieHistoryScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Quote History</Text>
-            <Text style={styles.subtitle}>All quotes you have submitted</Text>
+            <Text style={styles.title}>History</Text>
+            <Text style={styles.subtitle}>Your quotes and completed jobs</Text>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[styles.tabBtn, tab === 'quotes' && styles.tabBtnActive]}
+              onPress={() => setTab('quotes')}
+            >
+              <Text style={[styles.tabText, tab === 'quotes' && styles.tabTextActive]}>Quotes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabBtn, tab === 'completed' && styles.tabBtnActive]}
+              onPress={() => setTab('completed')}
+            >
+              <Text style={[styles.tabText, tab === 'completed' && styles.tabTextActive]}>Completed Jobs</Text>
+            </TouchableOpacity>
           </View>
 
           {loading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
-          ) : quotes.length === 0 ? (
+          ) : visibleQuotes.length === 0 ? (
             <EmptyState
-              title="No Quotes Yet"
-              message="Quotes you submit will appear here. Start exploring service requests!"
+              title={tab === 'completed' ? 'No Completed Jobs Yet' : 'No Quotes Yet'}
+              message={tab === 'completed'
+                ? 'Jobs you win will appear here.'
+                : 'Quotes you submit will appear here. Start exploring service requests!'}
             />
           ) : (
-            quotes.map((quote) => {
+            visibleQuotes.map((quote) => {
               const statusStyle = getStatusBadgeStyle(quote.status);
               const quoteAmount = quote.amount || quote.totalPrice || 0;
               const tradeDisplay = quote.trades?.join(', ') || quote.tradeType || 'Service';
@@ -148,6 +176,32 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: theme.spacing.xl,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: theme.spacing.lg,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+  },
+  tabBtnActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  tabText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.secondary,
+  },
+  tabTextActive: {
+    color: '#ffffff',
   },
   quoteCard: {
     backgroundColor: theme.colors.surface,

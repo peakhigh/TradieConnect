@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
+import { TradeSelector } from '../../components/UI/TradeSelector';
 import { useAuth } from '../../context/AuthContext';
 import { useSave } from '../../hooks/useSave';
 import { theme } from '../../theme/theme';
-import { Star, Briefcase } from 'lucide-react-native';
+import { Star, Briefcase, Settings, HelpCircle, X } from 'lucide-react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { useAlert } from '../../components/UI/AlertProvider';
 
@@ -20,27 +21,36 @@ export default function TradieProfileScreen() {
     businessName: (user as any)?.businessName || '',
     licenceNumber: (user as any)?.licenceDetails?.licenceNumber || (user as any)?.licenseNumber || '',
   });
+  const [editTrades, setEditTrades] = useState<string[]>(
+    (user as any)?.interestedTrades || (user as any)?.trades || []
+  );
+  const [editSuburbs, setEditSuburbs] = useState<string[]>(
+    (user as any)?.interestedSuburbs || (user as any)?.suburbs || []
+  );
+  const [newSuburb, setNewSuburb] = useState('');
+
+  const addSuburb = () => {
+    const s = newSuburb.trim();
+    if (s && !editSuburbs.includes(s)) {
+      setEditSuburbs([...editSuburbs, s]);
+    }
+    setNewSuburb('');
+  };
 
   const handleSave = async () => {
     if (!user) return;
     try {
-      await updateDocument(user.id, {
+      const updates = {
         businessName: formData.businessName,
         licenceDetails: {
           ...((user as any)?.licenceDetails || {}),
           licenceNumber: formData.licenceNumber,
         },
-      });
-
-      const updatedUser = {
-        ...user,
-        businessName: formData.businessName,
-        licenceDetails: {
-          ...((user as any)?.licenceDetails || {}),
-          licenceNumber: formData.licenceNumber,
-        },
+        interestedTrades: editTrades,
+        interestedSuburbs: editSuburbs,
       };
-      setUser(updatedUser as any);
+      await updateDocument(user.id, updates);
+      setUser({ ...user, ...updates } as any);
       setEditing(false);
       showAlert('Success', 'Profile updated successfully!', undefined, { tone: 'success' });
     } catch (error) {
@@ -117,6 +127,33 @@ export default function TradieProfileScreen() {
                 onChangeText={(value: string) => setFormData(prev => ({ ...prev, licenceNumber: value }))}
               />
 
+              <Text style={styles.editLabel}>Trades</Text>
+              <TradeSelector selectedTrades={editTrades} onTradesChange={setEditTrades} />
+
+              <Text style={styles.editLabel}>Service Suburbs (postcodes)</Text>
+              <View style={styles.suburbInputRow}>
+                <TextInput
+                  style={styles.suburbInput}
+                  value={newSuburb}
+                  onChangeText={setNewSuburb}
+                  placeholder="e.g. 2026"
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  keyboardType="number-pad"
+                  onSubmitEditing={addSuburb}
+                />
+                <TouchableOpacity style={styles.addSuburbBtn} onPress={addSuburb}>
+                  <Text style={styles.addSuburbBtnText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.tagContainer}>
+                {editSuburbs.map((s) => (
+                  <TouchableOpacity key={s} style={[styles.tag, styles.suburbTag]} onPress={() => setEditSuburbs(editSuburbs.filter((x) => x !== s))}>
+                    <Text style={styles.suburbTagText}>{s}</Text>
+                    <X size={12} color="#1e40af" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <View style={styles.editActions}>
                 <SimpleButton
                   title="Cancel"
@@ -126,6 +163,8 @@ export default function TradieProfileScreen() {
                       businessName: (user as any)?.businessName || '',
                       licenceNumber: (user as any)?.licenceDetails?.licenceNumber || (user as any)?.licenseNumber || '',
                     });
+                    setEditTrades((user as any)?.interestedTrades || (user as any)?.trades || []);
+                    setEditSuburbs((user as any)?.interestedSuburbs || (user as any)?.suburbs || []);
                   }}
                   variant="outline"
                   style={styles.actionButton}
@@ -193,6 +232,18 @@ export default function TradieProfileScreen() {
             ) : (
               <Text style={styles.emptyText}>No suburbs set</Text>
             )}
+          </View>
+
+          {/* Settings & Help */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Settings')}>
+              <Settings size={18} color={theme.colors.text.secondary} />
+              <Text style={styles.linkRowText}>Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Help')}>
+              <HelpCircle size={18} color={theme.colors.text.secondary} />
+              <Text style={styles.linkRowText}>Help & FAQ</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Logout */}
@@ -292,6 +343,47 @@ const styles = StyleSheet.create({
   editButton: {
     marginTop: 16,
   },
+  editLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.secondary,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  suburbInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  suburbInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border.medium,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: theme.colors.text.primary,
+  },
+  addSuburbBtn: {
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+  },
+  addSuburbBtnText: { color: '#fff', fontWeight: '600' },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  linkRowText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.primary,
+  },
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -312,6 +404,9 @@ const styles = StyleSheet.create({
   },
   suburbTag: {
     backgroundColor: '#dbeafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   suburbTagText: {
     color: '#1e40af',

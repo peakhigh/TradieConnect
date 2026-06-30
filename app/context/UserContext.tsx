@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
@@ -32,6 +32,10 @@ interface UserContextType {
   serviceRequests: ServiceRequest[];
   quotes: CustomerQuote[];
   unreadMessageCount: number;
+  /** Number of received quotes per serviceRequestId (drives the "Interests" count). */
+  quotesByRequest: Record<string, number>;
+  /** Number of chat rooms per serviceRequestId (drives the "Messages" count). */
+  roomsByRequest: Record<string, number>;
   loading: boolean;
 }
 
@@ -56,6 +60,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [quotes, setQuotes] = useState<CustomerQuote[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [roomsByRequest, setRoomsByRequest] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // --- Service requests (customer's own postings) ---
@@ -184,23 +189,40 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
-      const total = snapshot.docs.reduce(
-        (sum, doc) => sum + (doc.data()[unreadField] || 0),
-        0
-      );
+      let total = 0;
+      const byRequest: Record<string, number> = {};
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        total += data[unreadField] || 0;
+        const reqId = data.serviceRequestId;
+        if (reqId) byRequest[reqId] = (byRequest[reqId] || 0) + 1;
+      });
       setUnreadMessageCount(total);
+      setRoomsByRequest(byRequest);
     }, (error) => {
       secureError('Error loading unread message count:', error);
       setUnreadMessageCount(0);
+      setRoomsByRequest({});
     });
 
     return unsubscribe;
   }, [user?.id, user?.userType]);
 
+  // Quotes received per request (for the "Interests" count on request cards).
+  const quotesByRequest = useMemo(() => {
+    const map: Record<string, number> = {};
+    quotes.forEach((q) => {
+      if (q.serviceRequestId) map[q.serviceRequestId] = (map[q.serviceRequestId] || 0) + 1;
+    });
+    return map;
+  }, [quotes]);
+
   const value: UserContextType = {
     serviceRequests,
     quotes,
     unreadMessageCount,
+    quotesByRequest,
+    roomsByRequest,
     loading,
   };
 

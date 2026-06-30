@@ -84,9 +84,50 @@ only) from `App.tsx`.
 
 ## Seed Test Data
 
+Generate a full, realistic dataset against the **running emulator** (or a dev
+project) so every feature can be exercised. Per the no-mock rule, this is mock
+**data** only — all app behaviour runs against the real backend.
+
 ```bash
-npm run seed
+# Start the emulator first (separate terminal):
+npm run emulators
+
+# Then seed everything (users, requests, quotes, chat, notifications, reporting):
+npm run seed:all          # = seed.js + backfillReporting.js
+npm run seed:reset        # clean + seed + backfill (fresh start)
+npm run seed:reporting    # rebuild only the reporting rollups
+npm run clean             # remove ONLY seed data (docs tagged mock:true)
 ```
+
+### What gets created
+
+| Data | Covers / lets you test |
+|------|------------------------|
+| **5 users** — customer, tradie, admin, 2 pending tradies | role routing, admin approvals |
+| **100 service requests** (90-day spread, flat `intel_*`) | Explorer, intelligence, reporting trends |
+| **30 quotes** (10 unlocked / 15 quoted / 5 accepted) | unlock, submit-quote, accept/decline, dashboards |
+| **6 completed + rated jobs** (+ `ratings` docs, tradie rating/totalJobs) | customer History (completed), tradie "Completed Jobs" tab, ratings |
+| **3 cancelled requests** | customer History (cancelled) |
+| **Wallet transactions** (bonus / recharge / unlock) | Wallet screen + history |
+| **5 chat rooms** with text / quote / system / **image** / **document** messages | chat window, thumbnails, file open, quote card, filters |
+| **7 notifications** (read/unread, all types) | notifications feed, unread badges |
+| **Reporting rollups + suburb adjacency** | Insights, rankings, suburb detail, nearby suburbs |
+
+### Test accounts (fixed UIDs)
+
+The seed writes user docs with fixed IDs. To sign in as one, create a Firebase
+Auth user (phone OTP) and map it to the matching UID, or use the Auth emulator:
+
+| Role | UID | Phone |
+|------|-----|-------|
+| Customer | `L4uj8MTCfhWhoMpWWwj8y6LzcZs2` | `0405724199` |
+| Tradie | `tradie_test_001` | `0405726599` |
+| Admin | `admin_test_001` | `0400000000` |
+
+> Cleanup is safe: `npm run clean` only deletes docs tagged `mock:true` and
+> refuses to run against a non-allowlisted project unless `--force` is passed
+> (see `bin/data/config.js`). It never touches real user data.
+
 
 ---
 
@@ -103,6 +144,18 @@ and TripsNTrucks are offset.
 | TradieConnect  | 4040        | 5101      | 8180      | 9190 | 9290    | 8082  |
 | Educator       | 4080        | 5201      | 8280      | 9390 | 9490    | 8083  |
 | TripsNTrucks   | 4120        | 5301      | 8380      | 9590 | 9690    | 8084  |
+
+> **Emulator hub + logging ports must also be offset**, or a second suite's
+> Firestore silently fails to start (symptom: client `FirebaseError code
+> "unavailable"` + `WebChannel 'Listen' transport errored`). These default to
+> 4400/4500 for every project, so they collide when running more than one suite.
+>
+> | Project | hub | logging |
+> |---------|-----|---------|
+> | BuildOn | 4400 | 4500 (defaults) |
+> | TradieConnect | 4410 | 4510 |
+> | Educator | 4420 | 4520 |
+> | TripsNTrucks | 4430 | 4530 |
 
 ### Start order (8 terminals, or 4 if you only need web)
 
@@ -151,3 +204,139 @@ All four projects are now configured to run side by side:
 
 Each app's client emulator ports are env-driven (in its `.env.local`) and match
 its `firebase.json`, the same pattern across all projects.
+
+
+---
+
+## Payments (Stripe)
+
+Wallet recharge has two modes, controlled by env flags. **Off by default** — no
+real charge happens and the wallet is credited directly so you can exercise the
+unlock/quote flows against seeded data.
+
+| Mode | Client `EXPO_PUBLIC_PAYMENTS_LIVE` | Server `PAYMENTS_LIVE` | Behaviour |
+|------|-----------------------------------|------------------------|-----------|
+| Dev (default) | `false` | `false` | `rechargeWallet` credits directly (labelled "dev credit"). No card capture. |
+| Live | `true` | `true` | Real Stripe charge required before any credit. Web → hosted Checkout; native → PaymentSheet. |
+
+> Both flags must agree. If the client is live but the server isn't, the server
+> refuses (it never credits without a verified charge), and vice-versa.
+
+### Flow by platform (live mode)
+
+- **Web** → `createCheckoutSession` → redirect to Stripe-hosted Checkout → on
+  return, `confirmCheckoutRecharge` verifies the session and credits.
+- **Native** → `createPaymentIntent` → Stripe **PaymentSheet** → `rechargeWallet`
+  verifies the PaymentIntent (status/amount/currency/owner) and credits.
+- **Webhook** (`stripeWebhook`) is a server-side backstop that credits directly
+  from Stripe events even if the user closes the tab / kills the app.
+
+All three converge on `creditWallet`, which is **idempotent on the PaymentIntent
+id** — a payment is never credited twice.
+
+### Enabling live payments
+
+1. **Create a Stripe account** and grab your keys (Dashboard → Developers → API keys):
+   - Secret key `sk_test_...` / `sk_live_...`
+   - Publishable key `pk_test_...` / `pk_live_...`
+
+2. **Client env** (`.env.local`):
+   ```
+   EXPO_PUBLIC_PAYMENTS_LIVE=true
+   EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+   ```
+
+3. **Server env** — copy `functions/.env.example` to `functions/.env` (and/or
+   `functions/.env.<projectId>`) and set:
+   ```
+   PAYMENTS_LIVE=true
+   STRIPE_SECRET_KEY=sk_test_xxx
+   STRIPE_WEBHOOK_SECRET=whsec_xxx   # see "Activating the webhook" below
+   ```
+
+4. **Native only** — install the Stripe SDK (loaded lazily; the build stays
+   green without it, but PaymentSheet needs it at runtime):
+   ```bash
+   npx expo install @stripe/stripe-react-native
+   ```
+   Then rebuild the native app (`npm run run:ios` / `npm run run:android`).
+   Web Checkout needs no client SDK.
+
+5. **Install the server dep + deploy functions** (the `stripe` package was added
+   to `functions/package.json`):
+   ```bash
+   cd functions && npm install && cd ..
+   npm run deploy:functions
+   ```
+
+### Activating the webhook
+
+1. Deploy functions first (step 5 above) so the endpoint exists at:
+   ```
+   https://us-central1-tradie-mate-f852a.cloudfunctions.net/stripeWebhook
+   ```
+2. Stripe Dashboard → **Developers → Webhooks → Add endpoint**. Paste that URL.
+3. Subscribe to these events:
+   - `checkout.session.completed`
+   - `payment_intent.succeeded`
+4. Copy the endpoint's **Signing secret** (`whsec_...`) into
+   `functions/.env` as `STRIPE_WEBHOOK_SECRET`, then redeploy functions.
+5. Test from the Dashboard ("Send test webhook") or with the Stripe CLI:
+   ```bash
+   stripe listen --forward-to https://us-central1-tradie-mate-f852a.cloudfunctions.net/stripeWebhook
+   stripe trigger payment_intent.succeeded
+   ```
+
+> The webhook returns 404 when `PAYMENTS_LIVE=false` and 400 on a bad/missing
+> signature, so it's safe to leave deployed while payments are off.
+
+### Testing with Stripe test cards
+
+In live-test mode (test keys), use `4242 4242 4242 4242`, any future expiry, any
+CVC/postcode. Recharges credit the wallet; check the Wallet screen history.
+
+---
+
+## Web Push (browser notifications)
+
+In-app notifications already update live on web (Firestore). Web push adds real
+OS-level notifications, including when the tab is backgrounded (via a service
+worker). **Off by default.**
+
+### Enabling web push
+
+1. **Get the VAPID key**: Firebase Console → Project settings → **Cloud
+   Messaging** → "Web Push certificates" → generate / copy the key pair.
+
+2. **Client env** (`.env.local`):
+   ```
+   EXPO_PUBLIC_WEB_PUSH_ENABLED=true
+   EXPO_PUBLIC_FIREBASE_VAPID_KEY=BL...your_key...
+   ```
+
+3. **Build & deploy web** — the service worker lives at
+   `public/firebase-messaging-sw.js` and is copied into `dist/` by the Metro web
+   build, then served from the hosting root:
+   ```bash
+   npm run deploy:hosting
+   ```
+
+### How it works
+
+- On login (web), `useWebNotifications` requests notification permission,
+  registers the service worker, and stores the browser's FCM token as
+  `users.webPushToken`.
+- The Cloud Functions push helper (`sendPushToUser`) delivers to **both**
+  `fcmToken` (native) and `webPushToken` (web), and prunes dead tokens.
+- Foreground messages refresh the in-app feed; background messages show a
+  system notification (handled by the service worker).
+
+### Notes
+
+- Web push needs **HTTPS** (works on the deployed Firebase Hosting URL; on
+  `localhost` it works in Chrome but the service worker must be served from the
+  root — use a production-style build, not the Metro dev server).
+- Safari/iOS web push requires the site to be installed to the home screen
+  (PWA) and a supported OS version.
+- If the flag is off or the VAPID key is blank, registration is a no-op and the
+  app falls back to the live in-app feed.

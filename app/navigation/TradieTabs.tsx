@@ -18,17 +18,11 @@ import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import WalletScreen from '../screens/tradie/WalletScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import HelpScreen from '../screens/HelpScreen';
 import { useUser } from '../context/UserContext';
 
 const WEB_SIDEBAR_BREAKPOINT = 768;
-
-// Placeholder screens
-function SettingsScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
-function HelpScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
 
 const TRADIE_TABS: TabItem[] = [
   { name: 'Dashboard', label: 'Home', icon: Home },

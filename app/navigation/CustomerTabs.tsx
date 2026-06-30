@@ -9,6 +9,8 @@ import RequestDetailScreen from '../screens/customer/RequestDetailScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import HelpScreen from '../screens/HelpScreen';
 import { Home, Plus, History, User, MessageCircle } from 'lucide-react-native';
 import WebLayout from './WebLayout';
 import BottomTabBar, { TabItem } from './BottomTabBar';
@@ -16,14 +18,6 @@ import { AppNavigationProvider } from './NavigationContext';
 import { useUser } from '../context/UserContext';
 
 const WEB_SIDEBAR_BREAKPOINT = 768;
-
-// Placeholder screens
-function SettingsScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
-function HelpScreen() {
-  return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
-}
 
 const CUSTOMER_TABS: TabItem[] = [
   { name: 'Dashboard', label: 'Home', icon: Home },

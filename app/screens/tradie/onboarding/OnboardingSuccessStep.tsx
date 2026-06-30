@@ -3,26 +3,27 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SimpleButton as Button } from '../../../components/UI/SimpleButton';
 import { CheckCircle } from 'lucide-react-native';
 import { theme } from '../../../theme/theme';
-import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../context/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { runCloudFunction } from '../../../services/cloudFunctions';
 
 interface OnboardingSuccessStepProps {
   onboardingData: any;
 }
 
 export const OnboardingSuccessStep: React.FC<OnboardingSuccessStepProps> = ({ onboardingData }) => {
-  const navigation = useNavigation();
-  const { user, setUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleGoToDashboard = async () => {
     if (!user) return;
+    setSubmitting(true);
+    setError(null);
 
     try {
-      // Update user document with onboarding data
-      const userDocRef = doc(db, 'users', user.id);
-      const updateData = {
+      // Build the profile payload; the callable persists it, sets
+      // onboardingCompleted, and credits the one-time $10 bonus server-side.
+      const profile = {
         firstName: onboardingData.personalDetails.firstName,
         lastName: onboardingData.personalDetails.lastName,
         email: onboardingData.personalDetails.email,
@@ -35,7 +36,7 @@ export const OnboardingSuccessStep: React.FC<OnboardingSuccessStepProps> = ({ on
             suburb: onboardingData.businessDetails.suburb,
             state: onboardingData.businessDetails.state,
             postcode: onboardingData.businessDetails.postcode,
-          }
+          },
         }),
         licenceDetails: {
           licenceNumber: onboardingData.contractorDetails.licenceNumber,
@@ -51,19 +52,17 @@ export const OnboardingSuccessStep: React.FC<OnboardingSuccessStepProps> = ({ on
         },
         interestedSuburbs: onboardingData.interests.interestedSuburbs,
         interestedTrades: onboardingData.interests.interestedTrades,
-        onboardingCompleted: true,
-        updatedAt: new Date(),
       };
 
-      await updateDoc(userDocRef, updateData);
+      await runCloudFunction('completeOnboarding', { profile });
 
-      // Update user in context
-      setUser({ ...user, ...updateData });
-
-      // The navigation will happen automatically due to onboardingCompleted change
-      // No manual navigation needed
-    } catch (error) {
-      console.error('Error saving onboarding data:', error);
+      // Pull the fresh user doc (onboardingCompleted + bonus). The navigator
+      // re-routes to the dashboard automatically once onboardingCompleted flips.
+      await refreshUser();
+    } catch (e: any) {
+      setError(e?.message || 'Something went wrong finishing onboarding. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,9 +88,13 @@ export const OnboardingSuccessStep: React.FC<OnboardingSuccessStepProps> = ({ on
           </Text>
         </View>
 
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
         <Button
-          title="Go to Dashboard"
+          title={submitting ? 'Finishing...' : 'Go to Dashboard'}
           onPress={handleGoToDashboard}
+          loading={submitting}
+          disabled={submitting}
           style={styles.button}
           size="large"
         />
@@ -150,5 +153,11 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+  },
+  errorText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.error,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
   },
 });

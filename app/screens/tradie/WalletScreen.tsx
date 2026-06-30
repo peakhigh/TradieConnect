@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator, Modal, Pressable, TextInput, TouchableOpacity } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { EmptyState } from '../../components/UI/EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { useFetchDocs } from '../../hooks/useFetchDocs';
-import { runCloudFunction } from '../../services/cloudFunctions';
+import { rechargeWalletFlow, completeWebCheckoutIfReturning } from '../../services/payments';
 import { theme } from '../../theme/theme';
 import { Wallet, Plus, Minus, Gift, ArrowDownCircle } from 'lucide-react-native';
 import { formatCurrency, timestampToReadable } from '../../utils/helpers';
@@ -30,6 +30,25 @@ export default function WalletScreen() {
     subscribe: false,
   });
 
+  // If we've just returned from Stripe-hosted Checkout (web), confirm + credit.
+  useEffect(() => {
+    let active = true;
+    completeWebCheckoutIfReturning()
+      .then(async (newBalance) => {
+        if (active && newBalance != null) {
+          await refreshUser();
+          refresh();
+        }
+      })
+      .catch((e: any) => {
+        if (active) setRechargeError(e?.message || 'Could not confirm payment.');
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const resolveAmount = (): number => {
     if (customAmount.trim()) {
       const parsed = parseFloat(customAmount);
@@ -47,7 +66,15 @@ export default function WalletScreen() {
     setRechargeError(null);
     setRecharging(true);
     try {
-      await runCloudFunction('rechargeWallet', { amount });
+      const result = await rechargeWalletFlow(amount);
+      if (result.redirecting) {
+        // Web: browser is navigating to Stripe Checkout; nothing more to do here.
+        return;
+      }
+      if (result.cancelled) {
+        setRechargeError('Payment cancelled.');
+        return;
+      }
       await refreshUser();
       refresh();
       setShowRechargeModal(false);

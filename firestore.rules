@@ -1,52 +1,105 @@
 rules_version = '2';
 
+// TradieConnect Firestore security rules.
+//
+// Principles:
+//  - Everything requires authentication (no public access).
+//  - Money / lifecycle collections (quotes, walletTransactions, notifications,
+//    reporting rollups, ratings) are READ-only for clients; all writes go
+//    through Cloud Functions, which use the Admin SDK and bypass these rules.
+//  - User docs are writable only by their owner; admin changes (approve/suspend)
+//    go through admin Cloud Functions.
+//
+// NOTE: Deploy with `npm run deploy:rules` and test the full app afterwards —
+// these rules are stricter than the previous open ruleset.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // --- Users ---
+    // Anyone signed in can read profiles (names/ratings are denormalized into
+    // many views). A user may create/update only their own doc. Admin-only
+    // changes (approval, suspension) run server-side via Cloud Functions.
     match /users/{userId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
     }
-    
-    // Service requests collection
+
+    // --- Service requests ---
+    // Customers create their own; owner can update (e.g. cancel). Status/lifecycle
+    // changes from accept/complete run via Cloud Functions.
     match /serviceRequests/{requestId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if false;
     }
-    
-    // Quotes collection
+
+    // --- Quotes --- CF-only writes (unlock / submitQuote / accept / decline).
     match /quotes/{quoteId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow write: if false;
     }
-    
-    // Messages collection
-    match /messages/{messageId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+
+    // --- Wallet transactions --- CF-only writes (recharge / unlock / bonus).
+    match /walletTransactions/{txId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
-    
-    // Wallet transactions (for tradies)
-    match /walletTransactions/{transactionId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+
+    // --- Chat rooms --- created by CF (submitQuote). Participants may update the
+    // room (e.g. reset their unread counter) and post messages.
+    match /chatRooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if false;
+      allow update: if isSignedIn() &&
+        (resource.data.customerId == request.auth.uid || resource.data.tradieId == request.auth.uid);
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        // Sender must be the authenticated user (system messages come from CF).
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
-    
-    // Interests collection
+
+    // --- Notifications --- created by CF; recipient may mark read.
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if false;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // --- Interests (legacy) ---
     match /interests/{interestId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
-    
-    // Messages collection
-    match /messages/{messageId} {
-      // Allow all authenticated users to read and write (for demo)
-      allow read, write: if request.auth != null;
+
+    // --- Ratings --- CF-only writes (completeServiceRequest).
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
-    
-    // Allow all access for testing
+
+    // --- Reporting rollups + intelligence --- read-only; CF/scheduled writes.
+    match /suburbTradeStats/{id}  { allow read: if isSignedIn(); allow write: if false; }
+    match /suburbStats/{id}       { allow read: if isSignedIn(); allow write: if false; }
+    match /tradeStats/{id}        { allow read: if isSignedIn(); allow write: if false; }
+    match /suburbAdjacency/{id}   { allow read: if isSignedIn(); allow write: if false; }
+    match /requestIntelligence/{id} { allow read: if isSignedIn(); allow write: if false; }
+
+    // Default deny.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

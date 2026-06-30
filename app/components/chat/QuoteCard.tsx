@@ -32,7 +32,7 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
   const [loading, setLoading] = useState<string | null>(null);
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState((user as any)?.address || '');
   const [phone, setPhone] = useState(user?.phoneNumber || '');
   const [error, setError] = useState<string | null>(null);
 
@@ -157,7 +157,7 @@ export default function QuoteCard({ quoteData, chatRoomId, isCustomer }: QuoteCa
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.acceptButton}
-            onPress={() => { setError(null); setPhone(user?.phoneNumber || ''); setShowAcceptModal(true); }}
+            onPress={() => { setError(null); setPhone(user?.phoneNumber || ''); setAddress((user as any)?.address || ''); setShowAcceptModal(true); }}
             disabled={!!loading}
           >
             <CheckCircle size={16} color="#ffffff" />

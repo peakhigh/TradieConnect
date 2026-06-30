@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
 import { Container } from '../../components/UI/Container';
 import { useAuth } from '../../context/AuthContext';
 import { useSave } from '../../hooks/useSave';
 import { theme } from '../../theme/theme';
+import { Settings, HelpCircle } from 'lucide-react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { useAlert } from '../../components/UI/AlertProvider';
 
@@ -20,6 +21,7 @@ export default function CustomerProfileScreen() {
     lastName: user?.lastName || '',
     email: user?.email || '',
     phoneNumber: user?.phoneNumber || '',
+    address: (user as any)?.address || '',
   });
 
   const handleSave = async () => {
@@ -29,6 +31,7 @@ export default function CustomerProfileScreen() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
+        address: formData.address,
       });
 
       const updatedUser = {
@@ -36,8 +39,9 @@ export default function CustomerProfileScreen() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
+        address: formData.address,
       };
-      setUser(updatedUser);
+      setUser(updatedUser as any);
       setEditing(false);
       showAlert('Success', 'Profile updated successfully!', undefined, { tone: 'success' });
     } catch (error) {
@@ -107,6 +111,12 @@ export default function CustomerProfileScreen() {
                 keyboardType="email-address"
               />
               <Input
+                label="Address"
+                value={formData.address}
+                onChangeText={(value: string) => setFormData(prev => ({ ...prev, address: value }))}
+                helperText="Shared with a tradie only when you accept their quote"
+              />
+              <Input
                 label="Phone"
                 value={formData.phoneNumber}
                 editable={false}
@@ -123,6 +133,7 @@ export default function CustomerProfileScreen() {
                       lastName: user?.lastName || '',
                       email: user?.email || '',
                       phoneNumber: user?.phoneNumber || '',
+                      address: (user as any)?.address || '',
                     });
                   }}
                   variant="outline"
@@ -157,6 +168,10 @@ export default function CustomerProfileScreen() {
                   <Text style={styles.profileLabel}>Phone</Text>
                   <Text style={styles.profileValue}>{user?.phoneNumber || 'Not set'}</Text>
                 </View>
+                <View style={styles.profileItem}>
+                  <Text style={styles.profileLabel}>Address</Text>
+                  <Text style={styles.profileValue}>{(user as any)?.address || 'Not set'}</Text>
+                </View>
               </View>
 
               <SimpleButton
@@ -166,6 +181,18 @@ export default function CustomerProfileScreen() {
               />
             </View>
           )}
+
+          {/* Settings & Help */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Settings')}>
+              <Settings size={18} color={theme.colors.text.secondary} />
+              <Text style={styles.linkRowText}>Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Help')}>
+              <HelpCircle size={18} color={theme.colors.text.secondary} />
+              <Text style={styles.linkRowText}>Help & FAQ</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Logout */}
           <SimpleButton
@@ -261,6 +288,18 @@ const styles = StyleSheet.create({
   },
   editButton: {
     marginTop: 16,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  linkRowText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.primary,
   },
   logoutButton: {
     marginTop: 8,

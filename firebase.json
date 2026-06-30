@@ -61,6 +61,12 @@
     "database": {
       "port": 9100
     },
+    "hub": {
+      "port": 4410
+    },
+    "logging": {
+      "port": 4510
+    },
     "singleProjectMode": true
   }
 }

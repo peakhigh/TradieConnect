@@ -58,6 +58,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.content}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -90,12 +91,14 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  content: { flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

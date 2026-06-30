@@ -14,6 +14,7 @@ export interface User {
   address?: string;
   postcode?: string;
   fcmToken?: string | null;
+  webPushToken?: string | null;
   // Tradie-only fields (optional on the base type for convenience)
   businessName?: string;
   licenseNumber?: string;

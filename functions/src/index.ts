@@ -8,9 +8,24 @@ export { submitQuote } from './modules/requests/submitQuote';
 export { acceptQuote } from './modules/requests/acceptQuote';
 export { declineQuote } from './modules/requests/declineQuote';
 export { rechargeWallet } from './modules/payments/rechargeWallet';
+export { createPaymentIntent } from './modules/payments/createPaymentIntent';
+export { createCheckoutSession } from './modules/payments/createCheckoutSession';
+export { confirmCheckoutRecharge } from './modules/payments/confirmCheckoutRecharge';
+export { stripeWebhook } from './modules/payments/stripeWebhook';
 export { completeServiceRequest } from './modules/requests/complete';
 export { sendPushNotification } from './modules/notifications/sendPush';
 export { onChatMessageCreated } from './modules/chat/onMessageCreated';
+
+// Auth / account management
+export { completeOnboarding } from './modules/auth/completeOnboarding';
+export { deleteUserData } from './modules/auth/deleteUserData';
+
+// Admin
+export {
+  adminSetTradieApproval,
+  adminSetUserStatus,
+  getAdminStats,
+} from './modules/admin/adminActions';
 
 // Reporting
 export {

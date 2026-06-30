@@ -6,7 +6,7 @@ Legend: `[ ]` todo · `[~]` partial/exists · `[x]` done · **(C)** customer · 
 
 ---
 
-## Phase 0 — Foundations & Data Truth (unblocks everything)
+## Phase 0 — Foundations & Data Truth (unblocks everything) ✅ Done
 
 Goal: remove all mock/stub data from app code and seed a real dataset so every later phase can be seen working.
 
@@ -22,7 +22,7 @@ Goal: remove all mock/stub data from app code and seed a real dataset so every l
 
 ---
 
-## Phase 1 — Core Marketplace Loop (post → quote → accept → complete → rate)
+## Phase 1 — Core Marketplace Loop (post → quote → accept → complete → rate) ✅ Done
 
 Goal: the money-making path works end-to-end for both roles. Depends on Phase 0.
 
@@ -32,7 +32,7 @@ Goal: the money-making path works end-to-end for both roles. Depends on Phase 0.
 - [x] (C) Quote Accept: pass real address/phone to `acceptQuote` (collected in QuoteCard modal).
 - [x] (A) `declineQuote` Cloud Function + wire `QuoteCard` decline.
 - [x] (C) `QuoteCard` confirmations → cross-platform `Modal` (no `Alert.alert`).
-- [x] (C) `RequestDetailScreen`: quotes list + accept/decline + status actions.
+- [~] (C) Request detail / quote review: handled in-chat via `QuoteCard` (accept/decline) + `CompleteJobModal`; no dedicated `RequestDetailScreen` was built.
 - [x] (C) Complete job flow → `completeServiceRequest` + rating form (`CompleteJobModal`).
 - [x] (A) `rateTradie` (write rating, update tradie aggregate) — handled by `completeServiceRequest`.
 - [x] (C) Dashboard "Recent Quotes": real quotes; Active Jobs section; Chat wired (removed "coming soon").
@@ -43,7 +43,7 @@ Goal: the money-making path works end-to-end for both roles. Depends on Phase 0.
 
 ---
 
-## Phase 2 — Messaging & Notifications
+## Phase 2 — Messaging & Notifications ✅ Done (web push deferred)
 
 Goal: real-time chat per quote + working push/in-app notifications. Depends on Phase 1 (chat rooms are created on quote).
 
@@ -57,59 +57,60 @@ Goal: real-time chat per quote + working push/in-app notifications. Depends on P
 - [x] (A) `NotificationsScreen` + mark-as-read/all; tap routes to chat/request/wallet.
 - [x] (A) Indexes: chat + dedup added.
 - [x] (A) Seed: rooms carry participants/quoteStatus/trades/suburb/type + text msgs; notifications seeded.
-- [ ] (A) Web push via VAPID + service worker (deferred — in-app real-time + native push cover current needs).
+- [x] (A) Web push via VAPID + service worker — implemented behind `EXPO_PUBLIC_WEB_PUSH_ENABLED` + `EXPO_PUBLIC_FIREBASE_VAPID_KEY`. SW at `public/firebase-messaging-sw.js`; token stored as `users.webPushToken`; backend `sendPushToUser` delivers to native + web tokens. Off by default until the VAPID key is set.
 
-**Exit criteria:** Messages flow live between roles; badges update; push + in-app notifications fire and deep-link.
+**Exit criteria:** Messages flow live between roles; badges update; push + in-app notifications fire and deep-link. ✅
 
 ---
 
-## Phase 3 — Tradie Reporting & Insights (key selling feature)
+## Phase 3 — Tradie Reporting & Insights (key selling feature) ✅ Done
 
 Goal: the analytics suite. Depends on Phase 1 (real quotes/requests) and Phase 0 seed spread. See `tradie-reporting.md`.
 
 - [x] (T/A) Rollup collections + `rollups.ts` increment helpers hooked into onCreate/unlock/submitQuote/complete.
 - [x] (T/A) Nightly `reconcileReportingRollups` scheduled function (03:00 AEST).
-- [x] (T/A) `suburbAdjacency` seeded for dev (production builder script is a follow-up).
+- [x] (T/A) `suburbAdjacency` built for dev via `bin/data/backfillReporting.js` (production geo builder is a follow-up).
 - [x] (T/A) Read callables: `getMySuburbReport`, `getNearbySuburbReport`, `getSuburbDetail`, `rankSuburbs`, `rankTrades` + `reportingService`.
 - [x] (T/A) Reporting indexes added.
 - [x] (T) Cross-platform charts: `BarComparison` (Views) + `DonutShare` (react-native-svg) — no new dependency added.
 - [x] (T) Screens: `InsightsScreen`, `SuburbRankingsScreen`, `SuburbDetailScreen`, `TradeOpportunityScreen`; added to `TradieTabs` + web sidebar.
 - [x] (T) Dashboard Analytics button → Insights.
-- [x] (A) Seed/backfill reporting rollups from seeded data (inline in `seed.js`).
-- [ ] (T) Dashboard real stats + Recent Activity feed (carried to Phase 4/tradie tasks).
+- [x] (A) Reporting rollups for seeded data via `bin/data/backfillReporting.js` (mirrors `reconcile.ts`); wired into `seed:all` / `seed:reset` / `seed:reporting`.
+- [x] (T) Dashboard real stats + Recent Activity feed — stats read from the user doc; Recent Activity merges live `quotes` + `walletTransactions` (real-time) on `TradieDashboard`. Removed the fake `setTimeout` loader.
 
-**Exit criteria:** Tradie sees suburb/trade money + demand rankings, nearby opportunities, and trends with charts on all 3 platforms.
+**Exit criteria:** Tradie sees suburb/trade money + demand rankings, nearby opportunities, and trends with charts on all 3 platforms. ✅
 
 ---
 
-## Phase 4 — Profiles, Settings & Polish
+## Phase 4 — Profiles, Settings & Polish ✅ Done
 
 Goal: complete account management and remaining nav surfaces. Depends on Phases 0–2.
 
-- [ ] (C) Address book; notification prefs; delete account (Cloud Function).
-- [ ] (T) Profile: public preview, business details, trades/suburbs management, prefs, delete account.
-- [ ] (A) Build or remove blank `Notifications`/`Settings`/`Help` placeholder screens.
-- [ ] (A) Extend web `linking` config: Messages, Chat, Wallet, Insights, Interests, SubmitQuote.
-- [ ] (A) Auth: real `SignupScreen`/role flow (currently re-export of Login) or remove route.
-- [ ] (C/T) History polish: customer detail view; tradie Quotes/Completed tabs + status vocab alignment.
-- [ ] (T) Onboarding: verify $10 bonus credit + `onboardingCompleted` routing.
+- [x] (C) Address (saved, used to prefill quote acceptance) + notification prefs (Settings) + delete account (`deleteUserData` CF).
+- [x] (T) Profile: business details + **trades/suburbs management** (editable) + Settings/Help links + delete account.
+- [x] (A) Real `SettingsScreen` (notification prefs persisted to `users.notificationPrefs` + delete account) and `HelpScreen` (role-aware FAQ) — replaced blank placeholders.
+- [x] (A) Extended web `linking` config: Messages, Chat, Wallet, Insights (+ sub-screens), Interests, SubmitQuote, Notifications, Settings, Help.
+- [~] (A) Auth: `SignupScreen` left as an alias of `LoginScreen` — phone OTP handles both new + existing users (a real flow, not a stub); dedicated signup not needed.
+- [x] (C/T) History polish: tradie **Quotes / Completed Jobs tabs** + status vocab alignment (unlocked/quoted/accepted/rejected).
+- [x] (T) Onboarding: `completeOnboarding` CF credits the $10 bonus (idempotent) + sets `onboardingCompleted`; success step calls it and refreshes.
 
-**Exit criteria:** Every nav destination is real; profiles fully editable; auth/onboarding verified.
+**Exit criteria:** Every nav destination is real; profiles fully editable; auth/onboarding verified. ✅
 
 ---
 
-## Phase 5 — Admin, Payments & Hardening
+## Phase 5 — Admin, Payments & Hardening 🔶 Code complete · QA + deploy pending
 
 Goal: admin tooling, real payments, security, deploy. Depends on prior phases.
 
-- [ ] (A) Admin: User Management, Accounts, Money/Transactions screens (replace all "coming soon").
-- [ ] (A) Admin: real revenue + unlock totals from `walletTransactions`; tradie approval (`isApproved`); activity monitoring.
-- [ ] (T/A) Real payment processor (Stripe) behind `rechargeWallet`.
-- [ ] (A) `deleteUserData` callable.
-- [ ] (A) Review `firestore.rules` for `chatRooms`/`messages`/rollups/`ratings`; prune duplicate indexes.
-- [ ] (A) Migration/backfill: `intel_*` + `tradesLower` + `searchKeywords` on existing data.
-- [ ] (A) Full QA pass on seeded data across iOS/Android/Web; verify empty states after `clean:all`.
-- [ ] (A) Deploy: `deploy:indexes`, `deploy:rules`, `deploy:functions`, `deploy:hosting`.
+- [x] (A) Admin dashboard rebuilt (cross-platform StyleSheet): real users list + pending approvals + recent users.
+- [x] (A) Admin: real revenue + unlock totals via `getAdminStats` CF; tradie approval + user suspend/reactivate via `adminSetTradieApproval` / `adminSetUserStatus` (admin-checked CFs). All "coming soon" removed.
+- [x] (T/A) Payments: real Stripe integration wired behind `PAYMENTS_LIVE` (server) + `EXPO_PUBLIC_PAYMENTS_LIVE` (client). Server: `createPaymentIntent` (native PaymentSheet), `createCheckoutSession` + `confirmCheckoutRecharge` (web hosted Checkout), `rechargeWallet` verifies the Stripe charge (status/amount/currency/owner) and credits idempotently via shared `creditWallet`. Client: `payments.ts` runs PaymentSheet on native / Checkout redirect on web; dev credit when the flag is off. Needs a Stripe account + `STRIPE_SECRET_KEY` / `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` to go live.
+- [x] (A) `deleteUserData` callable (done in Phase 4).
+- [x] (A) Rewrote `firestore.rules`: auth-gated, money/CF-only collections read-only to clients, default-deny (replaced the open `allow if true`). Needs `deploy:rules` + a test pass before production.
+- [~] (A) Migration `intel_*`/`tradesLower`/`searchKeywords`: seed writes all fields; a prod backfill script is a documented follow-up (couldn't validate vs prod). Index pruning deferred (removing a live index is risky).
+- [x] (A) Seed: added admin user + 2 pending tradies + `isApproved`/`signupBonusGranted` so admin flows have real data.
+- [ ] (A) Full QA pass on seeded data across iOS/Android/Web; verify empty states after `clean:all` (needs your running emulator/devices).
+- [ ] (A) Deploy: `deploy:indexes`, `deploy:rules`, `deploy:functions`, `deploy:hosting` (needs Firebase credentials — run when ready).
 
 **Exit criteria:** Admin operational, real recharges, rules/indexes deployed, full cross-platform QA green.
 

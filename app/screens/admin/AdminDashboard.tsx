@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { SimpleButton as Button } from '../../components/UI/SimpleButton';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { User, Customer, Tradie } from '../../types';
+import { runCloudFunction } from '../../services/cloudFunctions';
+import { useAuth } from '../../context/AuthContext';
+import { theme } from '../../theme/theme';
+import { formatCurrency, timestampToReadable } from '../../utils/helpers';
+import { Users, Wallet, CheckCircle2, XCircle, ShieldOff, ShieldCheck, RefreshCw, LogOut } from 'lucide-react-native';
 import { useAlert } from '../../components/UI/AlertProvider';
 
 interface AdminStats {
@@ -15,294 +18,252 @@ interface AdminStats {
   totalUnlocks: number;
 }
 
+interface UserRow {
+  id: string;
+  displayName: string;
+  userType: string;
+  status?: string;
+  isApproved?: boolean;
+  walletBalance?: number;
+}
+
+const ZERO: AdminStats = {
+  totalUsers: 0, totalCustomers: 0, totalTradies: 0, pendingApprovals: 0, totalRevenue: 0, totalUnlocks: 0,
+};
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<AdminStats>({
-    totalUsers: 0,
-    totalCustomers: 0,
-    totalTradies: 0,
-    pendingApprovals: 0,
-    totalRevenue: 0,
-    totalUnlocks: 0
-  });
-  const [loading, setLoading] = useState(false);
+  const { signOut } = useAuth();
   const { showAlert } = useAlert();
+  const [stats, setStats] = useState<AdminStats>(ZERO);
+  const [pending, setPending] = useState<UserRow[]>([]);
+  const [recentUsers, setRecentUsers] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAdminStats();
-  }, []);
+  const mapUser = (d: any): UserRow => {
+    const u = d.data();
+    return {
+      id: d.id,
+      displayName: u.displayName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown',
+      userType: u.userType || 'customer',
+      status: u.status || 'active',
+      isApproved: u.isApproved,
+      walletBalance: u.walletBalance,
+    };
+  };
 
-  const loadAdminStats = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Get total users
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const totalUsers = usersSnapshot.size;
+      // Real platform stats (server-side, admin-checked).
+      const s = await runCloudFunction<AdminStats>('getAdminStats', {});
+      setStats({ ...ZERO, ...s });
 
-      // Get customers and tradies
-      const customersSnapshot = await getDocs(query(collection(db, 'users'), where('userType', '==', 'customer')));
-      const tradiesSnapshot = await getDocs(query(collection(db, 'users'), where('userType', '==', 'tradie')));
-      
-      const totalCustomers = customersSnapshot.size;
-      const totalTradies = tradiesSnapshot.size;
-
-      // Get pending approvals
-      const pendingTradiesSnapshot = await getDocs(
-        query(collection(db, 'users'), where('userType', '==', 'tradie'), where('isApproved', '==', false))
+      // Pending tradie approvals.
+      const pendingSnap = await getDocs(
+        query(collection(db, 'users'), where('userType', '==', 'tradie'), where('isApproved', '==', false), limit(25))
       );
-      const pendingApprovals = pendingTradiesSnapshot.size;
+      setPending(pendingSnap.docs.map(mapUser));
 
-      // TODO: Get actual revenue and unlock data from transactions collection
-      const totalRevenue = 0; // Placeholder
-      const totalUnlocks = 0; // Placeholder
-
-      setStats({
-        totalUsers,
-        totalCustomers,
-        totalTradies,
-        pendingApprovals,
-        totalRevenue,
-        totalUnlocks
-      });
-    } catch (error) {
-      console.error('Error loading admin stats:', error);
-      showAlert('Error', 'Failed to load admin statistics', undefined, { tone: 'destructive' });
+      // Recent users.
+      const recentSnap = await getDocs(
+        query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(20))
+      );
+      setRecentUsers(recentSnap.docs.map(mapUser));
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to load admin data', undefined, { tone: 'destructive' });
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const approve = async (userId: string, approved: boolean) => {
+    setBusyId(userId);
+    try {
+      await runCloudFunction('adminSetTradieApproval', { userId, approved });
+      await load();
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Action failed', undefined, { tone: 'destructive' });
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleUserManagement = () => {
-    // TODO: Navigate to user management screen
-    showAlert('User Management', 'User management functionality coming soon');
-  };
-
-  const handleAccountsManagement = () => {
-    // TODO: Navigate to accounts management screen
-    showAlert('Accounts Management', 'Accounts management functionality coming soon');
-  };
-
-  const handleMoneyManagement = () => {
-    // TODO: Navigate to money management screen
-    showAlert('Money Management', 'Money management functionality coming soon');
-  };
-
-  const handleApproveTradie = (tradieId: string) => {
-    // TODO: Implement tradie approval
-    showAlert('Approve Tradie', 'Tradie approval functionality coming soon');
-  };
-
-  const handleViewUserDetails = (userId: string) => {
-    // TODO: Navigate to user details screen
-    showAlert('User Details', 'User details functionality coming soon');
-  };
-
-  const handleViewTransactions = () => {
-    // TODO: Navigate to transactions screen
-    showAlert('Transactions', 'Transactions functionality coming soon');
+  const setStatus = async (userId: string, status: 'active' | 'suspended') => {
+    setBusyId(userId);
+    try {
+      await runCloudFunction('adminSetUserStatus', { userId, status });
+      await load();
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Action failed', undefined, { tone: 'destructive' });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="p-6">
-        {/* Header */}
-        <View className="mb-6">
-          <Text className="text-2xl font-bold text-gray-900">
-            Admin Dashboard
-          </Text>
-          <Text className="text-gray-600 mt-1">
-            Manage users, accounts, and monitor platform performance
-          </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.title}>Admin Dashboard</Text>
+          <Text style={styles.subtitle}>Manage users and monitor the platform</Text>
         </View>
-
-        {/* Quick Actions */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</Text>
-          <View className="flex-row space-x-3">
-            <Button
-              title="User Management"
-              onPress={handleUserManagement}
-              size="medium"
-            />
-            <Button
-              title="Accounts"
-              onPress={handleAccountsManagement}
-              variant="outline"
-              size="medium"
-            />
-            <Button
-              title="Money Management"
-              onPress={handleMoneyManagement}
-              variant="outline"
-              size="medium"
-            />
-          </View>
-        </View>
-
-        {/* Stats Overview */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Platform Overview</Text>
-          <View className="grid grid-cols-2 gap-3">
-            <View className="bg-white rounded-lg p-4 border border-gray-200">
-              <Text className="text-2xl font-bold text-primary-600">
-                {stats.totalUsers}
-              </Text>
-              <Text className="text-sm text-gray-600">Total Users</Text>
-            </View>
-            
-            <View className="bg-white rounded-lg p-4 border border-gray-200">
-              <Text className="text-2xl font-bold text-blue-600">
-                {stats.totalCustomers}
-              </Text>
-              <Text className="text-sm text-gray-600">Customers</Text>
-            </View>
-            
-            <View className="bg-white rounded-lg p-4 border border-gray-200">
-              <Text className="text-2xl font-bold text-green-600">
-                {stats.totalTradies}
-              </Text>
-              <Text className="text-sm text-gray-600">Tradies</Text>
-            </View>
-            
-            <View className="bg-white rounded-lg p-4 border border-gray-200">
-              <Text className="text-2xl font-bold text-yellow-600">
-                {stats.pendingApprovals}
-              </Text>
-              <Text className="text-sm text-gray-600">Pending Approvals</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Financial Overview */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Financial Overview</Text>
-          <View className="bg-white rounded-lg p-4 border border-gray-200">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-lg font-semibold text-gray-900">Revenue</Text>
-              <Button
-                title="View Details"
-                onPress={handleViewTransactions}
-                variant="outline"
-                size="small"
-              />
-            </View>
-            
-            <View className="space-y-3">
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Total Revenue</Text>
-                <Text className="font-semibold text-green-600">
-                  ${stats.totalRevenue.toFixed(2)}
-                </Text>
-              </View>
-              
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Total Unlocks</Text>
-                <Text className="font-semibold text-blue-600">
-                  {stats.totalUnlocks}
-                </Text>
-              </View>
-              
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Average per Unlock</Text>
-                <Text className="font-semibold text-gray-900">
-                  ${stats.totalUnlocks > 0 ? (stats.totalRevenue / stats.totalUnlocks).toFixed(2) : '0.00'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Pending Approvals */}
-        {stats.pendingApprovals > 0 && (
-          <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-3">
-              Pending Tradie Approvals ({stats.pendingApprovals})
-            </Text>
-            <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <Text className="text-yellow-800 font-medium mb-2">
-                ⚠️ Action Required
-              </Text>
-              <Text className="text-yellow-700 text-sm mb-3">
-                You have {stats.pendingApprovals} tradie applications waiting for approval. 
-                Review their documents and approve qualified candidates.
-              </Text>
-              
-              <Button
-                title="Review Applications"
-                onPress={handleUserManagement}
-                size="small"
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Recent Activity */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Recent Activity</Text>
-          <View className="bg-white rounded-lg p-4 border border-gray-200">
-            <Text className="text-gray-500 text-center">
-              Recent activity monitoring coming soon
-            </Text>
-          </View>
-        </View>
-
-        {/* System Health */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">System Health</Text>
-          <View className="space-y-3">
-            <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <Text className="text-green-800 font-medium">✅ Authentication System</Text>
-              <Text className="text-green-700 text-sm">Phone OTP verification working normally</Text>
-            </View>
-            
-            <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <Text className="text-green-800 font-medium">✅ Database</Text>
-              <Text className="text-green-700 text-sm">Firestore connection stable</Text>
-            </View>
-            
-            <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <Text className="text-green-800 font-medium">✅ Storage</Text>
-              <Text className="text-green-700 text-sm">File upload system operational</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Reports */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-3">Quick Reports</Text>
-          <View className="space-y-3">
-            <Button
-              title="Generate User Report"
-              onPress={() => showAlert('Report', 'Report generation coming soon')}
-              variant="outline"
-              size="medium"
-            />
-            
-            <Button
-              title="Generate Financial Report"
-              onPress={() => showAlert('Report', 'Report generation coming soon')}
-              variant="outline"
-              size="medium"
-            />
-            
-            <Button
-              title="Generate Performance Report"
-              onPress={() => showAlert('Report', 'Report generation coming soon')}
-              variant="outline"
-              size="medium"
-            />
-          </View>
-        </View>
-
-        {/* Refresh Button */}
-        <View className="mt-6">
-          <Button
-            title="Refresh Dashboard"
-            onPress={loadAdminStats}
-            loading={loading}
-            size="large"
-          />
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconBtn} onPress={load}>
+            <RefreshCw size={18} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={signOut}>
+            <LogOut size={18} color={theme.colors.error} />
+          </TouchableOpacity>
         </View>
       </View>
+
+      {loading ? (
+        <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 40 }} />
+      ) : (
+        <>
+          {/* Stats grid */}
+          <View style={styles.statsGrid}>
+            <StatBox label="Total Users" value={stats.totalUsers} color={theme.colors.primary} />
+            <StatBox label="Customers" value={stats.totalCustomers} color="#2563eb" />
+            <StatBox label="Tradies" value={stats.totalTradies} color="#059669" />
+            <StatBox label="Pending Approvals" value={stats.pendingApprovals} color="#d97706" />
+          </View>
+
+          {/* Financials */}
+          <Text style={styles.sectionTitle}>Financial Overview</Text>
+          <View style={styles.card}>
+            <View style={styles.finRow}>
+              <View style={styles.finItem}>
+                <Wallet size={16} color={theme.colors.success} />
+                <Text style={styles.finLabel}>Unlock Revenue</Text>
+                <Text style={[styles.finValue, { color: theme.colors.success }]}>{formatCurrency(stats.totalRevenue)}</Text>
+              </View>
+              <View style={styles.finItem}>
+                <Users size={16} color={theme.colors.primary} />
+                <Text style={styles.finLabel}>Total Unlocks</Text>
+                <Text style={styles.finValue}>{stats.totalUnlocks}</Text>
+              </View>
+              <View style={styles.finItem}>
+                <Text style={styles.finLabel}>Avg / Unlock</Text>
+                <Text style={styles.finValue}>
+                  {formatCurrency(stats.totalUnlocks > 0 ? stats.totalRevenue / stats.totalUnlocks : 0)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Pending approvals */}
+          <Text style={styles.sectionTitle}>Pending Tradie Approvals ({pending.length})</Text>
+          {pending.length === 0 ? (
+            <Text style={styles.empty}>No tradies awaiting approval.</Text>
+          ) : (
+            pending.map((u) => (
+              <View key={u.id} style={styles.userRow}>
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName}>{u.displayName}</Text>
+                  <Text style={styles.userMeta}>Tradie • awaiting approval</Text>
+                </View>
+                <View style={styles.rowActions}>
+                  {busyId === u.id ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : (
+                    <>
+                      <TouchableOpacity style={[styles.actionPill, styles.approvePill]} onPress={() => approve(u.id, true)}>
+                        <CheckCircle2 size={14} color="#fff" />
+                        <Text style={styles.approveText}>Approve</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+
+          {/* Recent users + management */}
+          <Text style={styles.sectionTitle}>Users</Text>
+          {recentUsers.map((u) => {
+            const suspended = u.status === 'suspended';
+            return (
+              <View key={u.id} style={styles.userRow}>
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName}>{u.displayName}</Text>
+                  <Text style={styles.userMeta}>
+                    {u.userType}{u.userType === 'tradie' && u.walletBalance != null ? ` • ${formatCurrency(u.walletBalance)}` : ''}
+                    {suspended ? ' • suspended' : ''}
+                  </Text>
+                </View>
+                <View style={styles.rowActions}>
+                  {busyId === u.id ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : u.userType === 'admin' ? null : suspended ? (
+                    <TouchableOpacity style={[styles.actionPill, styles.activatePill]} onPress={() => setStatus(u.id, 'active')}>
+                      <ShieldCheck size={14} color={theme.colors.success} />
+                      <Text style={[styles.actionPillText, { color: theme.colors.success }]}>Reactivate</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={[styles.actionPill, styles.suspendPill]} onPress={() => setStatus(u.id, 'suspended')}>
+                      <ShieldOff size={14} color={theme.colors.error} />
+                      <Text style={[styles.actionPillText, { color: theme.colors.error }]}>Suspend</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </>
+      )}
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
-};
+}
+
+function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <View style={styles.statBox}>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  content: { padding: theme.spacing.lg, maxWidth: 900, width: '100%', alignSelf: 'center' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  title: { fontSize: Platform.OS === 'web' ? 26 : 22, fontWeight: '700', color: theme.colors.text.primary },
+  subtitle: { fontSize: 14, color: theme.colors.text.secondary, marginTop: 2 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border.light, justifyContent: 'center', alignItems: 'center' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  statBox: {
+    flexGrow: 1, flexBasis: '47%', backgroundColor: theme.colors.surface, borderRadius: 12,
+    padding: 16, borderWidth: 1, borderColor: theme.colors.border.light,
+  },
+  statValue: { fontSize: 26, fontWeight: '700' },
+  statLabel: { fontSize: 13, color: theme.colors.text.secondary, marginTop: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginTop: 8, marginBottom: 12 },
+  card: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: theme.colors.border.light, marginBottom: 12 },
+  finRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  finItem: { flexGrow: 1, flexBasis: '28%' },
+  finLabel: { fontSize: 12, color: theme.colors.text.secondary, marginTop: 4 },
+  finValue: { fontSize: 18, fontWeight: '700', color: theme.colors.text.primary, marginTop: 2 },
+  empty: { fontSize: 13, color: theme.colors.text.tertiary, marginBottom: 12 },
+  userRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface, borderRadius: 10, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: theme.colors.border.light,
+  },
+  userInfo: { flex: 1, marginRight: 8 },
+  userName: { fontSize: 15, fontWeight: '600', color: theme.colors.text.primary },
+  userMeta: { fontSize: 12, color: theme.colors.text.secondary, marginTop: 2, textTransform: 'capitalize' },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
+  approvePill: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  approveText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  activatePill: { borderColor: theme.colors.success, backgroundColor: theme.colors.surface },
+  suspendPill: { borderColor: theme.colors.error, backgroundColor: theme.colors.surface },
+  actionPillText: { fontSize: 13, fontWeight: '600' },
+});

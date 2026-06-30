@@ -6,6 +6,7 @@ import { AppNavigator } from './app/navigation/AppNavigator';
 import { AppErrorBoundary } from './app/components/ErrorBoundary';
 import { AlertProvider } from './app/components/UI/AlertProvider';
 import useMobileNotifications from './app/hooks/useMobileNotifications';
+import useWebNotifications from './app/hooks/useWebNotifications';
 import { featureFlags } from './app/utils/featureFlags';
 
 if (__DEV__) {
@@ -20,10 +21,12 @@ if (__DEV__) {
 
 /**
  * Registers the device for push notifications once a user is authenticated.
- * No-op on web. Must live inside AuthProvider.
+ * Native push via useMobileNotifications; web push (FCM) via useWebNotifications.
+ * Each hook is a no-op on the platform it doesn't serve. Must live inside AuthProvider.
  */
 function PushRegistrar() {
   useMobileNotifications();
+  useWebNotifications();
   return null;
 }
 

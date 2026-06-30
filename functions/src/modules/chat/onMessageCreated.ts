@@ -1,6 +1,7 @@
 import { firestore } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { sendPushToUser } from '../notifications/push';
 
 const db = admin.firestore();
 
@@ -46,33 +47,17 @@ export const onChatMessageCreated = firestore
 
       await db.collection('chatRooms').doc(chatRoomId).update(updates);
 
-      // Send push notification to receiver
+      // Send push notification to receiver (native + web tokens)
       if (receiverId) {
-        const receiverDoc = await db.collection('users').doc(receiverId).get();
-        const receiverData = receiverDoc.data();
-
-        if (receiverData?.fcmToken) {
-          try {
-            await admin.messaging().send({
-              notification: {
-                title: `New message from ${data.senderName || 'Someone'}`,
-                body: data.text || 'New message',
-              },
-              data: {
-                type: 'chat_message',
-                goto: 'chatscreen',
-                itemId: chatRoomId,
-              },
-              token: receiverData.fcmToken,
-            });
-          } catch (pushError: any) {
-            // Token might be invalid — clear it so we stop trying.
-            if (pushError?.code === 'messaging/registration-token-not-registered') {
-              await db.collection('users').doc(receiverId).update({ fcmToken: null });
-            }
-            console.log('Push notification failed:', pushError.message);
-          }
-        }
+        await sendPushToUser(receiverId, {
+          title: `New message from ${data.senderName || 'Someone'}`,
+          body: data.text || 'New message',
+          data: {
+            type: 'chat_message',
+            goto: 'chatscreen',
+            itemId: chatRoomId,
+          },
+        });
 
         // Create/refresh an in-app notification — deduped per (userId + type + itemId)
         // while still unread, so we don't spam the feed for the same room.

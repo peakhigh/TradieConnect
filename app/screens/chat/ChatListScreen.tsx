@@ -119,6 +119,7 @@ export default function ChatListScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.content}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <Text style={styles.headerCount}>
@@ -191,6 +192,7 @@ export default function ChatListScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+      </View>
     </View>
   );
 }
@@ -208,6 +210,7 @@ const statusStyle = (status: string) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  content: { flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center' },
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
