@@ -6,10 +6,10 @@ This workspace is part of a multi-project ecosystem. All four projects share the
 
 | Project | Path | Maturity | Purpose |
 |---------|------|----------|---------|
-| TradieConnect | `/Users/tbk/Documents/Projects/tradie-app` | Active development | Tradie marketplace |
-| BuildOn | `/Users/tbk/Documents/Projects/buildon` | Most mature | Construction/building platform |
-| Educator | `/Users/tbk/Documents/Projects/educator` | Active development | Education platform |
-| TripsNTrucks | `/Users/tbk/Documents/Projects/tripsNtrucks` | New | Trips/trucking platform |
+| TradieConnect | `/Users/bhavani.kondapavuloori/Documents/projects/TradieConnect` | Active development | Tradie marketplace |
+| BuildOn | `/Users/bhavani.kondapavuloori/Documents/projects/buildon` | Most mature | Construction/building platform |
+| Educator | `/Users/bhavani.kondapavuloori/Documents/projects/educator` | Active development | Education platform |
+| TripsNTrucks | `/Users/bhavani.kondapavuloori/Documents/projects/tripsNtrucks` | New | Trips/trucking platform |
 
 Sibling projects are symlinked into this workspace as `_buildon`, `_educator`, and `_tripsNtrucks` (all gitignored), so their code can be read and referenced directly.
 
