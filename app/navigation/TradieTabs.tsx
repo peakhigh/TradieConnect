@@ -64,7 +64,8 @@ function TradieWebLayout() {
       setRouteParams(params || null);
     },
     activeRoute,
-  }), [activeRoute]);
+    routeParams,
+  }), [activeRoute, routeParams]);
 
   return (
     <AppNavigationProvider value={navContext}>
@@ -87,7 +88,8 @@ function TradieMobileLayout() {
       setRouteParams(params || null);
     },
     activeRoute,
-  }), [activeRoute]);
+    routeParams,
+  }), [activeRoute, routeParams]);
 
   // Hide bottom tabs on Chat screen
   const showTabs = activeRoute !== 'Chat' && activeRoute !== 'SubmitQuote'

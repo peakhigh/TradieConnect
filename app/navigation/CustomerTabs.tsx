@@ -55,7 +55,8 @@ function CustomerWebLayout() {
       setRouteParams(params || null);
     },
     activeRoute,
-  }), [activeRoute]);
+    routeParams,
+  }), [activeRoute, routeParams]);
 
   return (
     <AppNavigationProvider value={navContext}>
@@ -78,7 +79,8 @@ function CustomerMobileLayout() {
       setRouteParams(params || null);
     },
     activeRoute,
-  }), [activeRoute]);
+    routeParams,
+  }), [activeRoute, routeParams]);
 
   // Hide bottom tabs on Chat screen
   const showTabs = activeRoute !== 'Chat';

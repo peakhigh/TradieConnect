@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Modal, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Platform } from 'react-native';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { View, Image, Text, Modal, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Platform, Linking } from 'react-native';
+import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react-native';
 import { ThumbnailImage } from './ThumbnailImage';
 
 interface ImageViewerProps {
@@ -59,6 +59,37 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     setCurrentIndex(prev => prev < images.length - 1 ? prev + 1 : 0);
   };
 
+  const handleDownload = async () => {
+    const imageUrl = images[currentIndex];
+    if (!imageUrl) return;
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      // Web: fetch the image as a blob and trigger a download via anchor element
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `image_${currentIndex + 1}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        // Fallback: open in new tab if blob download fails (e.g. CORS)
+        window.open(imageUrl, '_blank');
+      }
+    } else {
+      // Native: open the image URL which allows the user to save from their browser/viewer
+      try {
+        await Linking.openURL(imageUrl);
+      } catch (err) {
+        console.error('Failed to open image URL:', err);
+      }
+    }
+  };
+
   if (!visible || images.length === 0) return null;
 
   return (
@@ -71,17 +102,28 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       <View style={styles.overlay}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color="#ffffff" />
-          </TouchableOpacity>
+          <Text style={styles.counter}>
+            {currentIndex + 1} of {images.length}
+          </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleDownload} style={styles.headerButton} accessibilityLabel="Download image">
+              <Download size={22} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="Close image viewer">
+              <X size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Main Image */}
         <View style={styles.mainImageContainer}>
-          <ThumbnailImage
-            uri={images[currentIndex]}
-            size={Math.min(screenWidth * 0.9, screenHeight * 0.6)}
-            style={styles.mainImage}
+          <Image
+            source={{ uri: images[currentIndex] }}
+            style={[
+              styles.mainImage,
+              { width: screenWidth * 0.9, height: screenHeight * 0.6 }
+            ]}
+            resizeMode="contain"
           />
           
           {/* Navigation Arrows */}
@@ -132,13 +174,23 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
   },
-  closeButton: {
+  counter: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerButton: {
     padding: 8,
   },
   mainImageContainer: {

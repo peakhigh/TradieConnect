@@ -292,17 +292,18 @@ const styles = StyleSheet.create({
   },
   allIcons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 6,
     marginTop: theme.margin.sm,
   },
   iconButton: {
     alignItems: 'center',
     paddingVertical: theme.padding.sm,
-    paddingHorizontal: theme.padding.md,
+    paddingHorizontal: theme.padding.sm,
     backgroundColor: theme.colors.surfaceTertiary,
     borderRadius: theme.borderRadius.md,
-    flex: 1,
-    marginHorizontal: 2,
+    minWidth: 60,
     ...createCursorStyle('pointer'),
   },
   selectedIcon: {
@@ -316,12 +317,12 @@ const styles = StyleSheet.create({
     gap: theme.gap.xs,
   },
   iconCount: {
-    fontSize: isWebDesktop ? theme.fontSize.xl : theme.fontSize.xs,
+    fontSize: isWebDesktop ? theme.fontSize.sm : theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.primary,
   },
   iconLabel: {
-    fontSize: isWebDesktop ? theme.fontSize.xl : theme.fontSize.xxs,
+    fontSize: isWebDesktop ? theme.fontSize.xs : theme.fontSize.xxs,
     color: theme.colors.text.secondary,
     marginTop: 2,
     textAlign: 'center',

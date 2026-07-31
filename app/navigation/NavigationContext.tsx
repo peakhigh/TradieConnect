@@ -3,11 +3,13 @@ import React, { createContext, useContext } from 'react';
 interface AppNavigationContextType {
   navigate: (screen: string, params?: any) => void;
   activeRoute: string;
+  routeParams?: any;
 }
 
 const AppNavigationContext = createContext<AppNavigationContextType>({
   navigate: () => {},
   activeRoute: 'Dashboard',
+  routeParams: null,
 });
 
 export const useAppNavigation = () => useContext(AppNavigationContext);
@@ -29,6 +31,7 @@ export function useScreenNavigation() {
     goBack: () => {
       appNav.navigate('Dashboard');
     },
+    routeParams: appNav.routeParams,
   };
 }
 

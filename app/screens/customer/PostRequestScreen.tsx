@@ -11,7 +11,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { ServiceRequest } from '../../types';
 import { Clock, MapPin, FileText, X, Image as ImageIcon, Mic, ArrowLeft, AlertTriangle } from 'lucide-react-native';
-import { useRoute } from '@react-navigation/native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { Audio } from 'expo-av';
 import { ProjectLoader } from '../../components/UI/ProjectLoader';
@@ -35,13 +34,7 @@ const URGENCY_LEVELS = [
 export default function PostRequestScreen() {
   const { user, showSuccessMessage } = useAuth();
   const navigation = useScreenNavigation();
-  let editRequestId: string | undefined;
-  try {
-    const route = useRoute();
-    editRequestId = (route.params as any)?.editRequestId;
-  } catch {
-    editRequestId = undefined;
-  }
+  const editRequestId = navigation.routeParams?.editRequestId as string | undefined;
   const isEditMode = !!editRequestId;
   const scrollViewRef = useRef<ScrollView>(null);
   const fileUploadRef = useRef<FileUploadHandle>(null);
