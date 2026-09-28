@@ -79,14 +79,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // --- Interests (legacy) ---
-    match /interests/{interestId} {
-      allow read, write: if isSignedIn();
-    }
-
     // --- Ratings --- CF-only writes (completeServiceRequest).
     match /ratings/{ratingId} {
       allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // --- Reviews --- CF-only writes (completeServiceRequest). Readable by any
+    // signed-in user so customers can view a tradie's reviews before accepting.
+    match /reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // --- Saved searches / job alerts --- owned by the tradie who created them.
+    match /savedSearches/{searchId} {
+      allow read: if isSignedIn() && resource.data.tradieId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.tradieId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.tradieId == request.auth.uid;
+    }
+
+    // --- Platform revenue --- CF-only writes; admin-only reads via functions.
+    match /platformRevenue/{id} {
+      allow read: if false;
       allow write: if false;
     }
 

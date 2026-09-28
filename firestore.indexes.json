@@ -1,14 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "interests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "requestId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION", 
       "fields": [
@@ -297,6 +289,14 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "walletTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "referenceId", "order": "ASCENDING" }
       ]
     },
     {
@@ -828,6 +828,38 @@
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "budget.max", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradieId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "savedSearches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradieId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "savedSearches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "trades", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
+      "collectionGroup": "platformRevenue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],

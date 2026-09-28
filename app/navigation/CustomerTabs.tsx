@@ -4,7 +4,6 @@ import CustomerDashboard from '../screens/customer/CustomerDashboard';
 import PostRequestScreen from '../screens/customer/PostRequestScreen';
 import CustomerHistoryScreen from '../screens/customer/CustomerHistoryScreen';
 import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
-import InterestsScreen from '../screens/customer/InterestsScreen';
 import RequestDetailScreen from '../screens/customer/RequestDetailScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
@@ -35,7 +34,8 @@ function renderScreen(activeRoute: string, routeParams?: any) {
     case 'Messages': return <ChatListScreen />;
     case 'Chat': return <ChatScreen chatRoomId={routeParams?.chatRoomId} otherPartyName={routeParams?.otherPartyName} />;
     case 'Profile': return <CustomerProfileScreen />;
-    case 'Interests': return <InterestsScreen requestId={routeParams?.requestId} />;
+    // 'Interests' is a legacy alias — it now renders the live quotes screen.
+    case 'Interests': return <RequestDetailScreen requestId={routeParams?.requestId} />;
     case 'RequestDetail': return <RequestDetailScreen requestId={routeParams?.requestId} />;
     case 'Notifications': return <NotificationsScreen />;
     case 'Settings': return <SettingsScreen />;

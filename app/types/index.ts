@@ -148,7 +148,8 @@ export interface UnlockTransaction {
 export interface WalletTransaction {
   id: string;
   userId: string;
-  type: 'recharge' | 'unlock' | 'bonus' | 'refund';
+  // recharge/bonus/refund/earning = credits; unlock/commission = debits.
+  type: 'recharge' | 'unlock' | 'bonus' | 'refund' | 'earning' | 'commission';
   amount: number;
   description: string;
   timestamp: Date;

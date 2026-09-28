@@ -40,7 +40,7 @@ function renderScreen(activeRoute: string, routeParams?: any) {
     case 'Messages': return <ChatListScreen />;
     case 'Chat': return <ChatScreen chatRoomId={routeParams?.chatRoomId} otherPartyName={routeParams?.otherPartyName} />;
     case 'Profile': return <TradieProfileScreen />;
-    case 'SubmitQuote': return <SubmitQuoteScreen request={routeParams?.request} />;
+    case 'SubmitQuote': return <SubmitQuoteScreen request={routeParams?.request} editQuote={routeParams?.editQuote} />;
     case 'Wallet': return <WalletScreen />;
     case 'Insights': return <InsightsScreen />;
     case 'SuburbRankings': return <SuburbRankingsScreen />;

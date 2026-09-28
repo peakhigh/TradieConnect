@@ -128,7 +128,8 @@ export default function ServiceRequestCard({
               </TouchableOpacity>
             </View>
             <Text style={styles.location}>
-              {request.postcode} • {request.distance?.toFixed(1) || '0.0'}km
+              {request.postcode}
+              {typeof request.distance === 'number' ? ` • ${request.distance.toFixed(1)}km` : ''}
             </Text>
             <TouchableOpacity
               style={styles.saveButton}

@@ -9,7 +9,7 @@ import { useFetchDocs } from '../../hooks/useFetchDocs';
 import { formatCurrency, formatTimeAgo } from '../../utils/helpers';
 import {
   Sparkles, Search, Wallet, TrendingUp, MessageCircle,
-  CheckCircle2, XCircle, FileText, Unlock, Gift,
+  CheckCircle2, XCircle, FileText, Unlock, Gift, Briefcase, RotateCcw,
 } from 'lucide-react-native';
 
 // Convert any Firestore timestamp shape to epoch millis for sorting/formatting.
@@ -97,6 +97,10 @@ export default function TradieDashboard() {
         items.push({ id: `w-${t.id}`, icon: Gift, color: theme.colors.success, title: 'Bonus credited', subtitle: t.description || `+${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
       } else if (t.type === 'unlock') {
         items.push({ id: `w-${t.id}`, icon: Unlock, color: theme.colors.primary, title: 'Request unlocked', subtitle: t.description || `-${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
+      } else if (t.type === 'earning') {
+        items.push({ id: `w-${t.id}`, icon: Briefcase, color: theme.colors.success, title: 'Job earning', subtitle: t.description || `+${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
+      } else if (t.type === 'refund') {
+        items.push({ id: `w-${t.id}`, icon: RotateCcw, color: theme.colors.success, title: 'Unlock refunded', subtitle: t.description || `+${formatCurrency(Math.abs(amt))}`, millis: toMillis(t.createdAt) });
       }
     }
 
@@ -158,6 +162,12 @@ export default function TradieDashboard() {
                 number={user?.rating || 0}
                 label="Rating"
                 color={theme.colors.warning}
+              />
+              <StatCard
+                number={formatCurrency((user as any)?.totalEarnings || 0)}
+                label="Total Earned"
+                color={theme.colors.success}
+                onPress={handleViewWallet}
               />
             </View>
           </View>
@@ -293,6 +303,7 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.md,
   },
   emptyState: {

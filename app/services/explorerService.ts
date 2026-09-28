@@ -11,24 +11,60 @@ import {
 import { db } from './firebase';
 import { ExplorerRequest, DataFilters, IntelligenceFilters } from '../types/explorer';
 import { secureLog, secureError } from '../utils/logger';
+import { postcodeToLatLng, haversineKm, LatLng } from '../utils/geo';
 
-// Calculate distance between two points using Haversine formula
+/**
+ * Real distance (km) from the tradie to a request.
+ * Prefers exact geo stored on the request (request.geo.lat/lng), then falls
+ * back to postcode-centroid distance. Returns undefined when we can't place
+ * either point (so the UI can hide distance rather than show a fake number).
+ */
 function calculateDistance(
   request: any,
-  tradieLocation?: { lat: number; lng: number }
-): number {
-  if (!tradieLocation || !request.location?.lat || !request.location?.lng) {
-    return Math.round(Math.random() * 20 * 10) / 10; // Fallback to random
-  }
+  tradieLatLng?: LatLng | null
+): number | undefined {
+  if (!tradieLatLng) return undefined;
 
-  const R = 6371; // Earth's radius in km
-  const dLat = (request.location.lat - tradieLocation.lat) * Math.PI / 180;
-  const dLng = (request.location.lng - tradieLocation.lng) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(tradieLocation.lat * Math.PI / 180) * Math.cos(request.location.lat * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10;
+  // Prefer exact geo if the request carries it.
+  const requestLatLng: LatLng | null =
+    request.geo?.lat != null && request.geo?.lng != null
+      ? { lat: request.geo.lat, lng: request.geo.lng }
+      : request.location?.lat != null && request.location?.lng != null
+      ? { lat: request.location.lat, lng: request.location.lng }
+      : postcodeToLatLng(request.postcode);
+
+  if (!requestLatLng) return undefined;
+  return haversineKm(tradieLatLng, requestLatLng);
+}
+
+/**
+ * Tokenize a free-text search query into lowercase words (length >= 2).
+ * Mirrors how searchKeywords/notesWords are generated on write.
+ */
+export function tokenizeSearch(text: string): string[] {
+  if (!text) return [];
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-z0-9]/g, ''))
+    .filter((w) => w.length >= 2);
+}
+
+/**
+ * Does a request match the search terms? A request matches if EVERY search
+ * term appears in its searchKeywords, tradesLower, description, or postcode.
+ * (AND semantics — all terms must be present, so "leaking tap" narrows results.)
+ */
+function matchesSearch(req: ExplorerRequest, terms: string[]): boolean {
+  if (terms.length === 0) return true;
+  const haystack = [
+    ...(req.searchKeywords || []),
+    ...(req.tradesLower || []),
+    ...(req.trades || []).map((t) => t.toLowerCase()),
+    (req.descriptionLower || req.description || '').toLowerCase(),
+    req.postcode || '',
+  ].join(' ');
+  return terms.every((term) => haystack.includes(term));
 }
 
 export async function fetchServiceRequests(
@@ -37,8 +73,11 @@ export async function fetchServiceRequests(
   sortBy: string = 'newest',
   limitCount: number = 15,
   lastDoc: DocumentSnapshot | null = null,
-  tradieLocation?: { lat: number; lng: number }
+  tradiePostcode?: string | null,
+  searchText: string = ''
 ): Promise<{ requests: ExplorerRequest[]; hasMore: boolean; lastDoc: DocumentSnapshot | null }> {
+  // Resolve the tradie's location once (from their postcode) for distance calc.
+  const tradieLatLng = postcodeToLatLng(tradiePostcode);
   secureLog('🔍 Fetching service requests:', {
     filters: { dataFilters, intelligenceFilters },
     sortBy,
@@ -120,9 +159,15 @@ export async function fetchServiceRequests(
 
         // UI-only fields
         isUnlocked: false,
-        distance: calculateDistance(data, tradieLocation),
+        distance: calculateDistance(data, tradieLatLng),
       } as ExplorerRequest;
     });
+
+    // --- Text search (AND across all terms) ---
+    const searchTerms = tokenizeSearch(searchText);
+    if (searchTerms.length > 0) {
+      requests = requests.filter(r => matchesSearch(r, searchTerms));
+    }
 
     // --- Client-side Data Filters ---
     if (dataFilters.trades.length > 0) {
@@ -170,7 +215,12 @@ export async function fetchServiceRequests(
     if (sortBy === 'opportunity') {
       requests.sort((a, b) => (b.intel_opportunityScore || 0) - (a.intel_opportunityScore || 0));
     } else if (sortBy === 'closest') {
-      requests.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      // Items with no resolvable distance sort to the end.
+      requests.sort((a, b) => {
+        const da = a.distance ?? Number.POSITIVE_INFINITY;
+        const db_ = b.distance ?? Number.POSITIVE_INFINITY;
+        return da - db_;
+      });
     } else if (sortBy === 'budget') {
       requests.sort((a, b) => (b.budgetMax || b.intel_priceAverage || 0) - (a.budgetMax || a.intel_priceAverage || 0));
     }

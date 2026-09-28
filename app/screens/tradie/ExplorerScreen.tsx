@@ -7,6 +7,9 @@ import ServiceRequestCard from '../../components/explorer/ServiceRequestCard';
 import FilterDrawer from '../../components/explorer/FilterDrawer';
 import { RequestCardSkeleton } from '../../components/UI/Skeleton';
 import { HelpDrawer } from '../../components/UI/HelpDrawer';
+import { SearchBar } from '../../components/UI/SearchBar';
+import { SavedSearchesDrawer } from '../../components/explorer/SavedSearchesDrawer';
+import { Bell } from 'lucide-react-native';
 import { ExplorerRequest, DataFilters as DataFiltersType, IntelligenceFilters as IntelligenceFiltersType } from '../../types/explorer';
 import { fetchServiceRequests, checkUnlockedRequests } from '../../services/explorerService';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
@@ -74,10 +77,14 @@ export default function ExplorerScreen() {
     }
   });
   const [tempFilters, setTempFilters] = useState<FilterState>(appliedFilters);
+  // Search: `searchInput` is the live text box; `searchQuery` is the applied term.
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [totalResults, setTotalResults] = useState(0);
   const [totalAvailable, setTotalAvailable] = useState(0);
   const [showHelpDrawer, setShowHelpDrawer] = useState(false);
   const [helpSection, setHelpSection] = useState<'statuses' | 'intelligence' | 'unlock' | 'filters'>('statuses');
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
 
   // Load unlocked request IDs for this tradie
   useEffect(() => {
@@ -90,7 +97,7 @@ export default function ExplorerScreen() {
 
   useEffect(() => {
     loadRequests(true);
-  }, [activeSort, appliedFilters]);
+  }, [activeSort, appliedFilters, searchQuery]);
 
   const loadRequests = async (reset = false, isManualLoadMore = false) => {
     try {
@@ -119,12 +126,21 @@ export default function ExplorerScreen() {
       // Use different batch sizes for auto-load vs manual Load More
       const batchSize = isManualLoadMore ? PAGINATION_CONFIG.LOAD_MORE_BATCH_SIZE : PAGINATION_CONFIG.ITEMS_PER_LOAD;
       
+      // Tradie's home postcode drives the "closest" distance calc.
+      const tradiePostcode =
+        (user as any)?.postcode ||
+        (user as any)?.interestedSuburbs?.[0] ||
+        (user as any)?.suburbs?.[0] ||
+        null;
+
       const { requests: fetchedRequests, hasMore: moreAvailable, lastDoc: newLastDoc } = await fetchServiceRequests(
         appliedFilters.data,
         appliedFilters.intelligence,
         activeSort,
         batchSize,
-        reset ? null : lastDoc
+        reset ? null : lastDoc,
+        tradiePostcode,
+        searchQuery
       );
 
       if (reset) {
@@ -174,6 +190,19 @@ export default function ExplorerScreen() {
       setLoadingMore(false);
     }
   };
+
+  // When a search is active, client-side filtering can leave the first page(s)
+  // with too few matches to be scrollable (so onEndReached never fires).
+  // Keep pulling more pages until we have a reasonable number of matches or
+  // run out of data. Capped implicitly by hasMore.
+  useEffect(() => {
+    if (!searchQuery) return;
+    if (loading || loadingMore) return;
+    if (!hasMore) return;
+    if (requests.length >= PAGINATION_CONFIG.ITEMS_PER_LOAD) return;
+    loadRequests(false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, requests.length, loading, loadingMore, hasMore]);
 
   const handleLoadMore = () => {
     secureLog(`🔘 handleLoadMore clicked:`, {
@@ -238,6 +267,15 @@ export default function ExplorerScreen() {
 
   const handleSubmitQuote = (request: ExplorerRequest) => {
     navigate('SubmitQuote', { request });
+  };
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput.trim());
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
   };
 
   const scrollToTop = () => {
@@ -373,18 +411,36 @@ export default function ExplorerScreen() {
               <HelpCircle size={16} color="#3b82f6" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.resultCount}>
-            {loading && requests.length === 0 
-              ? 'Loading...' 
-              : requests.length === 0 
-                ? '0 results'
-                : hasMore
-                  ? `${requests.length}+ results`
-                  : `${requests.length} results`
-            }
-          </Text>
+          <View style={styles.titleRight}>
+            <TouchableOpacity
+              onPress={() => setShowSavedSearches(true)}
+              style={styles.alertsButton}
+              accessibilityLabel="Job alerts"
+            >
+              <Bell size={16} color="#3b82f6" />
+            </TouchableOpacity>
+            <Text style={styles.resultCount}>
+              {loading && requests.length === 0
+                ? 'Loading...'
+                : requests.length === 0
+                  ? '0 results'
+                  : hasMore
+                    ? `${requests.length}+ results`
+                    : `${requests.length} results`
+              }
+            </Text>
+          </View>
         </View>
-        
+
+        {/* Search Bar */}
+        <SearchBar
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+          placeholder="Search by trade, keyword, or postcode..."
+        />
+
         {/* Filter and Sort Row */}
         <View style={styles.filterSortRow}>
           {/* Filter Section */}
@@ -509,6 +565,20 @@ export default function ExplorerScreen() {
         section={helpSection}
       />
 
+      {/* Saved Searches / Job Alerts Drawer */}
+      <SavedSearchesDrawer
+        visible={showSavedSearches}
+        onClose={() => setShowSavedSearches(false)}
+        tradieId={user?.id || ''}
+        currentFilters={{
+          trades: appliedFilters.data.trades,
+          suburbs: appliedFilters.data.location.postcode
+            ? [appliedFilters.data.location.postcode]
+            : [],
+          urgency: appliedFilters.data.urgency,
+        }}
+      />
+
       {/* Sort Dropdown Backdrop */}
       {showSortDropdown && (
         <TouchableOpacity
@@ -621,6 +691,16 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     padding: 4,
     backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+  },
+  titleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  alertsButton: {
+    padding: 6,
+    backgroundColor: '#eff6ff',
     borderRadius: 12,
   },
   resultCount: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SimpleButton } from '../../components/UI/SimpleButton';
 import { Input } from '../../components/UI/Input';
@@ -10,6 +10,10 @@ import { theme } from '../../theme/theme';
 import { Star, Briefcase, Settings, HelpCircle, X } from 'lucide-react-native';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { useAlert } from '../../components/UI/AlertProvider';
+import { ReviewsList } from '../../components/UI/ReviewsList';
+import { fetchTradieReviews, summarizeReviews, Review, ReviewSummary } from '../../services/reviewsService';
+import { ReliabilityBadges } from '../../components/UI/ReliabilityBadges';
+import { computeReliability, deriveBadges, ReliabilityBadge } from '../../services/reliabilityService';
 
 export default function TradieProfileScreen() {
   const { user, signOut, setUser } = useAuth();
@@ -28,6 +32,46 @@ export default function TradieProfileScreen() {
     (user as any)?.interestedSuburbs || (user as any)?.suburbs || []
   );
   const [newSuburb, setNewSuburb] = useState('');
+
+  // Reviews
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({
+    average: 0,
+    total: 0,
+    distribution: [0, 0, 0, 0, 0],
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  // Reliability badges
+  const [badges, setBadges] = useState<ReliabilityBadge[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) return;
+    setReviewsLoading(true);
+    fetchTradieReviews(user.id)
+      .then((data) => {
+        if (!active) return;
+        setReviews(data);
+        setReviewSummary(summarizeReviews(data));
+      })
+      .finally(() => {
+        if (active) setReviewsLoading(false);
+      });
+
+    computeReliability(user.id, {
+      rating: (user as any)?.rating,
+      totalJobs: (user as any)?.totalJobs,
+    })
+      .then((metrics) => {
+        if (active) setBadges(deriveBadges(metrics));
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   const addSuburb = () => {
     const s = newSuburb.trim();
@@ -109,6 +153,11 @@ export default function TradieProfileScreen() {
                 <Text style={styles.statText}>{totalJobs} jobs</Text>
               </View>
             </View>
+            {badges.length > 0 && (
+              <View style={styles.badgesWrap}>
+                <ReliabilityBadges badges={badges} />
+              </View>
+            )}
           </View>
 
           {/* Editable Fields */}
@@ -234,6 +283,18 @@ export default function TradieProfileScreen() {
             )}
           </View>
 
+          {/* Reviews */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reviews</Text>
+            <ReviewsList
+              reviews={reviews}
+              summary={reviewSummary}
+              loading={reviewsLoading}
+              headlineAverage={rating}
+              headlineTotal={totalJobs || reviewSummary.total}
+            />
+          </View>
+
           {/* Settings & Help */}
           <View style={styles.section}>
             <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Settings')}>
@@ -294,6 +355,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
     alignItems: 'center',
+  },
+  badgesWrap: {
+    marginTop: 16,
+    width: '100%',
   },
   statItem: {
     flexDirection: 'row',

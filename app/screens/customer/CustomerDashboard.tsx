@@ -88,13 +88,9 @@ export default function CustomerDashboard() {
     if (!requestId) return;
 
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
-      const { db } = await import('../../services/firebase');
-
-      await updateDoc(doc(db, 'serviceRequests', requestId), {
-        status: 'cancelled',
-        updatedAt: new Date()
-      });
+      // Cloud Function handles un-assigning, tradie notification, and refunds.
+      const { runCloudFunction } = await import('../../services/cloudFunctions');
+      await runCloudFunction('cancelServiceRequest', { serviceRequestId: requestId });
     } catch (error) {
       console.error('Error cancelling request:', error);
       showAlert('Error', 'Failed to cancel request', undefined, { tone: 'destructive' });

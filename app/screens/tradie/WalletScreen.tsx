@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFetchDocs } from '../../hooks/useFetchDocs';
 import { rechargeWalletFlow, completeWebCheckoutIfReturning } from '../../services/payments';
 import { theme } from '../../theme/theme';
-import { Wallet, Plus, Minus, Gift, ArrowDownCircle } from 'lucide-react-native';
+import { Wallet, Plus, Minus, Gift, ArrowDownCircle, Briefcase, Percent, RotateCcw } from 'lucide-react-native';
 import { formatCurrency, timestampToReadable } from '../../utils/helpers';
 import { WalletTransaction } from '../../types';
 
@@ -94,6 +94,12 @@ export default function WalletScreen() {
         return <Minus size={18} color={theme.colors.error} />;
       case 'bonus':
         return <Gift size={18} color={theme.colors.primary} />;
+      case 'earning':
+        return <Briefcase size={18} color={theme.colors.success} />;
+      case 'commission':
+        return <Percent size={18} color={theme.colors.error} />;
+      case 'refund':
+        return <RotateCcw size={18} color={theme.colors.success} />;
       default:
         return <ArrowDownCircle size={18} color={theme.colors.text.secondary} />;
     }
@@ -102,8 +108,11 @@ export default function WalletScreen() {
   const getTransactionColor = (type: string) => {
     switch (type) {
       case 'recharge':
+      case 'earning':
+      case 'refund':
         return theme.colors.success;
       case 'unlock':
+      case 'commission':
         return theme.colors.error;
       case 'bonus':
         return theme.colors.primary;
@@ -116,8 +125,11 @@ export default function WalletScreen() {
     switch (type) {
       case 'recharge':
       case 'bonus':
+      case 'earning':
+      case 'refund':
         return '+';
       case 'unlock':
+      case 'commission':
         return '-';
       default:
         return '';
@@ -125,6 +137,8 @@ export default function WalletScreen() {
   };
 
   const walletBalance = (user as any)?.walletBalance ?? 0;
+  const totalEarnings = (user as any)?.totalEarnings ?? 0;
+  const totalCommission = (user as any)?.totalCommissionPaid ?? 0;
 
   return (
     <Container scrollable={false} style={styles.container}>
@@ -142,6 +156,22 @@ export default function WalletScreen() {
               size="medium"
             />
           </View>
+
+          {/* Earnings Summary */}
+          {totalEarnings > 0 && (
+            <View style={styles.earningsRow}>
+              <View style={styles.earningsCard}>
+                <Briefcase size={18} color={theme.colors.success} />
+                <Text style={styles.earningsValue}>{formatCurrency(totalEarnings)}</Text>
+                <Text style={styles.earningsLabel}>Net earnings</Text>
+              </View>
+              <View style={styles.earningsCard}>
+                <Percent size={18} color={theme.colors.text.secondary} />
+                <Text style={styles.earningsValueMuted}>{formatCurrency(totalCommission)}</Text>
+                <Text style={styles.earningsLabel}>Commission paid</Text>
+              </View>
+            </View>
+          )}
 
           {/* Transaction History */}
           <View style={styles.section}>
@@ -259,6 +289,35 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text.secondary,
     marginTop: theme.spacing.sm,
+  },
+  earningsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
+  earningsCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    gap: 4,
+  },
+  earningsValue: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.success,
+  },
+  earningsValueMuted: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.text.secondary,
+  },
+  earningsLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.text.tertiary,
   },
   balanceAmount: {
     fontSize: Platform.OS === 'web' ? 40 : 32,

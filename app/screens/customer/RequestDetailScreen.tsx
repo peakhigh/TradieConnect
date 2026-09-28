@@ -31,6 +31,8 @@ import {
 import { Container } from '../../components/UI/Container';
 import { StatusBadge } from '../../components/UI/StatusBadge';
 import { CompleteJobModal } from '../../components/customer/CompleteJobModal';
+import { QuoteComparison } from '../../components/customer/QuoteComparison';
+import { List, Columns3 } from 'lucide-react-native';
 import { theme } from '../../theme/theme';
 import { db } from '../../services/firebase';
 import { runCloudFunction } from '../../services/cloudFunctions';
@@ -57,6 +59,7 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quoteView, setQuoteView] = useState<'list' | 'compare'>('list');
 
   // Accept modal state
   const [acceptTarget, setAcceptTarget] = useState<Quote | null>(null);
@@ -121,8 +124,9 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
             createdAt: toDate(data.quotedAt) || toDate(data.createdAt) || new Date(),
           } as Quote;
         })
-        // Only show quotes the tradie has actually submitted (skip 'unlocked' placeholders)
-        .filter((qt) => qt.status !== 'unlocked')
+        // Only show quotes the tradie has actually submitted (skip 'unlocked'
+        // placeholders and 'withdrawn' quotes the tradie retracted).
+        .filter((qt) => qt.status !== 'unlocked' && qt.status !== 'withdrawn')
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setQuotes(list);
     });
@@ -187,11 +191,8 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
     setError(null);
     setBusy('cancel');
     try {
-      const { doc: docRef, updateDoc } = await import('firebase/firestore');
-      await updateDoc(docRef(db, 'serviceRequests', requestId), {
-        status: 'cancelled',
-        updatedAt: new Date(),
-      });
+      // Cloud Function handles un-assigning, notifying the tradie, and refunds.
+      await runCloudFunction('cancelServiceRequest', { serviceRequestId: requestId });
       setShowCancel(false);
     } catch (e: any) {
       setError(e?.message || 'Failed to cancel request');
@@ -243,15 +244,39 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
                   <Text style={styles.completeBtnText}>Mark Job Complete</Text>
                 </TouchableOpacity>
               )}
-              {isOpenForQuotes && (
+              {(isOpenForQuotes || isAssigned) && (
                 <TouchableOpacity style={styles.cancelLink} onPress={() => setShowCancel(true)}>
-                  <Text style={styles.cancelLinkText}>Cancel Request</Text>
+                  <Text style={styles.cancelLinkText}>
+                    {isAssigned ? 'Cancel Job' : 'Cancel Request'}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
 
             {/* Quotes */}
-            <Text style={styles.sectionTitle}>Quotes ({quotes.length})</Text>
+            <View style={styles.quotesHeaderRow}>
+              <Text style={styles.sectionTitle}>Quotes ({quotes.length})</Text>
+              {quotes.length >= 2 && (
+                <View style={styles.viewToggle}>
+                  <TouchableOpacity
+                    style={[styles.viewToggleBtn, quoteView === 'list' && styles.viewToggleBtnActive]}
+                    onPress={() => setQuoteView('list')}
+                    accessibilityLabel="List view"
+                  >
+                    <List size={16} color={quoteView === 'list' ? '#FFF' : theme.colors.text.secondary} />
+                    <Text style={[styles.viewToggleText, quoteView === 'list' && styles.viewToggleTextActive]}>List</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.viewToggleBtn, quoteView === 'compare' && styles.viewToggleBtnActive]}
+                    onPress={() => setQuoteView('compare')}
+                    accessibilityLabel="Compare view"
+                  >
+                    <Columns3 size={16} color={quoteView === 'compare' ? '#FFF' : theme.colors.text.secondary} />
+                    <Text style={[styles.viewToggleText, quoteView === 'compare' && styles.viewToggleTextActive]}>Compare</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
 
             {quotes.length === 0 ? (
               <View style={styles.emptyState}>
@@ -259,6 +284,17 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
                   No quotes yet. Tradies who unlock your request will appear here.
                 </Text>
               </View>
+            ) : quotes.length >= 2 && quoteView === 'compare' ? (
+              <QuoteComparison
+                quotes={quotes}
+                canAct={isOpenForQuotes}
+                isActionable={isActionable}
+                onAccept={openAccept}
+                onDecline={(quote) => {
+                  setError(null);
+                  setDeclineTarget(quote);
+                }}
+              />
             ) : (
               quotes.map((quote) => {
                 const accepted = quote.status === 'accepted';
@@ -462,10 +498,19 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
                 <AlertTriangle size={24} color="#DC2626" />
               </View>
             </View>
-            <Text style={styles.modalTitle}>Cancel this request?</Text>
+            <Text style={styles.modalTitle}>{isAssigned ? 'Cancel this job?' : 'Cancel this request?'}</Text>
             <Text style={styles.modalSubtitle}>
-              This will cancel your <Text style={styles.bold}>{tradeLabel}</Text> request. Tradies will
-              no longer be able to quote on it. This can't be undone.
+              {isAssigned ? (
+                <>
+                  This will cancel your <Text style={styles.bold}>{tradeLabel}</Text> job and notify the
+                  assigned tradie. This can't be undone.
+                </>
+              ) : (
+                <>
+                  This will cancel your <Text style={styles.bold}>{tradeLabel}</Text> request. Tradies will
+                  no longer be able to quote on it. This can't be undone.
+                </>
+              )}
             </Text>
             {!!error && <Text style={styles.errorText}>{error}</Text>}
             <View style={styles.modalButtonRow}>
@@ -527,6 +572,16 @@ const styles = StyleSheet.create({
   cancelLink: { alignItems: 'center', marginTop: 14, paddingVertical: 6 },
   cancelLinkText: { color: '#DC2626', fontSize: 14, fontWeight: '600' },
   sectionTitle: { fontSize: Platform.OS === 'web' ? 20 : 18, fontWeight: '700', color: theme.colors.text.primary, marginBottom: 12 },
+  quotesHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+  viewToggle: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  viewToggleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+    borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFF',
+  },
+  viewToggleBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  viewToggleText: { fontSize: 13, fontWeight: '600', color: theme.colors.text.secondary },
+  viewToggleTextActive: { color: '#FFF' },
   quoteCard: {
     backgroundColor: '#FFF', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 12,
   },

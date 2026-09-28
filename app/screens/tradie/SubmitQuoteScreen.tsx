@@ -37,14 +37,32 @@ interface QuoteFormData {
   notes: string;
 }
 
-export default function SubmitQuoteScreen({ request: requestProp }: { request?: ExplorerRequest }) {
+interface EditQuoteInitial {
+  quoteId: string;
+  materialsCost?: number;
+  laborCost?: number;
+  totalPrice?: number;
+  timelineDays?: number;
+  estimatedStartDate?: string;
+  notes?: string;
+}
+
+export default function SubmitQuoteScreen({
+  request: requestProp,
+  editQuote: editQuoteProp,
+}: {
+  request?: ExplorerRequest;
+  editQuote?: EditQuoteInitial;
+}) {
   const navigation = useScreenNavigation();
   const { showAlert } = useAlert();
   const request = requestProp;
+  const isEdit = !!editQuoteProp;
   const [submitting, setSubmitting] = useState(false);
 
-  // Autofill support
+  // Autofill support (only for new quotes, never when editing).
   const quoteAutofill = (() => {
+    if (isEdit) return null;
     try {
       const { getAutofillData } = require('../../utils/testAutofill');
       return getAutofillData('quote');
@@ -53,12 +71,12 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<QuoteFormData>({
     defaultValues: {
-      materialsCost: quoteAutofill?.materialsCost || '',
-      laborCost: quoteAutofill?.laborCost || '',
-      totalPrice: quoteAutofill?.totalPrice || '',
-      timelineDays: quoteAutofill?.timelineDays || '',
-      estimatedStartDate: quoteAutofill?.estimatedStartDate || '',
-      notes: quoteAutofill?.notes || '',
+      materialsCost: editQuoteProp?.materialsCost != null ? String(editQuoteProp.materialsCost) : quoteAutofill?.materialsCost || '',
+      laborCost: editQuoteProp?.laborCost != null ? String(editQuoteProp.laborCost) : quoteAutofill?.laborCost || '',
+      totalPrice: editQuoteProp?.totalPrice != null ? String(editQuoteProp.totalPrice) : quoteAutofill?.totalPrice || '',
+      timelineDays: editQuoteProp?.timelineDays != null ? String(editQuoteProp.timelineDays) : quoteAutofill?.timelineDays || '',
+      estimatedStartDate: editQuoteProp?.estimatedStartDate || quoteAutofill?.estimatedStartDate || '',
+      notes: editQuoteProp?.notes || quoteAutofill?.notes || '',
     },
   });
 
@@ -104,22 +122,36 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
 
     setSubmitting(true);
     try {
-      const submitQuoteFn = httpsCallable(functions, 'submitQuote');
-      await submitQuoteFn({
-        serviceRequestId: request.id,
-        totalPrice,
-        materialsCost: materials || 0,
-        laborCost: labor || 0,
-        timelineDays: timeline,
-        estimatedStartDate: data.estimatedStartDate || null,
-        estimatedCompletionDate: getEstimatedCompletionDate() || null,
-        notes: data.notes || '',
-      });
-
-      showAlert('Success', 'Your quote has been submitted successfully!', undefined, { tone: 'success' });
-      navigation.navigate('Explorer');
+      if (isEdit && editQuoteProp) {
+        const editQuoteFn = httpsCallable(functions, 'editQuote');
+        await editQuoteFn({
+          quoteId: editQuoteProp.quoteId,
+          totalPrice,
+          materialsCost: materials || 0,
+          laborCost: labor || 0,
+          timelineDays: timeline,
+          estimatedStartDate: data.estimatedStartDate || null,
+          estimatedCompletionDate: getEstimatedCompletionDate() || null,
+          notes: data.notes || '',
+        });
+        showAlert('Success', 'Your quote has been updated.', undefined, { tone: 'success' });
+      } else {
+        const submitQuoteFn = httpsCallable(functions, 'submitQuote');
+        await submitQuoteFn({
+          serviceRequestId: request!.id,
+          totalPrice,
+          materialsCost: materials || 0,
+          laborCost: labor || 0,
+          timelineDays: timeline,
+          estimatedStartDate: data.estimatedStartDate || null,
+          estimatedCompletionDate: getEstimatedCompletionDate() || null,
+          notes: data.notes || '',
+        });
+        showAlert('Success', 'Your quote has been submitted successfully!', undefined, { tone: 'success' });
+      }
+      navigation.navigate(isEdit ? 'History' : 'Explorer');
     } catch (error: any) {
-      const msg = error?.message || 'Failed to submit quote';
+      const msg = error?.message || (isEdit ? 'Failed to update quote' : 'Failed to submit quote');
       showAlert('Error', msg, undefined, { tone: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -156,7 +188,7 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
       <Container>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>No request data available</Text>
-          <SimpleButton title="Go Back" onPress={() => navigation.navigate('Explorer')} variant="outline" />
+          <SimpleButton title="Go Back" onPress={() => navigation.navigate(isEdit ? 'History' : 'Explorer')} variant="outline" />
         </View>
       </Container>
     );
@@ -166,10 +198,10 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
     <Container>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Explorer')} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.navigate(isEdit ? 'History' : 'Explorer')} style={styles.backButton}>
           <ArrowLeft size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Submit Quote</Text>
+        <Text style={styles.headerTitle}>{isEdit ? 'Edit Quote' : 'Submit Quote'}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -370,7 +402,7 @@ export default function SubmitQuoteScreen({ request: requestProp }: { request?: 
         {/* Submit Button */}
         <View style={styles.submitSection}>
           <SimpleButton
-            title={submitting ? 'Submitting...' : 'Submit Quote'}
+            title={submitting ? (isEdit ? 'Updating...' : 'Submitting...') : isEdit ? 'Update Quote' : 'Submit Quote'}
             onPress={handleSubmit(onSubmit)}
             loading={submitting}
             disabled={submitting}

@@ -3,8 +3,10 @@ admin.initializeApp();
 
 // Re-export all functions from modules
 export { onServiceRequestCreated } from './modules/requests/onCreate';
+export { expireStaleRequests } from './modules/requests/expireStale';
 export { unlockServiceRequest } from './modules/requests/unlock';
 export { submitQuote } from './modules/requests/submitQuote';
+export { editQuote, withdrawQuote } from './modules/requests/editQuote';
 export { acceptQuote } from './modules/requests/acceptQuote';
 export { declineQuote } from './modules/requests/declineQuote';
 export { rechargeWallet } from './modules/payments/rechargeWallet';
@@ -13,6 +15,7 @@ export { createCheckoutSession } from './modules/payments/createCheckoutSession'
 export { confirmCheckoutRecharge } from './modules/payments/confirmCheckoutRecharge';
 export { stripeWebhook } from './modules/payments/stripeWebhook';
 export { completeServiceRequest } from './modules/requests/complete';
+export { cancelServiceRequest } from './modules/requests/cancel';
 export { sendPushNotification } from './modules/notifications/sendPush';
 export { onChatMessageCreated } from './modules/chat/onMessageCreated';
 

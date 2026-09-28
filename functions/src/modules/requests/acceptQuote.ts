@@ -77,6 +77,14 @@ export const acceptQuote = https.onCall(async (request) => {
     updatedAt: FieldValue.serverTimestamp(),
   });
 
+  // Look up the accepted quote's chat room up front so notifications can
+  // deep-link straight into the conversation.
+  const acceptedRoomQuery = await db.collection('chatRooms')
+    .where('quoteId', '==', quoteId)
+    .limit(1)
+    .get();
+  const acceptedChatRoomId = acceptedRoomQuery.empty ? null : acceptedRoomQuery.docs[0].id;
+
   // 4. Notify accepted tradie
   await db.collection('notifications').add({
     userId: quoteData.tradieId,
@@ -85,6 +93,8 @@ export const acceptQuote = https.onCall(async (request) => {
     type: 'quote_accepted',
     quoteId,
     serviceRequestId: quoteData.serviceRequestId,
+    // Deep-link to the chat room where contact details were shared.
+    ...(acceptedChatRoomId ? { itemId: acceptedChatRoomId, goto: 'chatscreen' } : {}),
     read: false,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -93,7 +103,7 @@ export const acceptQuote = https.onCall(async (request) => {
   const rejectedDocs = otherQuotes.docs.filter(doc => doc.id !== quoteId);
   for (const rejectedDoc of rejectedDocs) {
     const rejectedData = rejectedDoc.data();
-    await db.collection('notifications').add({
+    const rejectedNotifRef = await db.collection('notifications').add({
       userId: rejectedData.tradieId,
       title: 'Quote Not Selected',
       message: `Another tradie was selected for the ${serviceRequestData.trades ? serviceRequestData.trades.join(', ') : 'service'} request.`,
@@ -104,24 +114,22 @@ export const acceptQuote = https.onCall(async (request) => {
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    // Reflect rejected status on that quote's chat room (if any).
+    // Reflect rejected status on that quote's chat room (if any) and update
+    // the notification we just wrote to deep-link to that room.
     const rejectedRoomQuery = await db.collection('chatRooms')
       .where('quoteId', '==', rejectedDoc.id)
       .limit(1)
       .get();
     if (!rejectedRoomQuery.empty) {
+      const rejectedRoomId = rejectedRoomQuery.docs[0].id;
       await rejectedRoomQuery.docs[0].ref.update({ quoteStatus: 'rejected' });
+      await rejectedNotifRef.update({ itemId: rejectedRoomId, goto: 'chatscreen' });
     }
   }
 
   // 6. Add system message to the chat room for this quote
-  const chatRoomQuery = await db.collection('chatRooms')
-    .where('quoteId', '==', quoteId)
-    .limit(1)
-    .get();
-
-  if (!chatRoomQuery.empty) {
-    const chatRoomId = chatRoomQuery.docs[0].id;
+  if (acceptedChatRoomId) {
+    const chatRoomId = acceptedChatRoomId;
 
     // Reflect accepted status on the room (drives the chat-list status filter).
     await db.collection('chatRooms').doc(chatRoomId).update({

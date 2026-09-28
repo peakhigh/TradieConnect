@@ -97,12 +97,25 @@ export const getAdminStats = https.onCall(async (request) => {
     unlockRevenue += Math.abs(d.data().amount || 0);
   });
 
+  // Commission revenue = 5% taken from completed jobs (platformRevenue ledger).
+  const commissionSnap = await db.collection('platformRevenue')
+    .where('type', '==', 'commission')
+    .get();
+  let commissionRevenue = 0;
+  commissionSnap.forEach((d) => {
+    commissionRevenue += d.data().amount || 0;
+  });
+  commissionRevenue = Math.round(commissionRevenue * 100) / 100;
+  unlockRevenue = Math.round(unlockRevenue * 100) / 100;
+
   return {
     totalUsers: totalUsers.data().count,
     totalCustomers: totalCustomers.data().count,
     totalTradies: totalTradies.data().count,
     pendingApprovals: pendingApprovals.data().count,
     totalUnlocks,
-    totalRevenue: Math.round(unlockRevenue * 100) / 100,
+    unlockRevenue,
+    commissionRevenue,
+    totalRevenue: Math.round((unlockRevenue + commissionRevenue) * 100) / 100,
   };
 });

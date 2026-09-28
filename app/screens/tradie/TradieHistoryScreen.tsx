@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { EmptyState } from '../../components/UI/EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { useFetchDocs } from '../../hooks/useFetchDocs';
+import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { theme } from '../../theme/theme';
-import { Calendar, DollarSign, Trophy } from 'lucide-react-native';
+import { Calendar, DollarSign, Trophy, Pencil, XCircle, AlertTriangle } from 'lucide-react-native';
 import { formatCurrency, timestampToReadable } from '../../utils/helpers';
+import { runCloudFunction } from '../../services/cloudFunctions';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useAlert } from '../../components/UI/AlertProvider';
 
 interface QuoteDoc {
   id: string;
@@ -14,7 +19,11 @@ interface QuoteDoc {
   tradieId: string;
   amount?: number;
   totalPrice?: number;
-  status: 'unlocked' | 'pending' | 'quoted' | 'accepted' | 'rejected';
+  materialsCost?: number;
+  laborCost?: number;
+  timelineDays?: number;
+  notes?: string;
+  status: 'unlocked' | 'pending' | 'quoted' | 'accepted' | 'rejected' | 'withdrawn';
   createdAt: any;
   tradeType?: string;
   trades?: string[];
@@ -24,15 +33,54 @@ interface QuoteDoc {
 
 export default function TradieHistoryScreen() {
   const { user } = useAuth();
+  const navigation = useScreenNavigation();
+  const { showAlert } = useAlert();
   const [tab, setTab] = useState<'quotes' | 'completed'>('quotes');
+  const [withdrawTarget, setWithdrawTarget] = useState<QuoteDoc | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const { documents: quotes, loading } = useFetchDocs<QuoteDoc>({
+  const { documents: quotes, loading, refresh } = useFetchDocs<QuoteDoc>({
     collectionName: 'quotes',
     wheres: [['tradieId', '==', user?.id || '']],
     orderBys: [['createdAt', 'desc']],
     limitCount: 50,
     subscribe: false,
   });
+
+  // Edit a submitted quote: load its full request, then open SubmitQuote in edit mode.
+  const handleEdit = async (quote: QuoteDoc) => {
+    try {
+      const reqSnap = await getDoc(doc(db, 'serviceRequests', quote.serviceRequestId));
+      const reqData = reqSnap.exists() ? { id: reqSnap.id, ...reqSnap.data() } : null;
+      navigation.navigate('SubmitQuote', {
+        request: reqData,
+        editQuote: {
+          quoteId: quote.id,
+          totalPrice: quote.totalPrice,
+          timelineDays: (quote as any).timelineDays,
+          materialsCost: (quote as any).materialsCost,
+          laborCost: (quote as any).laborCost,
+          notes: (quote as any).notes,
+        },
+      });
+    } catch {
+      showAlert('Error', 'Could not open this quote for editing.', undefined, { tone: 'destructive' });
+    }
+  };
+
+  const confirmWithdraw = async () => {
+    if (!withdrawTarget) return;
+    setBusy(true);
+    try {
+      await runCloudFunction('withdrawQuote', { quoteId: withdrawTarget.id });
+      setWithdrawTarget(null);
+      refresh();
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to withdraw quote', undefined, { tone: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // Tab split: "Quotes" = submitted/pending/rejected; "Completed Jobs" = accepted (won).
   const visibleQuotes = quotes.filter((q) => {
@@ -144,12 +192,64 @@ export default function TradieHistoryScreen() {
                       <Text style={styles.wonText}>Job won!</Text>
                     </View>
                   )}
+
+                  {quote.status === 'quoted' && (
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity style={styles.editBtn} onPress={() => handleEdit(quote)}>
+                        <Pencil size={14} color={theme.colors.primary} />
+                        <Text style={styles.editBtnText}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.withdrawBtn} onPress={() => setWithdrawTarget(quote)}>
+                        <XCircle size={14} color={theme.colors.error} />
+                        <Text style={styles.withdrawBtnText}>Withdraw</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               );
             })
           )}
         </View>
       </ScrollView>
+
+      {/* Withdraw confirmation modal (cross-platform) */}
+      <Modal
+        visible={!!withdrawTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !busy && setWithdrawTarget(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => !busy && setWithdrawTarget(null)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconRow}>
+              <View style={styles.modalIconCircle}>
+                <AlertTriangle size={24} color="#DC2626" />
+              </View>
+            </View>
+            <Text style={styles.modalTitle}>Withdraw this quote?</Text>
+            <Text style={styles.modalSubtitle}>
+              Your quote will be removed and the customer notified. The $0.50 unlock fee is not
+              refunded. This can't be undone.
+            </Text>
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity style={styles.modalGoBackBtn} onPress={() => !busy && setWithdrawTarget(null)}>
+                <Text style={styles.modalGoBackBtnText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={confirmWithdraw}
+                disabled={busy}
+              >
+                {busy ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Withdraw</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Container>
   );
 }
@@ -269,4 +369,53 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.semibold as any,
     color: theme.colors.success,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.light,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    backgroundColor: '#FFF',
+  },
+  editBtnText: { fontSize: theme.fontSize.sm, fontWeight: '600', color: theme.colors.primary },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    backgroundColor: '#FFF',
+  },
+  withdrawBtnText: { fontSize: theme.fontSize.sm, fontWeight: '600', color: theme.colors.error },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalCard: {
+    backgroundColor: '#FFF', borderRadius: 16, padding: 24, width: '100%', maxWidth: 380,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+  },
+  modalIconRow: { alignItems: 'center', marginBottom: 12 },
+  modalIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', textAlign: 'center', marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  modalButtonRow: { flexDirection: 'row', gap: 12 },
+  modalGoBackBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: '#FFF' },
+  modalGoBackBtnText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  modalConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#DC2626' },
+  modalConfirmBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
 });

@@ -5,6 +5,11 @@ import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
+// Platform commission taken from each completed job's value (mirrors
+// appConfig.pricing.commissionRate = 0.05). Kept here as the server source of
+// truth since Cloud Functions can't import the client appConfig.
+const COMMISSION_RATE = 0.05;
+
 interface CompleteServiceData {
   serviceRequestId: string;
   rating: number;
@@ -68,6 +73,112 @@ export const completeServiceRequest = https.onCall(async (request) => {
         rating: Math.round(newRating * 100) / 100,
         totalJobs: totalJobs + 1,
       });
+    }
+
+    // Persist a per-review record so reviews can be listed on the tradie's
+    // profile (the rolling average on the user doc loses the individual text).
+    if (typeof rating === 'number' && rating > 0) {
+      const customerDoc = await db.collection('users').doc(customerId).get();
+      const customerData = customerDoc.data();
+      const customerName =
+        customerData?.displayName ||
+        `${customerData?.firstName || ''} ${customerData?.lastName || ''}`.trim() ||
+        'Customer';
+
+      await db.collection('reviews').add({
+        tradieId: quoteData.tradieId,
+        customerId,
+        customerName,
+        serviceRequestId,
+        quoteId: quoteQuery.docs[0].id,
+        trades: serviceRequestData.trades || [],
+        rating,
+        review: review || '',
+        jobValue: acceptedValue,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    // --- Earnings + platform commission ledger ---
+    // On completion the tradie earns the job value less the platform
+    // commission. We record this as an earnings ledger (idempotent per job so
+    // re-completing can't double-credit). This is the accounting record; actual
+    // bank payout via Stripe Connect is a separate, later step.
+    if (acceptedValue > 0 && quoteData.tradieId) {
+      const tradeDisplay = serviceRequestData.trades
+        ? serviceRequestData.trades.join(', ')
+        : 'service';
+      const commission = Math.round(acceptedValue * COMMISSION_RATE * 100) / 100;
+      const netEarning = Math.round((acceptedValue - commission) * 100) / 100;
+      const earningRef = `earning_${serviceRequestId}`;
+
+      // Idempotency guard: skip if we've already recorded earnings for this job.
+      const existingEarning = await db
+        .collection('walletTransactions')
+        .where('userId', '==', quoteData.tradieId)
+        .where('referenceId', '==', earningRef)
+        .limit(1)
+        .get();
+
+      if (existingEarning.empty) {
+        const batch = db.batch();
+
+        // Gross earning credit.
+        batch.set(db.collection('walletTransactions').doc(), {
+          userId: quoteData.tradieId,
+          type: 'earning',
+          amount: acceptedValue,
+          description: `Job earning — ${tradeDisplay}`,
+          referenceId: earningRef,
+          serviceRequestId,
+          status: 'completed',
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        // Platform commission debit.
+        batch.set(db.collection('walletTransactions').doc(), {
+          userId: quoteData.tradieId,
+          type: 'commission',
+          amount: -commission,
+          description: `Platform commission (${Math.round(COMMISSION_RATE * 100)}%) — ${tradeDisplay}`,
+          referenceId: `commission_${serviceRequestId}`,
+          serviceRequestId,
+          status: 'completed',
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        // Track lifetime earnings on the tradie doc for quick dashboard reads.
+        batch.update(db.collection('users').doc(quoteData.tradieId), {
+          totalEarnings: FieldValue.increment(netEarning),
+          totalCommissionPaid: FieldValue.increment(commission),
+          lifetimeJobValue: FieldValue.increment(acceptedValue),
+        });
+
+        // Record commission as platform revenue.
+        batch.set(db.collection('platformRevenue').doc(), {
+          type: 'commission',
+          amount: commission,
+          serviceRequestId,
+          tradieId: quoteData.tradieId,
+          jobValue: acceptedValue,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        // Notify the tradie of their earning.
+        batch.set(db.collection('notifications').doc(), {
+          userId: quoteData.tradieId,
+          title: 'Payment recorded',
+          message: `You earned $${netEarning.toFixed(2)} for the ${tradeDisplay} job (after ${Math.round(
+            COMMISSION_RATE * 100
+          )}% commission).`,
+          type: 'wallet',
+          goto: 'wallet',
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
+      }
     }
   }
 

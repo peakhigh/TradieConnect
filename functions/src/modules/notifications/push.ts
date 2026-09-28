@@ -9,11 +9,35 @@ interface PushPayload {
 }
 
 /**
+ * Map a notification type to the user preference toggle that gates it.
+ * `push` is the master switch; `chat` gates messages; `quotes` gates
+ * quote-related events. Types with no specific toggle fall through to the
+ * master `push` switch only.
+ */
+function isAllowedByPrefs(prefs: any, type?: string): boolean {
+  if (!prefs) return true; // no prefs set → default allow
+  if (prefs.push === false) return false; // master off → block everything
+
+  switch (type) {
+    case 'chat_message':
+      return prefs.chat !== false;
+    case 'quote':
+    case 'new_quote':
+    case 'quote_accepted':
+    case 'quote_rejected':
+      return prefs.quotes !== false;
+    default:
+      return true; // wallet, job_alert, job_cancelled, request_expired, etc.
+  }
+}
+
+/**
  * Send a push notification to every registered device token for a user.
  *
- * Supports both native (`fcmToken`) and web (`webPushToken`) tokens. Tokens that
- * Firebase reports as unregistered are cleared from the user doc so we stop
- * trying to deliver to dead devices.
+ * Respects the user's notificationPrefs ({ push, chat, quotes }) based on the
+ * notification type in `payload.data.type`. Supports both native (`fcmToken`)
+ * and web (`webPushToken`) tokens. Tokens that Firebase reports as unregistered
+ * are cleared from the user doc so we stop trying to deliver to dead devices.
  *
  * Returns the number of tokens that were successfully delivered to.
  */
@@ -22,6 +46,11 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   const userDoc = await userRef.get();
   const userData = userDoc.data();
   if (!userData) return 0;
+
+  // Respect the user's notification preferences for this type.
+  if (!isAllowedByPrefs(userData.notificationPrefs, payload.data?.type)) {
+    return 0;
+  }
 
   const targets: { field: 'fcmToken' | 'webPushToken'; token: string }[] = [];
   if (userData.fcmToken) targets.push({ field: 'fcmToken', token: userData.fcmToken });

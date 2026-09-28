@@ -2,6 +2,7 @@ import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { applyRollupDelta } from '../reporting/rollups';
+import { requireActiveTradie } from '../auth/tradieGuard';
 
 const db = admin.firestore();
 
@@ -26,16 +27,8 @@ export const unlockServiceRequest = https.onCall(async (request) => {
     throw new https.HttpsError('invalid-argument', 'serviceRequestId is required');
   }
 
-  // Get tradie user doc
-  const tradieDoc = await db.collection('users').doc(tradieId).get();
-  if (!tradieDoc.exists) {
-    throw new https.HttpsError('not-found', 'Tradie not found');
-  }
-
-  const tradieData = tradieDoc.data()!;
-  if (tradieData.userType !== 'tradie') {
-    throw new https.HttpsError('permission-denied', 'Only tradies can unlock requests');
-  }
+  // Get tradie user doc + enforce approval/suspension gate.
+  const tradieData = await requireActiveTradie(tradieId);
 
   const unlockCost = 0.50;
   const walletBalance = tradieData.walletBalance || 0;

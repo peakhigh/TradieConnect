@@ -4,7 +4,7 @@ import { theme } from '../theme/theme';
 import { useNotifications, AppNotification } from '../context/NotificationsContext';
 import { useScreenNavigation } from '../navigation/NavigationContext';
 import { formatTimeAgo } from '../utils/helpers';
-import { Bell, MessageCircle, DollarSign, CheckCircle2, XCircle, Wallet, CheckCheck } from 'lucide-react-native';
+import { Bell, MessageCircle, DollarSign, CheckCircle2, XCircle, Wallet, CheckCheck, Search } from 'lucide-react-native';
 
 const iconFor = (type: string) => {
   switch (type) {
@@ -13,6 +13,7 @@ const iconFor = (type: string) => {
     case 'quote_accepted': return CheckCircle2;
     case 'quote_rejected': return XCircle;
     case 'wallet': return Wallet;
+    case 'job_alert': return Search;
     default: return Bell;
   }
 };
@@ -28,8 +29,19 @@ export default function NotificationsScreen() {
       navigate('Chat', { chatRoomId: n.itemId });
     } else if (n.type === 'wallet') {
       navigate('Wallet');
+    } else if (n.type === 'job_alert' || n.goto === 'explorer') {
+      // Tradie job alerts open the Explorer to browse the new matching request.
+      navigate('Explorer');
+    } else if (n.goto === 'requestdetail' && n.itemId) {
+      // Customer-facing quote notifications land on the live quotes screen.
+      navigate('RequestDetail', { requestId: n.itemId });
+    } else if (n.type === 'quote' && n.itemId) {
+      // Backfill: older quote notifications may lack `goto` but carry the
+      // request id in itemId. Still route to the real quotes screen.
+      navigate('RequestDetail', { requestId: n.itemId });
     } else if (n.itemId) {
-      navigate('Interests', { requestId: n.itemId });
+      // Fallback for any other item-scoped notification.
+      navigate('RequestDetail', { requestId: n.itemId });
     }
   };
 

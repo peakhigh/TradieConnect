@@ -34,8 +34,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 4,
+    flexGrow: 1,
+    flexBasis: 100,
+    minWidth: 90,
   },
   statNumber: {
     fontSize: 28,

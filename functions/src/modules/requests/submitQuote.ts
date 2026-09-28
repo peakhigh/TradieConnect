@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { recalculateIntelligence } from './intelligence';
 import { applyRollupDelta } from '../reporting/rollups';
+import { requireActiveTradie } from '../auth/tradieGuard';
 
 const db = admin.firestore();
 
@@ -43,6 +44,9 @@ export const submitQuote = https.onCall(async (request) => {
   if (!serviceRequestId || !totalPrice || !timelineDays) {
     throw new https.HttpsError('invalid-argument', 'Missing required fields');
   }
+
+  // Enforce approval/suspension gate before allowing a quote.
+  await requireActiveTradie(tradieId);
 
   // 1. Find existing quotes doc where tradieId == auth.uid AND serviceRequestId AND status == 'unlocked'
   const unlockQuery = await db.collection('quotes')
@@ -134,12 +138,16 @@ export const submitQuote = https.onCall(async (request) => {
   );
 
   // 7. Create notification for customer
-  if (serviceRequestData?.customerId) {    await db.collection('notifications').add({
+  if (serviceRequestData?.customerId) {
+    await db.collection('notifications').add({
       userId: serviceRequestData.customerId,
       title: 'New Quote Received',
       message: `You received a $${totalPrice.toFixed(2)} quote for your ${serviceRequestData.trades ? serviceRequestData.trades.join(', ') : 'service'} request`,
       type: 'quote',
       serviceRequestId,
+      // itemId + goto drive in-app deep-linking to the live quotes screen.
+      itemId: serviceRequestId,
+      goto: 'requestdetail',
       read: false,
       createdAt: FieldValue.serverTimestamp(),
     });
