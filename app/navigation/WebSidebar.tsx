@@ -82,6 +82,10 @@ export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps)
         style={[styles.menuItem, isActive && styles.menuItemActive]}
         onPress={() => onNavigate(item.route)}
         activeOpacity={0.7}
+        testID={`nav-${item.route}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isActive }}
+        accessibilityLabel={item.label}
       >
         <IconComponent
           size={20}
@@ -147,6 +151,9 @@ export default function WebSidebar({ activeRoute, onNavigate }: WebSidebarProps)
           style={styles.logoutButton}
           onPress={logout}
           activeOpacity={0.7}
+          testID="nav-sign-out"
+          accessibilityRole="button"
+          accessibilityLabel="Logout"
         >
           <LogOut size={20} color={theme.colors.error} />
           <Text style={styles.logoutText}>Logout</Text>

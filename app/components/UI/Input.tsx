@@ -15,6 +15,10 @@ interface InputProps extends TextInputProps {
   containerStyle?: any;
 }
 
+/** Stable fallback testID from the label, e.g. "Mobile Number" -> "input-mobile-number". */
+const slugTestID = (prefix: string, v?: string) =>
+  `${prefix}-${(v || 'field').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+
 export const Input: React.FC<InputProps> = ({
   label,
   error,
@@ -26,10 +30,12 @@ export const Input: React.FC<InputProps> = ({
   isReadOnly = false,
   containerStyle,
   style,
+  testID,
   ...props
 }) => {
+  const baseTestID = testID || slugTestID('input', label || (props.placeholder as string));
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, containerStyle]} testID={baseTestID}>
       {label && (
         <View style={styles.labelContainer}>
           <Text style={styles.label}>
@@ -56,7 +62,9 @@ export const Input: React.FC<InputProps> = ({
           ]}
           placeholderTextColor="#9ca3af"
           editable={!isDisabled && !isReadOnly}
+          accessibilityLabel={label}
           {...props}
+          testID={`${baseTestID}-input`}
         />
         
         {rightIcon && (
@@ -67,7 +75,7 @@ export const Input: React.FC<InputProps> = ({
       </View>
       
       {error && (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText} testID={`${baseTestID}-error`}>{error}</Text>
       )}
       
       {helperText && !error && (

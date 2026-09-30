@@ -15,6 +15,8 @@ interface ButtonProps {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
+  /** Stable id for E2E; falls back to a slug of the title. */
+  testID?: string;
 }
 
 export const SimpleButton: React.FC<ButtonProps> = ({
@@ -28,7 +30,9 @@ export const SimpleButton: React.FC<ButtonProps> = ({
   textStyle,
   fullWidth = false,
   leftIcon,
+  testID,
 }) => {
+  const _tid = testID || `btn-${(title||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}`;
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
       borderRadius: theme.borderRadius.lg,
@@ -120,6 +124,10 @@ export const SimpleButton: React.FC<ButtonProps> = ({
         disabled={disabled || loading}
         style={[getButtonStyle(), style]}
         activeOpacity={0.8}
+        testID={_tid}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
+        accessibilityLabel={title}
       >
         <LinearGradient
           colors={getGradientColors()}
@@ -154,6 +162,10 @@ export const SimpleButton: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       style={[getButtonStyle(), style]}
       activeOpacity={0.8}
+      testID={_tid}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityLabel={title}
     >
       {loading ? (
         <ActivityIndicator 

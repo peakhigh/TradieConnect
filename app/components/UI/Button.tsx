@@ -13,6 +13,8 @@ interface ButtonProps {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fullWidth?: boolean;
+  /** Stable id for E2E; falls back to a slug of the title. */
+  testID?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -25,7 +27,9 @@ export const Button: React.FC<ButtonProps> = ({
   leftIcon,
   rightIcon,
   fullWidth = false,
+  testID,
 }) => {
+  const _tid = testID || `btn-${(title||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}`;
   const getButtonStyles = () => {
     const baseStyles = {
       borderRadius: '$lg',
@@ -124,6 +128,10 @@ export const Button: React.FC<ButtonProps> = ({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      testID={_tid}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityLabel={title}
       style={({ pressed }) => [
         {
           transform: [{ scale: pressed ? 0.95 : 1 }],

@@ -32,7 +32,9 @@ export default function BottomTabBar({ tabs, activeTab, onTabPress }: BottomTabB
             style={[styles.tab, isActive && styles.tabActive]}
             onPress={() => onTabPress(tab.name)}
             activeOpacity={0.7}
+            testID={`tab-${tab.name}`}
             accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
           >
             <View style={[styles.iconWrapper, isActive && styles.iconWrapperActive]}>
