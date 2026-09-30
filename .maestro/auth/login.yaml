@@ -1,0 +1,18 @@
+# Smoke: phone-OTP login on mobile (Auth-emulator test number + fixed code).
+appId: ${MAESTRO_APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "input-mobile-number-input"
+- inputText: "0405724199"
+- tapOn:
+    id: "btn-send-otp"
+- tapOn:
+    id: "input-verification-code-input"
+- inputText: "123456"
+- tapOn:
+    id: "btn-verify-login"
+# After login the OTP send button should be gone (left the login screen).
+- assertNotVisible:
+    id: "btn-send-otp"

@@ -1,0 +1,12 @@
+# X3 parity: seeded tradie logs in on mobile and reaches the tradie dashboard.
+appId: ${MAESTRO_APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn: { id: "input-mobile-number-input" }
+- inputText: "0405726599"
+- tapOn: { id: "btn-send-otp" }
+- tapOn: { id: "input-verification-code-input" }
+- inputText: "123456"
+- tapOn: { id: "btn-verify-login" }
+- assertVisible: { id: "tab-Dashboard" }

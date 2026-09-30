@@ -1,0 +1,8 @@
+# Maestro suite config for TradieConnect (iOS + Android).
+# Prereqs: emulators running + seeded; app built/installed with .env.e2e.
+# Run: maestro test .maestro
+appId: ${MAESTRO_APP_ID}
+flows:
+  - "auth/*.yaml"
+  - "customer/*.yaml"
+  - "tradie/*.yaml"

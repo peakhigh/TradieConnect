@@ -125,6 +125,7 @@
       <a data-doc="intelligence-algorithm">Intelligence Algorithm</a>
       <a data-doc="project-skeleton">Project Skeleton</a>
       <a data-doc="pending-tasks">Pending Tasks</a>
+      <a data-doc="e2e">🧪 E2E Regression Testing</a>
     </nav>
     <main class="content" id="content"></main>
   </div>
@@ -2951,12 +2952,19 @@ EXPO_PUBLIC_SKIP_TOASTS=false
       'intelligence-algorithm': document.getElementById('md-intelligence-algorithm').textContent,
       'project-skeleton': document.getElementById('md-project-skeleton').textContent,
       'pending-tasks': document.getElementById('md-pending-tasks').textContent,
+      e2e: null, // fetched lazily from e2e-regression-testing.md
     };
 
     const content = document.getElementById('content');
     const links = document.querySelectorAll('.sidebar a[data-doc]');
 
-    function loadDoc(key) {
+    async function loadDoc(key) {
+      if (docs[key] === null) {
+        try {
+          const res = await fetch('e2e-regression-testing.md');
+          docs[key] = await res.text();
+        } catch (e) { docs[key] = '# Could not load e2e-regression-testing.md'; }
+      }
       content.innerHTML = marked.parse(docs[key] || '# Not found');
     }
 
