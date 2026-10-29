@@ -4,8 +4,8 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | React Native 0.79 + Expo 53 |
-| Language | TypeScript 5.8 (strict, everywhere) |
+| Framework | React Native 0.85 + Expo 56 |
+| Language | TypeScript 6.0 (strict, everywhere) |
 | Navigation | React Navigation 7 (Stack + Bottom Tabs) |
 | State | React Context API (AuthContext, UserContext) |
 | UI | Gluestack UI + NativeWind (Tailwind) + Styled Components |

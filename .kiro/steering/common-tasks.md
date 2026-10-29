@@ -72,7 +72,11 @@ npm run android  # Android emulator
 ## Populating Test Data
 
 ```bash
-npm run populate-firestore   # Runs scripts/populateFirestore.js
+npm run seed            # bin/data/seed.js
+npm run seed:reporting  # bin/data/backfillReporting.js
+npm run clean           # bin/data/clean.js
+npm run seed:reset      # clean + seed + backfill reporting
+npm run e2e:seed        # seed the emulators using .env.e2e
 ```
 
 ## Debugging Tips
