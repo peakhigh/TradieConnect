@@ -73,7 +73,8 @@ export const rechargeWallet = https.onCall(async (request) => {
     if (intent.amount_received !== toCents(amount)) {
       throw new https.HttpsError('failed-precondition', 'Payment amount mismatch.');
     }
-    if (intent.metadata?.userId && intent.metadata.userId !== userId) {
+    // createPaymentIntent always tags the owner; an untagged intent isn't ours.
+    if (intent.metadata?.userId !== userId) {
       throw new https.HttpsError('permission-denied', 'Payment does not belong to this user.');
     }
     // Verified — fall through to credit below.

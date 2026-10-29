@@ -15,6 +15,8 @@ interface AdminStats {
   totalTradies: number;
   pendingApprovals: number;
   totalRevenue: number;
+  unlockRevenue: number;
+  commissionRevenue: number;
   totalUnlocks: number;
 }
 
@@ -28,7 +30,8 @@ interface UserRow {
 }
 
 const ZERO: AdminStats = {
-  totalUsers: 0, totalCustomers: 0, totalTradies: 0, pendingApprovals: 0, totalRevenue: 0, totalUnlocks: 0,
+  totalUsers: 0, totalCustomers: 0, totalTradies: 0, pendingApprovals: 0,
+  totalRevenue: 0, unlockRevenue: 0, commissionRevenue: 0, totalUnlocks: 0,
 };
 
 export default function AdminDashboard() {
@@ -55,20 +58,17 @@ export default function AdminDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Real platform stats (server-side, admin-checked).
-      const s = await runCloudFunction<AdminStats>('getAdminStats', {});
+      // Real platform stats (server-side, admin-checked), pending tradie
+      // approvals and recent users, loaded in parallel.
+      const [s, pendingSnap, recentSnap] = await Promise.all([
+        runCloudFunction<AdminStats>('getAdminStats', {}),
+        getDocs(
+          query(collection(db, 'users'), where('userType', '==', 'tradie'), where('isApproved', '==', false), limit(25))
+        ),
+        getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(20))),
+      ]);
       setStats({ ...ZERO, ...s });
-
-      // Pending tradie approvals.
-      const pendingSnap = await getDocs(
-        query(collection(db, 'users'), where('userType', '==', 'tradie'), where('isApproved', '==', false), limit(25))
-      );
       setPending(pendingSnap.docs.map(mapUser));
-
-      // Recent users.
-      const recentSnap = await getDocs(
-        query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(20))
-      );
       setRecentUsers(recentSnap.docs.map(mapUser));
     } catch (e: any) {
       showAlert('Error', e?.message || 'Failed to load admin data', undefined, { tone: 'destructive' });
@@ -139,6 +139,16 @@ export default function AdminDashboard() {
               <View style={styles.finItem}>
                 <Wallet size={16} color={theme.colors.success} />
                 <Text style={styles.finLabel}>Unlock Revenue</Text>
+                <Text style={[styles.finValue, { color: theme.colors.success }]}>{formatCurrency(stats.unlockRevenue)}</Text>
+              </View>
+              <View style={styles.finItem}>
+                <Wallet size={16} color={theme.colors.success} />
+                <Text style={styles.finLabel}>Commission</Text>
+                <Text style={[styles.finValue, { color: theme.colors.success }]}>{formatCurrency(stats.commissionRevenue)}</Text>
+              </View>
+              <View style={styles.finItem}>
+                <Wallet size={16} color={theme.colors.success} />
+                <Text style={styles.finLabel}>Total Revenue</Text>
                 <Text style={[styles.finValue, { color: theme.colors.success }]}>{formatCurrency(stats.totalRevenue)}</Text>
               </View>
               <View style={styles.finItem}>
@@ -149,14 +159,14 @@ export default function AdminDashboard() {
               <View style={styles.finItem}>
                 <Text style={styles.finLabel}>Avg / Unlock</Text>
                 <Text style={styles.finValue}>
-                  {formatCurrency(stats.totalUnlocks > 0 ? stats.totalRevenue / stats.totalUnlocks : 0)}
+                  {formatCurrency(stats.totalUnlocks > 0 ? stats.unlockRevenue / stats.totalUnlocks : 0)}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* Pending approvals */}
-          <Text style={styles.sectionTitle}>Pending Tradie Approvals ({pending.length})</Text>
+          <Text style={styles.sectionTitle}>Pending Tradie Approvals ({stats.pendingApprovals})</Text>
           {pending.length === 0 ? (
             <Text style={styles.empty}>No tradies awaiting approval.</Text>
           ) : (

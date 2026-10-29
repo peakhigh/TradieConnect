@@ -27,30 +27,33 @@ export const declineQuote = https.onCall(async (request) => {
     throw new https.HttpsError('invalid-argument', 'quoteId is required');
   }
 
-  const quoteDoc = await db.collection('quotes').doc(quoteId).get();
-  if (!quoteDoc.exists) {
-    throw new https.HttpsError('not-found', 'Quote not found');
-  }
+  // Check and update in one transaction so a decline can't overwrite a quote
+  // that a parallel accept/withdraw has just moved on from 'quoted'.
+  const quoteRef = db.collection('quotes').doc(quoteId);
+  const { quoteData, serviceRequestData } = await db.runTransaction(async (tx) => {
+    const quoteDoc = await tx.get(quoteRef);
+    if (!quoteDoc.exists) {
+      throw new https.HttpsError('not-found', 'Quote not found');
+    }
+    const quote = quoteDoc.data()!;
+    const reqDoc = await tx.get(db.collection('serviceRequests').doc(quote.serviceRequestId));
+    const req = reqDoc.data();
 
-  const quoteData = quoteDoc.data()!;
+    // Verify the customer owns the related service request.
+    if (!req || req.customerId !== customerId) {
+      throw new https.HttpsError('permission-denied', 'Not authorized to decline this quote');
+    }
+    // Only pending/quoted quotes can be declined.
+    if (quote.status !== 'quoted') {
+      throw new https.HttpsError('failed-precondition', 'Only an active quote can be declined');
+    }
 
-  // Only pending/quoted quotes can be declined.
-  if (quoteData.status !== 'quoted') {
-    throw new https.HttpsError('failed-precondition', 'Only an active quote can be declined');
-  }
-
-  // Verify the customer owns the related service request.
-  const serviceRequestDoc = await db.collection('serviceRequests').doc(quoteData.serviceRequestId).get();
-  const serviceRequestData = serviceRequestDoc.data();
-
-  if (!serviceRequestData || serviceRequestData.customerId !== customerId) {
-    throw new https.HttpsError('permission-denied', 'Not authorized to decline this quote');
-  }
-
-  // 1. Mark the quote rejected.
-  await db.collection('quotes').doc(quoteId).update({
-    status: 'rejected',
-    rejectedAt: FieldValue.serverTimestamp(),
+    // 1. Mark the quote rejected.
+    tx.update(quoteRef, {
+      status: 'rejected',
+      rejectedAt: FieldValue.serverTimestamp(),
+    });
+    return { quoteData: quote, serviceRequestData: req };
   });
 
   // 2. Notify the tradie.

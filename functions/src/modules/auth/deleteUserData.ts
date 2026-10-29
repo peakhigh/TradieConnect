@@ -1,6 +1,8 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { refundUnlocks } from '../payments/refundUnlocks';
+import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
 
@@ -36,6 +38,11 @@ export const deleteUserData = https.onCall(async (request) => {
       fcmToken: null,
       address: null,
       businessName: null,
+      // Tradie identity details from onboarding.
+      abn: FieldValue.delete(),
+      businessAddress: FieldValue.delete(),
+      licenceDetails: FieldValue.delete(),
+      insuranceDetails: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
@@ -47,6 +54,28 @@ export const deleteUserData = https.onCall(async (request) => {
       batch.update(d.ref, { status: 'closed' });
     });
     await batch.commit();
+
+    // Withdraw the customer's open requests: nobody can complete them now, so
+    // they must leave the Explorer (tradies would otherwise keep paying to
+    // unlock them) and any unlock fees already paid are refunded.
+    const openRequests = await db.collection('serviceRequests')
+      .where('customerId', '==', uid)
+      .where('status', 'in', ['new', 'quoted'])
+      .get();
+    for (const reqDoc of openRequests.docs) {
+      const data = reqDoc.data();
+      await reqDoc.ref.update({
+        status: 'cancelled',
+        cancelledAt: FieldValue.serverTimestamp(),
+        cancelReason: 'account deleted',
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      await refundUnlocks(reqDoc.id, 'customer account closed');
+      await applyRollupDelta(
+        { suburb: data.suburb, postcode: data.postcode, state: data.state, trades: data.trades || [] },
+        { activeRequestCount: -1 }
+      );
+    }
 
     // Revoke access + disable the Auth account.
     try {

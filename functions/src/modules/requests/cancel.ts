@@ -37,38 +37,45 @@ export const cancelServiceRequest = https.onCall(async (request) => {
     throw new https.HttpsError('invalid-argument', 'serviceRequestId is required');
   }
 
+  // 1. Check and flip the status in one transaction, so a double cancel
+  //    runs the follow-up (refunds, notifications, rollups) only once, and a
+  //    parallel acceptQuote is either seen here as 'assigned' or refused.
   const reqRef = db.collection('serviceRequests').doc(serviceRequestId);
-  const reqDoc = await reqRef.get();
-  if (!reqDoc.exists) {
-    throw new https.HttpsError('not-found', 'Service request not found');
-  }
+  const data = await db.runTransaction(async (tx) => {
+    const reqDoc = await tx.get(reqRef);
+    if (!reqDoc.exists) {
+      throw new https.HttpsError('not-found', 'Service request not found');
+    }
+    const req = reqDoc.data()!;
+    if (req.customerId !== customerId) {
+      throw new https.HttpsError('permission-denied', 'Not authorized to cancel this request');
+    }
+    if (req.status === 'completed' || req.status === 'cancelled' || req.status === 'expired') {
+      throw new https.HttpsError(
+        'failed-precondition',
+        `A ${req.status} request can't be cancelled.`
+      );
+    }
 
-  const data = reqDoc.data()!;
-  if (data.customerId !== customerId) {
-    throw new https.HttpsError('permission-denied', 'Not authorized to cancel this request');
-  }
+    tx.update(reqRef, {
+      status: 'cancelled',
+      cancelledAt: FieldValue.serverTimestamp(),
+      cancelReason: typeof reason === 'string' && reason ? reason : null,
+      // Clear assignment fields when cancelling an assigned job.
+      ...(req.status === 'assigned' ? { acceptedQuoteId: null } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    // The job is off, so the tradie no longer gets the address and phone.
+    if (req.status === 'assigned') {
+      tx.delete(reqRef.collection('private').doc('contact'));
+    }
+    return req;
+  });
 
   const currentStatus = data.status;
-  if (currentStatus === 'completed' || currentStatus === 'cancelled' || currentStatus === 'expired') {
-    throw new https.HttpsError(
-      'failed-precondition',
-      `A ${currentStatus} request can't be cancelled.`
-    );
-  }
-
   const wasAssigned = currentStatus === 'assigned';
   const acceptedQuoteId = data.acceptedQuoteId || null;
   const tradeDisplay = data.trades ? data.trades.join(', ') : 'service';
-
-  // 1. Update the request.
-  await reqRef.update({
-    status: 'cancelled',
-    cancelledAt: FieldValue.serverTimestamp(),
-    cancelReason: reason || null,
-    // Clear assignment fields when cancelling an assigned job.
-    ...(wasAssigned ? { acceptedQuoteId: null } : {}),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
 
   // 2. If it was assigned, un-assign + notify the assigned tradie.
   if (wasAssigned && acceptedQuoteId) {
@@ -119,7 +126,7 @@ export const cancelServiceRequest = https.onCall(async (request) => {
   const refundResult = await refundUnlocks(
     serviceRequestId,
     'request cancelled',
-    wasAssigned ? (await getAcceptedTradieId(acceptedQuoteId)) : null
+    wasAssigned ? (data.acceptedTradieId || (await getAcceptedTradieId(acceptedQuoteId))) : null
   );
 
   // 4. Reporting: remove from active count (only if it was still active).

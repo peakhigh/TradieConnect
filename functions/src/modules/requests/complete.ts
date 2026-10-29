@@ -1,6 +1,6 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { applyRollupDelta } from '../reporting/rollups';
 
 const db = admin.firestore();
@@ -28,159 +28,159 @@ export const completeServiceRequest = https.onCall(async (request) => {
   const { serviceRequestId, rating, review } = request.data as CompleteServiceData;
   const customerId = request.auth.uid;
 
-  if (!serviceRequestId) {
+  if (typeof serviceRequestId !== 'string' || !serviceRequestId) {
     throw new https.HttpsError('invalid-argument', 'serviceRequestId is required');
   }
-
-  // Verify customer owns the service request
-  const serviceRequestDoc = await db.collection('serviceRequests').doc(serviceRequestId).get();
-  const serviceRequestData = serviceRequestDoc.data();
-
-  if (!serviceRequestData || serviceRequestData.customerId !== customerId) {
-    throw new https.HttpsError('permission-denied', 'Not authorized to complete this request');
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new https.HttpsError('invalid-argument', 'Rating must be a whole number from 1 to 5');
   }
+  const reviewText = typeof review === 'string' ? review.trim().slice(0, 2000) : '';
 
-  // Update service request status
-  await db.collection('serviceRequests').doc(serviceRequestId).update({
-    status: 'completed',
-    completedAt: FieldValue.serverTimestamp(),
-    rating,
-    review,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  const requestRef = db.collection('serviceRequests').doc(serviceRequestId);
+  const customerData = (await db.collection('users').doc(customerId).get()).data();
+  const customerName =
+    customerData?.displayName ||
+    `${customerData?.firstName || ''} ${customerData?.lastName || ''}`.trim() ||
+    'Customer';
 
-  // Update tradie's rating and total jobs
-  const quoteQuery = await db.collection('quotes')
-    .where('serviceRequestId', '==', serviceRequestId)
-    .where('status', '==', 'accepted')
-    .limit(1)
-    .get();
+  // Everything in one transaction, gated on the request still being
+  // 'assigned': a repeat call (double tap, retry, or a scripted loop) can't
+  // add the job to the tradie's rating/totalJobs again, write another review
+  // or record the earnings twice, and two jobs finishing at once for the same
+  // tradie can't lose a rating update.
+  const { serviceRequestData, acceptedValue } = await db.runTransaction(async (tx) => {
+    const requestDoc = await tx.get(requestRef);
+    const req = requestDoc.data();
 
-  let acceptedValue = 0;
-  if (!quoteQuery.empty) {
-    const quoteData = quoteQuery.docs[0].data();
-    acceptedValue = quoteData.totalPrice || 0;
-    const tradieRef = db.collection('users').doc(quoteData.tradieId);
-    const tradieDoc = await tradieRef.get();
-    const tradieData = tradieDoc.data();
+    // Verify customer owns the service request
+    if (!req || req.customerId !== customerId) {
+      throw new https.HttpsError('permission-denied', 'Not authorized to complete this request');
+    }
+    if (req.status !== 'assigned') {
+      throw new https.HttpsError(
+        'failed-precondition',
+        req.status === 'completed'
+          ? 'This job is already completed.'
+          : 'Only an assigned job can be marked complete.'
+      );
+    }
 
+    const quoteSnap = req.acceptedQuoteId
+      ? await tx.get(db.collection('quotes').doc(req.acceptedQuoteId))
+      : (await tx.get(db.collection('quotes')
+          .where('serviceRequestId', '==', serviceRequestId)
+          .where('status', '==', 'accepted')
+          .limit(1))).docs[0];
+    const quoteData = quoteSnap?.exists ? quoteSnap.data()! : null;
+    const tradieRef = quoteData?.tradieId ? db.collection('users').doc(quoteData.tradieId) : null;
+    const tradieData = tradieRef ? (await tx.get(tradieRef)).data() : undefined;
+
+    // Update service request status
+    tx.update(requestRef, {
+      status: 'completed',
+      completedAt: FieldValue.serverTimestamp(),
+      rating,
+      review: reviewText,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const jobValue = quoteData?.totalPrice || 0;
+    if (!quoteData || !tradieRef) return { serviceRequestData: req, acceptedValue: jobValue };
+
+    // Update tradie's rating and total jobs
+    const tradieUpdate: Record<string, any> = {};
     if (tradieData) {
       const currentRating = tradieData.rating || 0;
       const totalJobs = tradieData.totalJobs || 0;
       const newRating = ((currentRating * totalJobs) + rating) / (totalJobs + 1);
-
-      await tradieRef.update({
-        rating: Math.round(newRating * 100) / 100,
-        totalJobs: totalJobs + 1,
-      });
+      tradieUpdate.rating = Math.round(newRating * 100) / 100;
+      tradieUpdate.totalJobs = totalJobs + 1;
     }
 
     // Persist a per-review record so reviews can be listed on the tradie's
     // profile (the rolling average on the user doc loses the individual text).
-    if (typeof rating === 'number' && rating > 0) {
-      const customerDoc = await db.collection('users').doc(customerId).get();
-      const customerData = customerDoc.data();
-      const customerName =
-        customerData?.displayName ||
-        `${customerData?.firstName || ''} ${customerData?.lastName || ''}`.trim() ||
-        'Customer';
+    tx.set(db.collection('reviews').doc(), {
+      tradieId: quoteData.tradieId,
+      customerId,
+      customerName,
+      serviceRequestId,
+      quoteId: quoteSnap!.id,
+      trades: req.trades || [],
+      rating,
+      review: reviewText,
+      jobValue,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-      await db.collection('reviews').add({
-        tradieId: quoteData.tradieId,
-        customerId,
-        customerName,
+    // --- Earnings + platform commission ledger ---
+    // On completion the tradie earns the job value less the platform
+    // commission. This is the accounting record; actual bank payout via
+    // Stripe Connect is a separate, later step. Fixed ids keep it one per job.
+    if (jobValue > 0) {
+      const tradeDisplay = req.trades ? req.trades.join(', ') : 'service';
+      const commission = Math.round(jobValue * COMMISSION_RATE * 100) / 100;
+      const netEarning = Math.round((jobValue - commission) * 100) / 100;
+      const earningRef = `earning_${serviceRequestId}`;
+      const commissionRef = `commission_${serviceRequestId}`;
+
+      // Gross earning credit.
+      tx.create(db.collection('walletTransactions').doc(earningRef), {
+        userId: quoteData.tradieId,
+        type: 'earning',
+        amount: jobValue,
+        description: `Job earning — ${tradeDisplay}`,
+        referenceId: earningRef,
         serviceRequestId,
-        quoteId: quoteQuery.docs[0].id,
-        trades: serviceRequestData.trades || [],
-        rating,
-        review: review || '',
-        jobValue: acceptedValue,
+        status: 'completed',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      // Platform commission debit.
+      tx.create(db.collection('walletTransactions').doc(commissionRef), {
+        userId: quoteData.tradieId,
+        type: 'commission',
+        amount: -commission,
+        description: `Platform commission (${Math.round(COMMISSION_RATE * 100)}%) — ${tradeDisplay}`,
+        referenceId: commissionRef,
+        serviceRequestId,
+        status: 'completed',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      // Track lifetime earnings on the tradie doc for quick dashboard reads.
+      tradieUpdate.totalEarnings = FieldValue.increment(netEarning);
+      tradieUpdate.totalCommissionPaid = FieldValue.increment(commission);
+      tradieUpdate.lifetimeJobValue = FieldValue.increment(jobValue);
+
+      // Record commission as platform revenue.
+      tx.create(db.collection('platformRevenue').doc(commissionRef), {
+        type: 'commission',
+        amount: commission,
+        serviceRequestId,
+        tradieId: quoteData.tradieId,
+        jobValue,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      // Notify the tradie of their earning.
+      tx.set(db.collection('notifications').doc(), {
+        userId: quoteData.tradieId,
+        title: 'Payment recorded',
+        message: `You earned $${netEarning.toFixed(2)} for the ${tradeDisplay} job (after ${Math.round(
+          COMMISSION_RATE * 100
+        )}% commission).`,
+        type: 'wallet',
+        goto: 'wallet',
+        read: false,
         createdAt: FieldValue.serverTimestamp(),
       });
     }
 
-    // --- Earnings + platform commission ledger ---
-    // On completion the tradie earns the job value less the platform
-    // commission. We record this as an earnings ledger (idempotent per job so
-    // re-completing can't double-credit). This is the accounting record; actual
-    // bank payout via Stripe Connect is a separate, later step.
-    if (acceptedValue > 0 && quoteData.tradieId) {
-      const tradeDisplay = serviceRequestData.trades
-        ? serviceRequestData.trades.join(', ')
-        : 'service';
-      const commission = Math.round(acceptedValue * COMMISSION_RATE * 100) / 100;
-      const netEarning = Math.round((acceptedValue - commission) * 100) / 100;
-      const earningRef = `earning_${serviceRequestId}`;
-
-      // Idempotency guard: skip if we've already recorded earnings for this job.
-      const existingEarning = await db
-        .collection('walletTransactions')
-        .where('userId', '==', quoteData.tradieId)
-        .where('referenceId', '==', earningRef)
-        .limit(1)
-        .get();
-
-      if (existingEarning.empty) {
-        const batch = db.batch();
-
-        // Gross earning credit.
-        batch.set(db.collection('walletTransactions').doc(), {
-          userId: quoteData.tradieId,
-          type: 'earning',
-          amount: acceptedValue,
-          description: `Job earning — ${tradeDisplay}`,
-          referenceId: earningRef,
-          serviceRequestId,
-          status: 'completed',
-          createdAt: FieldValue.serverTimestamp(),
-        });
-
-        // Platform commission debit.
-        batch.set(db.collection('walletTransactions').doc(), {
-          userId: quoteData.tradieId,
-          type: 'commission',
-          amount: -commission,
-          description: `Platform commission (${Math.round(COMMISSION_RATE * 100)}%) — ${tradeDisplay}`,
-          referenceId: `commission_${serviceRequestId}`,
-          serviceRequestId,
-          status: 'completed',
-          createdAt: FieldValue.serverTimestamp(),
-        });
-
-        // Track lifetime earnings on the tradie doc for quick dashboard reads.
-        batch.update(db.collection('users').doc(quoteData.tradieId), {
-          totalEarnings: FieldValue.increment(netEarning),
-          totalCommissionPaid: FieldValue.increment(commission),
-          lifetimeJobValue: FieldValue.increment(acceptedValue),
-        });
-
-        // Record commission as platform revenue.
-        batch.set(db.collection('platformRevenue').doc(), {
-          type: 'commission',
-          amount: commission,
-          serviceRequestId,
-          tradieId: quoteData.tradieId,
-          jobValue: acceptedValue,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-
-        // Notify the tradie of their earning.
-        batch.set(db.collection('notifications').doc(), {
-          userId: quoteData.tradieId,
-          title: 'Payment recorded',
-          message: `You earned $${netEarning.toFixed(2)} for the ${tradeDisplay} job (after ${Math.round(
-            COMMISSION_RATE * 100
-          )}% commission).`,
-          type: 'wallet',
-          goto: 'wallet',
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-
-        await batch.commit();
-      }
+    if (Object.keys(tradieUpdate).length > 0) {
+      tx.update(tradieRef, tradieUpdate);
     }
-  }
+    return { serviceRequestData: req, acceptedValue: jobValue };
+  });
 
   // Reporting rollups: job completed — record completion + accepted value,
   // and remove it from the active count.

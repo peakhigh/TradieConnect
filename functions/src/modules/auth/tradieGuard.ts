@@ -44,3 +44,10 @@ export async function requireActiveTradie(
 
   return tradieData;
 }
+
+/** Users docs have no displayName/name; build one from the profile fields. */
+export function tradieDisplayName(data: FirebaseFirestore.DocumentData | undefined): string {
+  if (!data) return 'Tradie';
+  const full = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+  return data.businessName || full || data.displayName || data.name || 'Tradie';
+}

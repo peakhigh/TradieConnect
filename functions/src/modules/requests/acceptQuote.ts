@@ -27,31 +27,61 @@ export const acceptQuote = https.onCall(async (request) => {
     throw new https.HttpsError('invalid-argument', 'quoteId is required');
   }
 
-  // Get quote
-  const quoteDoc = await db.collection('quotes').doc(quoteId).get();
-  if (!quoteDoc.exists) {
-    throw new https.HttpsError('not-found', 'Quote not found');
-  }
+  // Check and claim inside one transaction: two quick accepts (even on two
+  // different quotes) must not both win, and the price the customer accepts
+  // can't be changed by a parallel editQuote. The request must still be open
+  // ('new' / 'quoted'); accepting moves it to 'assigned', so a second accept
+  // for the same request fails here.
+  const quoteRef = db.collection('quotes').doc(quoteId);
+  const { quoteData, serviceRequestData } = await db.runTransaction(async (tx) => {
+    const quoteDoc = await tx.get(quoteRef);
+    if (!quoteDoc.exists) {
+      throw new https.HttpsError('not-found', 'Quote not found');
+    }
+    const quote = quoteDoc.data()!;
+    const reqRef = db.collection('serviceRequests').doc(quote.serviceRequestId);
+    const reqDoc = await tx.get(reqRef);
+    const req = reqDoc.data();
 
-  const quoteData = quoteDoc.data()!;
+    if (!req || req.customerId !== customerId) {
+      throw new https.HttpsError('permission-denied', 'Not authorized to accept this quote');
+    }
+    if (quote.status !== 'quoted') {
+      throw new https.HttpsError('failed-precondition', 'Quote is not in a valid state to accept');
+    }
+    if (!['new', 'quoted'].includes(req.status)) {
+      throw new https.HttpsError('failed-precondition', 'This request is no longer open for accepting quotes.');
+    }
 
-  // Verify quote is in 'quoted' status
-  if (quoteData.status !== 'quoted') {
-    throw new https.HttpsError('failed-precondition', 'Quote is not in a valid state to accept');
-  }
+    // 1. Winning quote → 'accepted'.
+    tx.update(quoteRef, {
+      status: 'accepted',
+      acceptedAt: FieldValue.serverTimestamp(),
+    });
 
-  // Verify customer owns the service request
-  const serviceRequestDoc = await db.collection('serviceRequests').doc(quoteData.serviceRequestId).get();
-  const serviceRequestData = serviceRequestDoc.data();
+    // 3. Request → 'assigned'. The request doc is readable by every signed-in
+    // user (Explorer), so contact details never go on it.
+    tx.update(reqRef, {
+      status: 'assigned',
+      acceptedQuoteId: quoteId,
+      acceptedTradieId: quote.tradieId,
+      customerAddress: FieldValue.delete(),
+      customerPhone: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-  if (!serviceRequestData || serviceRequestData.customerId !== customerId) {
-    throw new https.HttpsError('permission-denied', 'Not authorized to accept this quote');
-  }
+    // 3b. Contact details, readable only by the customer and the accepted
+    // tradie (see firestore.rules: serviceRequests/{id}/private/{doc}).
+    tx.set(reqRef.collection('private').doc('contact'), {
+      customerId: req.customerId,
+      tradieId: quote.tradieId,
+      quoteId,
+      customerAddress: typeof customerAddress === 'string' && customerAddress ? customerAddress : null,
+      customerPhone: typeof customerPhone === 'string' && customerPhone ? customerPhone : null,
+      sharedAt: FieldValue.serverTimestamp(),
+    });
 
-  // 1. Update winning quote: status → 'accepted'
-  await db.collection('quotes').doc(quoteId).update({
-    status: 'accepted',
-    acceptedAt: FieldValue.serverTimestamp(),
+    return { quoteData: quote, serviceRequestData: req };
   });
 
   // 2. Reject all other quoted docs for same request
@@ -67,29 +97,6 @@ export const acceptQuote = https.onCall(async (request) => {
     }
   });
   await batch.commit();
-
-  // 3. Update serviceRequest status to 'assigned'. The request doc is readable
-  // by every signed-in user (Explorer), so contact details never go on it.
-  const requestRef = db.collection('serviceRequests').doc(quoteData.serviceRequestId);
-  await requestRef.update({
-    status: 'assigned',
-    acceptedQuoteId: quoteId,
-    acceptedTradieId: quoteData.tradieId,
-    customerAddress: FieldValue.delete(),
-    customerPhone: FieldValue.delete(),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-
-  // 3b. Contact details, readable only by the customer and the accepted
-  // tradie (see firestore.rules: serviceRequests/{id}/private/{doc}).
-  await requestRef.collection('private').doc('contact').set({
-    customerId: serviceRequestData.customerId,
-    tradieId: quoteData.tradieId,
-    quoteId,
-    customerAddress: customerAddress || null,
-    customerPhone: customerPhone || null,
-    sharedAt: FieldValue.serverTimestamp(),
-  });
 
   // Look up the accepted quote's chat room up front so notifications can
   // deep-link straight into the conversation.

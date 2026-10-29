@@ -2,15 +2,9 @@ import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { applyRollupDelta } from '../reporting/rollups';
-import { requireActiveTradie } from '../auth/tradieGuard';
+import { requireActiveTradie, tradieDisplayName } from '../auth/tradieGuard';
 
 const db = admin.firestore();
-
-/** Users docs have no displayName/name; build one from the profile fields. */
-function tradieDisplayName(data: FirebaseFirestore.DocumentData): string {
-  const full = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
-  return data.businessName || full || data.displayName || data.name || 'Tradie';
-}
 
 interface UnlockRequestData {
   serviceRequestId: string;

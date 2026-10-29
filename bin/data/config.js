@@ -53,6 +53,8 @@ module.exports = {
       'chatRooms',
       'notifications',
       'ratings',
+      'reviews',
+      'platformRevenue',
       'suburbTradeStats',
       'suburbStats',
       'tradeStats',

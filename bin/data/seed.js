@@ -67,7 +67,8 @@ async function seedAuthAccounts(users) {
   }
   const auth = admin.auth();
   for (const u of users) {
-    const props = { phoneNumber: toE164(u.phoneNumber), displayName: u.displayName };
+    // disabled: false undoes a suspension from an earlier test run.
+    const props = { phoneNumber: toE164(u.phoneNumber), displayName: u.displayName, disabled: false };
     try {
       await auth.updateUser(u.uid, props);
     } catch (err) {
@@ -367,6 +368,8 @@ async function seed() {
   let completedCount = 0;
   let ratingSum = config.tradie.rating * config.tradie.totalJobs;
   let ratingJobs = config.tradie.totalJobs;
+  // Mirrors completeServiceRequest's earnings ledger (5% commission).
+  const earnings = { net: 0, commission: 0, jobValue: 0 };
   const reviewSamples = [
     'Great work, very professional and on time.',
     'Tidy job, would hire again.',
@@ -421,7 +424,7 @@ async function seed() {
     });
 
     // The accepted quote behind it.
-    await addDoc(collection(db, 'quotes'), {
+    const quoteRef = await addDoc(collection(db, 'quotes'), {
       tradieId: config.tradie.userId,
       customerId: config.customer.userId,
       serviceRequestId: reqRef.id,
@@ -455,6 +458,45 @@ async function seed() {
       createdAt: Timestamp.fromDate(completedAt),
     });
 
+    // The review shown on the tradie's profile.
+    await addDoc(collection(db, 'reviews'), {
+      tradieId: config.tradie.userId,
+      customerId: config.customer.userId,
+      customerName: `${config.customer.firstName} ${config.customer.lastName}`,
+      serviceRequestId: reqRef.id,
+      quoteId: quoteRef.id,
+      trades: [trade],
+      rating,
+      review,
+      jobValue: totalPrice,
+      mock: true,
+      createdAt: Timestamp.fromDate(completedAt),
+    });
+
+    // Earnings ledger, as completeServiceRequest records it.
+    const commission = Math.round(totalPrice * 0.05 * 100) / 100;
+    const net = Math.round((totalPrice - commission) * 100) / 100;
+    await setDoc(doc(db, 'walletTransactions', `earning_${reqRef.id}`), {
+      userId: config.tradie.userId, type: 'earning', amount: totalPrice,
+      description: `Job earning — ${trade}`, referenceId: `earning_${reqRef.id}`,
+      serviceRequestId: reqRef.id, status: 'completed', mock: true,
+      createdAt: Timestamp.fromDate(completedAt),
+    });
+    await setDoc(doc(db, 'walletTransactions', `commission_${reqRef.id}`), {
+      userId: config.tradie.userId, type: 'commission', amount: -commission,
+      description: `Platform commission (5%) — ${trade}`, referenceId: `commission_${reqRef.id}`,
+      serviceRequestId: reqRef.id, status: 'completed', mock: true,
+      createdAt: Timestamp.fromDate(completedAt),
+    });
+    await setDoc(doc(db, 'platformRevenue', `commission_${reqRef.id}`), {
+      type: 'commission', amount: commission, serviceRequestId: reqRef.id,
+      tradieId: config.tradie.userId, jobValue: totalPrice, mock: true,
+      createdAt: Timestamp.fromDate(completedAt),
+    });
+    earnings.net += net;
+    earnings.commission += commission;
+    earnings.jobValue += totalPrice;
+
     ratingSum += rating;
     ratingJobs += 1;
     completedCount += 1;
@@ -465,6 +507,9 @@ async function seed() {
   await setDoc(doc(db, 'users', config.tradie.userId), {
     totalJobs: ratingJobs,
     rating: Math.round((ratingSum / Math.max(ratingJobs, 1)) * 100) / 100,
+    totalEarnings: Math.round(earnings.net * 100) / 100,
+    totalCommissionPaid: Math.round(earnings.commission * 100) / 100,
+    lifetimeJobValue: earnings.jobValue,
     updatedAt: Timestamp.now(),
   }, { merge: true });
 

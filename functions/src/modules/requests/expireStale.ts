@@ -47,11 +47,19 @@ export const expireStaleRequests = onSchedule(
         }
 
         try {
-          await reqDoc.ref.update({
-            status: 'expired',
-            expiredAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+          // Re-check inside a transaction: the customer may have accepted a
+          // quote (or cancelled) since the query ran.
+          const expired = await db.runTransaction(async (tx) => {
+            const fresh = await tx.get(reqDoc.ref);
+            if (fresh.data()?.status !== status) return false;
+            tx.update(reqDoc.ref, {
+              status: 'expired',
+              expiredAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            return true;
           });
+          if (!expired) continue;
 
           // Refund every tradie who unlocked but didn't win.
           await refundUnlocks(reqDoc.id, 'request expired');

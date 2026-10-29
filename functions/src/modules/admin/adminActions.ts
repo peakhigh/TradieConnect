@@ -1,6 +1,6 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { AggregateField, FieldValue } from 'firebase-admin/firestore';
 
 const db = admin.firestore();
 
@@ -28,9 +28,14 @@ interface ApprovalData {
 export const adminSetTradieApproval = https.onCall(async (request) => {
   const adminUid = await requireAdmin(request);
   const { userId, approved } = (request.data || {}) as ApprovalData;
-  if (!userId) throw new https.HttpsError('invalid-argument', 'userId is required');
+  if (typeof userId !== 'string' || !userId) throw new https.HttpsError('invalid-argument', 'userId is required');
 
-  await db.collection('users').doc(userId).update({
+  const target = await db.collection('users').doc(userId).get();
+  if (!target.exists || target.data()?.userType !== 'tradie') {
+    throw new https.HttpsError('not-found', 'Tradie not found');
+  }
+
+  await target.ref.update({
     isApproved: !!approved,
     approvedAt: approved ? FieldValue.serverTimestamp() : null,
     approvedBy: approved ? adminUid : null,
@@ -49,13 +54,22 @@ interface StatusData {
  * adminSetUserStatus — suspend or reactivate any user. Admin only.
  */
 export const adminSetUserStatus = https.onCall(async (request) => {
-  await requireAdmin(request);
+  const adminUid = await requireAdmin(request);
   const { userId, status } = (request.data || {}) as StatusData;
-  if (!userId || !['active', 'suspended'].includes(status)) {
+  if (typeof userId !== 'string' || !userId || !['active', 'suspended'].includes(status)) {
     throw new https.HttpsError('invalid-argument', 'userId and a valid status are required');
   }
+  // An admin suspending themselves could lock the platform out of admin.
+  if (userId === adminUid) {
+    throw new https.HttpsError('failed-precondition', "You can't change your own account status");
+  }
 
-  await db.collection('users').doc(userId).update({
+  const target = await db.collection('users').doc(userId).get();
+  if (!target.exists) {
+    throw new https.HttpsError('not-found', 'User not found');
+  }
+
+  await target.ref.update({
     status,
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -86,27 +100,26 @@ export const getAdminStats = https.onCall(async (request) => {
     usersCol.where('userType', '==', 'tradie').where('isApproved', '==', false).count().get(),
   ]);
 
-  // Platform revenue = unlock fees. Sum the (negative) unlock transactions.
-  const unlockSnap = await db.collection('walletTransactions')
-    .where('type', '==', 'unlock')
-    .get();
-  let totalUnlocks = 0;
-  let unlockRevenue = 0;
-  unlockSnap.forEach((d) => {
-    totalUnlocks += 1;
-    unlockRevenue += Math.abs(d.data().amount || 0);
-  });
+  // Revenue via server-side aggregations: the cost stays flat no matter how
+  // many transactions exist (the old scan read every unlock and commission
+  // doc on each dashboard load).
+  // Unlock fees are negative 'unlock' transactions; refunded unlocks (the only
+  // 'refund' type, from refundUnlocks) aren't revenue.
+  const txns = db.collection('walletTransactions');
+  const [unlockAgg, refundAgg, commissionAgg] = await Promise.all([
+    txns.where('type', '==', 'unlock')
+      .aggregate({ count: AggregateField.count(), total: AggregateField.sum('amount') }).get(),
+    txns.where('type', '==', 'refund')
+      .aggregate({ total: AggregateField.sum('amount') }).get(),
+    // Commission revenue = 5% taken from completed jobs (platformRevenue ledger).
+    db.collection('platformRevenue').where('type', '==', 'commission')
+      .aggregate({ total: AggregateField.sum('amount') }).get(),
+  ]);
 
-  // Commission revenue = 5% taken from completed jobs (platformRevenue ledger).
-  const commissionSnap = await db.collection('platformRevenue')
-    .where('type', '==', 'commission')
-    .get();
-  let commissionRevenue = 0;
-  commissionSnap.forEach((d) => {
-    commissionRevenue += d.data().amount || 0;
-  });
-  commissionRevenue = Math.round(commissionRevenue * 100) / 100;
-  unlockRevenue = Math.round(unlockRevenue * 100) / 100;
+  const totalUnlocks = unlockAgg.data().count;
+  const unlockRevenue =
+    Math.round((Math.abs(unlockAgg.data().total || 0) - (refundAgg.data().total || 0)) * 100) / 100;
+  const commissionRevenue = Math.round((commissionAgg.data().total || 0) * 100) / 100;
 
   return {
     totalUsers: totalUsers.data().count,

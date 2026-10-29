@@ -1,9 +1,10 @@
 import { https } from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { recalculateIntelligence } from './intelligence';
+import { parseQuoteFields } from './quoteFields';
 import { applyRollupDelta } from '../reporting/rollups';
-import { requireActiveTradie } from '../auth/tradieGuard';
+import { requireActiveTradie, tradieDisplayName } from '../auth/tradieGuard';
 
 const db = admin.firestore();
 
@@ -41,37 +42,23 @@ export const submitQuote = https.onCall(async (request) => {
 
   const tradieId = request.auth.uid;
 
-  if (!serviceRequestId || !totalPrice || !timelineDays) {
+  if (typeof serviceRequestId !== 'string' || !serviceRequestId) {
     throw new https.HttpsError('invalid-argument', 'Missing required fields');
   }
+  const fields = parseQuoteFields(request.data as SubmitQuoteData);
 
   // Enforce approval/suspension gate before allowing a quote.
-  await requireActiveTradie(tradieId);
+  const tradieData = await requireActiveTradie(tradieId);
 
-  // 1. Find existing quotes doc where tradieId == auth.uid AND serviceRequestId AND status == 'unlocked'
+  // 1. Find the tradie's unlock for this request.
   const unlockQuery = await db.collection('quotes')
     .where('tradieId', '==', tradieId)
     .where('serviceRequestId', '==', serviceRequestId)
-    .where('status', '==', 'unlocked')
+    .where('status', 'in', ['unlocked', 'quoted'])
     .limit(1)
     .get();
 
   if (unlockQuery.empty) {
-    // Check if already quoted
-    const alreadyQuoted = await db.collection('quotes')
-      .where('tradieId', '==', tradieId)
-      .where('serviceRequestId', '==', serviceRequestId)
-      .where('status', '==', 'quoted')
-      .limit(1)
-      .get();
-
-    if (!alreadyQuoted.empty) {
-      throw new https.HttpsError(
-        'already-exists',
-        'You have already submitted a quote for this request.'
-      );
-    }
-
     throw new https.HttpsError(
       'permission-denied',
       'You must unlock this request before submitting a quote. No unlocked entry found.'
@@ -79,18 +66,30 @@ export const submitQuote = https.onCall(async (request) => {
   }
 
   const quoteDocRef = unlockQuery.docs[0].ref;
+  const requestRef = db.collection('serviceRequests').doc(serviceRequestId);
 
-  // 2. Update that doc: status → 'quoted', fill in all pricing fields
-  await quoteDocRef.update({
-    status: 'quoted',
-    totalPrice,
-    materialsCost,
-    laborCost,
-    timelineDays,
-    estimatedStartDate: estimatedStartDate ? Timestamp.fromDate(new Date(estimatedStartDate)) : null,
-    estimatedCompletionDate: estimatedCompletionDate ? Timestamp.fromDate(new Date(estimatedCompletionDate)) : null,
-    notes: notes || null,
-    quotedAt: FieldValue.serverTimestamp(),
+  // 2. unlocked → quoted inside a transaction, so a double tap can't submit
+  //    twice (two notifications, two chat rooms, double-counted rollups), and
+  //    only while the request is still open to quotes.
+  await db.runTransaction(async (tx) => {
+    const [quoteSnap, requestSnap] = await Promise.all([tx.get(quoteDocRef), tx.get(requestRef)]);
+    if (quoteSnap.data()?.status !== 'unlocked') {
+      throw new https.HttpsError(
+        'already-exists',
+        'You have already submitted a quote for this request.'
+      );
+    }
+    if (!requestSnap.exists || !['new', 'quoted'].includes(requestSnap.data()?.status)) {
+      throw new https.HttpsError(
+        'failed-precondition',
+        'This request is no longer accepting quotes.'
+      );
+    }
+    tx.update(quoteDocRef, {
+      ...fields,
+      status: 'quoted',
+      quotedAt: FieldValue.serverTimestamp(),
+    });
   });
 
   // 3. Fetch ALL quotes for this serviceRequestId where status in ['quoted', 'accepted', 'rejected']
@@ -124,6 +123,8 @@ export const submitQuote = https.onCall(async (request) => {
     ...intelFields,
     // Also update status to 'quoted' if it was 'new'
     ...(serviceRequestData?.status === 'new' ? { status: 'quoted' } : {}),
+    // A new quote is activity: expireStaleRequests measures from updatedAt.
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   // 6b. Reporting rollups: a new quote adds quoteCount + quoted value.
@@ -154,8 +155,7 @@ export const submitQuote = https.onCall(async (request) => {
   }
 
   // 8. Create chatRoom between tradie and customer
-  const tradieData = (await db.collection('users').doc(tradieId).get()).data();
-  const tradieName = tradieData?.displayName || tradieData?.firstName || 'Tradie';
+  const tradieName = tradieDisplayName(tradieData);
   const customerName = serviceRequestData?.customerName || 'Customer';
   const customerId = serviceRequestData?.customerId || '';
   const tradeDisplay = serviceRequestData?.trades ? serviceRequestData.trades.join(', ') : 'Service';

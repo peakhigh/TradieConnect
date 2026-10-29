@@ -10,8 +10,9 @@ interface RefundResult {
 
 /**
  * Refund the unlock fee to every tradie who unlocked a request but did NOT win
- * it, when the request is cancelled or expires. Idempotent per (tradie + quote):
- * a `refundedAt` marker on the quote prevents double-refunding.
+ * it, when the request is cancelled or expires. Idempotent per quote: the
+ * `refundedAt` marker skips refunded quotes, and the fixed walletTransactions
+ * id `refund_{quoteId}` stops concurrent runs from refunding twice.
  *
  * @param serviceRequestId  the request being cancelled/expired
  * @param reason            short reason for the transaction description
@@ -47,21 +48,14 @@ export async function refundUnlocks(
 
     const refundRef = `refund_${quoteDoc.id}`;
 
-    // Idempotency guard across retries: skip if a refund txn already exists.
-    const dupe = await db
-      .collection('walletTransactions')
-      .where('userId', '==', tradieId)
-      .where('referenceId', '==', refundRef)
-      .limit(1)
-      .get();
-    if (!dupe.empty) continue;
-
     try {
       const batch = db.batch();
 
-      // 1. Refund transaction record.
-      const txnRef = db.collection('walletTransactions').doc();
-      batch.set(txnRef, {
+      // 1. Refund transaction record. Its id is fixed per quote and written
+      //    with create(), so if two runs race (double cancel, cancel + expiry)
+      //    the second batch fails as a whole and the wallet is credited once.
+      const txnRef = db.collection('walletTransactions').doc(refundRef);
+      batch.create(txnRef, {
         userId: tradieId,
         type: 'refund',
         amount: unlockAmount,
@@ -97,7 +91,9 @@ export async function refundUnlocks(
       await batch.commit();
       refundedCount += 1;
       refundedTotal += unlockAmount;
-    } catch (err) {
+    } catch (err: any) {
+      // ALREADY_EXISTS: another run refunded this quote first.
+      if (err?.code === 6) continue;
       console.error(`Failed to refund unlock for tradie ${tradieId} on ${serviceRequestId}:`, err);
     }
   }

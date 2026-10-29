@@ -6,6 +6,15 @@ const db = admin.firestore();
 
 const SIGNUP_BONUS = 10; // AUD — see project business model
 
+// The onboarding fields a tradie may set (OnboardingSuccessStep). This runs
+// with the Admin SDK, which bypasses the users rules, so anything else
+// (isApproved, status, phoneNumber, earnings…) must never be copied across.
+const PROFILE_FIELDS = [
+  'firstName', 'lastName', 'email', 'businessType', 'abn', 'businessName',
+  'businessAddress', 'licenceDetails', 'insuranceDetails',
+  'interestedSuburbs', 'interestedTrades',
+];
+
 interface CompleteOnboardingData {
   profile: Record<string, any>;
 }
@@ -35,13 +44,17 @@ export const completeOnboarding = https.onCall(async (request) => {
     }
     const data = snap.data() || {};
 
-    // Sanitize: never let the client set balance / role / bonus flags directly.
-    const safeProfile = { ...(profile || {}) };
-    delete (safeProfile as any).walletBalance;
-    delete (safeProfile as any).userType;
-    delete (safeProfile as any).signupBonusGranted;
-    delete (safeProfile as any).rating;
-    delete (safeProfile as any).totalJobs;
+    // Only tradies onboard (and get the signup bonus).
+    if (data.userType !== 'tradie') {
+      throw new https.HttpsError('permission-denied', 'Only tradies can complete onboarding');
+    }
+
+    // Copy only the onboarding fields; the client can't set balance, role,
+    // approval, bonus flags or reputation through this call.
+    const input = profile && typeof profile === 'object' ? profile : {};
+    const safeProfile = Object.fromEntries(
+      PROFILE_FIELDS.filter((key) => input[key] !== undefined).map((key) => [key, input[key]])
+    );
 
     const alreadyGranted = data.signupBonusGranted === true;
 
