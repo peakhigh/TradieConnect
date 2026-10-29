@@ -41,7 +41,7 @@ jobs:
         run: cp .env.e2e .env
       - name: Run data + web E2E against emulators
         env:
-          E2E_BASE_URL: http://localhost:8082
+          E2E_BASE_URL: http://localhost:8086
         run: |
           firebase emulators:exec \
             --only auth,functions,firestore,storage \

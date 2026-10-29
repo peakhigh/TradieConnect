@@ -18,8 +18,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
 const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'tradie-mate-f852a';
 const host = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || 'localhost';
-const fsPort = parseInt(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT || '8180', 10);
-const authPort = parseInt(process.env.EXPO_PUBLIC_EMULATOR_AUTH_PORT || '9190', 10);
+const fsPort = parseInt(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT || '8480', 10);
+const authPort = parseInt(process.env.EXPO_PUBLIC_EMULATOR_AUTH_PORT || '9790', 10);
 
 const flags = {
   firestore: process.env.EXPO_PUBLIC_LOCAL_FIRESTORE === 'true',

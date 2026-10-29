@@ -32,10 +32,10 @@ module.exports = {
 
   // Firestore emulator settings.
   // Port is read from .env (EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT) so it always
-  // matches this project's offset ports (8180 here, not the default 8080).
+  // matches this project's offset ports (8480 here, not the default 8080).
   emulator: {
     host: process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || 'localhost',
-    firestorePort: parseInt(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT || '8180', 10),
+    firestorePort: parseInt(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT || '8480', 10),
     useEmulator: true, // Set to false to seed production (careful!)
   },
 

@@ -33,7 +33,7 @@ export const AppNavigator: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  const linking = Platform.OS === 'web' ? {    prefixes: ['http://localhost:8081', 'https://tradie-mate-f852a.web.app'],
+  const linking = Platform.OS === 'web' ? {    prefixes: ['http://localhost:8086', 'https://tradie-mate-f852a.web.app'],
     config: {
       screens: {
         Home: '/',

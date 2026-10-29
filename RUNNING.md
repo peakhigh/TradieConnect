@@ -14,8 +14,8 @@ npm run emulators
 TradieConnect uses **offset ports** so it can run at the same time as the
 BuildOn and Educator projects (see "Running all 3 apps together" below).
 
-- Emulator UI → http://localhost:4040
-- Functions → :5101 · Firestore → :8180 · Storage → :9290 · Auth → :9190
+- Emulator UI → http://localhost:4160
+- Functions → :5401 · Firestore → :8480 · Storage → :9890 · Auth → :9790
 
 ## Frontend (Expo)
 
@@ -23,7 +23,7 @@ BuildOn and Educator projects (see "Running all 3 apps together" below).
 # One-time setup
 npm install
 
-# Web (Metro on port 8082)
+# Web (Metro on port 8086)
 npm run web
 
 # Native (requires native build — not Expo Go, since we use @react-native-firebase)
@@ -46,10 +46,10 @@ The emulator **ports** are also set in `.env.local` and must match
 `firebase.json`:
 
 ```
-EXPO_PUBLIC_EMULATOR_FUNCTIONS_PORT=5101
-EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT=8180
-EXPO_PUBLIC_EMULATOR_AUTH_PORT=9190
-EXPO_PUBLIC_EMULATOR_STORAGE_PORT=9290
+EXPO_PUBLIC_EMULATOR_FUNCTIONS_PORT=5401
+EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT=8480
+EXPO_PUBLIC_EMULATOR_AUTH_PORT=9790
+EXPO_PUBLIC_EMULATOR_STORAGE_PORT=9890
 ```
 
 > Auth always uses production (phone OTP). Don't enable `LOCAL_AUTH` unless the
@@ -141,7 +141,7 @@ and TripsNTrucks are offset.
 | Project        | Emulator UI | functions | firestore | auth | storage | Metro |
 |----------------|-------------|-----------|-----------|------|---------|-------|
 | BuildOn        | 4000        | 5001      | 8080      | 9099 | 9199    | 8081  |
-| TradieConnect  | 4040        | 5101      | 8180      | 9190 | 9290    | 8082  |
+| TradieConnect  | 4160        | 5401      | 8480      | 9790 | 9890    | 8086  |
 | Educator       | 4080        | 5201      | 8280      | 9390 | 9490    | 8083  |
 | TripsNTrucks   | 4120        | 5301      | 8380      | 9590 | 9690    | 8084  |
 
@@ -153,7 +153,7 @@ and TripsNTrucks are offset.
 > | Project | hub | logging |
 > |---------|-----|---------|
 > | BuildOn | 4400 | 4500 (defaults) |
-> | TradieConnect | 4410 | 4510 |
+> | TradieConnect | 4440 | 4540 |
 > | Educator | 4420 | 4520 |
 > | TripsNTrucks | 4430 | 4530 |
 
@@ -177,7 +177,7 @@ cd ~/Documents/Projects/tripsNtrucks       && npm run emulators       # terminal
 cd ~/Documents/Projects/tripsNtrucks       && npm run web             # terminal 8
 ```
 
-Each app's web bundler prints its own URL (8081 / 8082 / 8083 / 8084). Open all
+Each app's web bundler prints its own URL (8081 / 8086 / 8083 / 8084). Open all
 four in separate browser tabs.
 
 ### Native emulators / simulators
@@ -196,7 +196,7 @@ Firebase emulator ports automatically (the ports are read from each project's
 All four projects are now configured to run side by side:
 
 - **BuildOn** — unchanged (keeps the default ports).
-- **TradieConnect** — emulator ports offset (4040/5101/8180/9190/9290), Metro on 8082.
+- **TradieConnect** — emulator ports offset (4160/5401/8480/9790/9890, hub 4440, logging 4540), Metro on 8086.
 - **Educator** — emulator ports offset (4080/5201/8280/9390/9490), Metro on 8083.
   Edited via the `_educator` symlink in this workspace.
 - **TripsNTrucks** — emulator ports offset (4120/5301/8380/9590/9690), Metro on 8084.

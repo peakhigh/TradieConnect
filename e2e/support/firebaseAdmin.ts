@@ -6,8 +6,8 @@
  * Env (defaults match .env.e2e / firebase.json):
  *   E2E_PROJECT_ID     default tradie-mate-f852a
  *   E2E_EMULATOR_HOST  default 127.0.0.1
- *   E2E_FIRESTORE_PORT default 8180
- *   E2E_AUTH_PORT      default 9190
+ *   E2E_FIRESTORE_PORT default 8480
+ *   E2E_AUTH_PORT      default 9790
  */
 /* eslint-disable @typescript-eslint/no-var-requires */
 const path = require('path');
@@ -17,8 +17,8 @@ catch (_e) { admin = require(path.join(__dirname, '..', '..', 'functions', 'node
 
 const PROJECT_ID = process.env.E2E_PROJECT_ID || 'tradie-mate-f852a';
 const HOST = process.env.E2E_EMULATOR_HOST || '127.0.0.1';
-const FIRESTORE_PORT = process.env.E2E_FIRESTORE_PORT || '8180';
-const AUTH_PORT = process.env.E2E_AUTH_PORT || '9190';
+const FIRESTORE_PORT = process.env.E2E_FIRESTORE_PORT || '8480';
+const AUTH_PORT = process.env.E2E_AUTH_PORT || '9790';
 
 let app: any;
 export function getAdmin() {

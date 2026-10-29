@@ -17,19 +17,19 @@ echo "==> Data-layer tests"
 echo "==> Building the web app (emulator env already copied to .env)"
 npx expo export -p web --output-dir dist-e2e >/dev/null
 
-echo "==> Serving the web build on :8082"
-npx --yes serve -s dist-e2e -l 8082 >/tmp/web-server.log 2>&1 &
+echo "==> Serving the web build on :8086"
+npx --yes serve -s dist-e2e -l 8086 >/tmp/web-server.log 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
 echo "==> Waiting for the web server"
 for i in $(seq 1 60); do
-  if curl -sf http://localhost:8082 >/dev/null 2>&1; then echo "web up"; break; fi
+  if curl -sf http://localhost:8086 >/dev/null 2>&1; then echo "web up"; break; fi
   sleep 2
   if [ "$i" -eq 60 ]; then echo "web server did not start"; cat /tmp/web-server.log; exit 1; fi
 done
 
 echo "==> Playwright web specs"
-E2E_BASE_URL="http://localhost:8082" npx playwright test -c e2e/playwright.config.ts
+E2E_BASE_URL="http://localhost:8086" npx playwright test -c e2e/playwright.config.ts
 
 echo "==> Suite complete"

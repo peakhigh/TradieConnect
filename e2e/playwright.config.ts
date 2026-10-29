@@ -2,9 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright config for TradieConnect web E2E. Targets the served web build.
- * Prereqs: emulators running + seeded; web served with .env.e2e (port 8082).
+ * Prereqs: emulators running + seeded; web served with .env.e2e (port 8086).
  */
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8082';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8086';
 
 export default defineConfig({
   testDir: './web',

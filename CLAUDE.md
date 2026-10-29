@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 ```bash
-npm start          # Start dev server (copies .env.local → .env, port 8082)
+npm start          # Start dev server (copies .env.local → .env, port 8086)
 npm run ios        # Open in iOS simulator
 npm run android    # Open in Android emulator
 npm run web        # Open in browser
@@ -33,7 +33,7 @@ npm run e2e:data               # Data-layer tests (tsx --test e2e/data/*.test.ts
 npm run e2e:web                # Playwright (e2e/web/*.spec.ts)
 npm run e2e:mobile             # Maestro (.maestro/)
 ```
-CI (`.github/workflows/e2e.yml`) runs `e2e/ci/run-suite.sh` inside `firebase emulators:exec`: clean + seed → data tests → web build served on :8082 → Playwright. Stable test IDs live in `e2e/support/testids.ts`.
+CI (`.github/workflows/e2e.yml`) runs `e2e/ci/run-suite.sh` inside `firebase emulators:exec`: clean + seed → data tests → web build served on :8086 → Playwright. Stable test IDs live in `e2e/support/testids.ts`.
 
 ### Deploy (never without explicit user approval)
 ```bash
@@ -57,7 +57,7 @@ npm run deploy:all         # Build web + everything
 - Project `tradie-mate-f852a`; web app at https://tradie-mate-f852a.web.app
 - Web SDK (`@firebase/…`) for the web bundle, `@react-native-firebase/…` for native builds.
 - Cloud Functions in `functions/src/` (TypeScript, Node 22, default region us-central1), modules: `admin`, `auth`, `chat`, `notifications`, `payments`, `reporting`, `requests`. Money and private-data operations go through callable functions only.
-- Emulator ports (`firebase.json`): Auth 9190, Functions 5101, Firestore 8180, Storage 9290, UI 4040, Hub 4410. They are offset so sibling projects can run emulators concurrently.
+- Emulator ports (`firebase.json`): Auth 9790, Functions 5401, Firestore 8480, Storage 9890, UI 4160, Hub 4440. They are offset so sibling projects can run emulators concurrently.
 
 ### Environment
 - `.env.local` → development; `.env.e2e` → all emulators (E2E); both gitignored.

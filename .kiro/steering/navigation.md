@@ -45,8 +45,7 @@ Admin (authenticated):
 ## Web Deep Linking
 
 On web, React Navigation uses URL-based linking:
-- Prefixes (in `AppNavigator.tsx`): `http://localhost:8081`, `https://tradie-mate-f852a.web.app`
-- Note: the dev server runs on port 8082 (`package.json`); the 8081 prefix is legacy
+- Prefixes (in `AppNavigator.tsx`): `http://localhost:8086` (dev server port), `https://tradie-mate-f852a.web.app`
 - Routes map to URL paths as shown above
 
 ## Adding a New Screen

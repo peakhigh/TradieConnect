@@ -39,33 +39,33 @@
   },
   "emulators": {
     "auth": {
-      "port": 9190
+      "port": 9790
     },
     "functions": {
-      "port": 5101
+      "port": 5401
     },
     "firestore": {
-      "port": 8180
+      "port": 8480
     },
     "storage": {
-      "port": 9290
+      "port": 9890
     },
     "ui": {
       "enabled": true,
-      "port": 4040
+      "port": 4160
     },
     "apphosting": {
-      "port": 5102,
+      "port": 5402,
       "rootDirectory": "../"
     },
     "database": {
-      "port": 9100
+      "port": 9710
     },
     "hub": {
-      "port": 4410
+      "port": 4440
     },
     "logging": {
-      "port": 4510
+      "port": 4540
     },
     "singleProjectMode": true
   }
