@@ -89,12 +89,14 @@ export default function LoginScreen() {
       const { RecaptchaVerifier, signInWithPhoneNumber } = await import('firebase/auth');
       const { auth } = await import('../../services/firebase');
       
-      // Format phone number for Firebase (add +61 prefix)
-      const formattedPhone = data.phoneNumber.startsWith('0') 
-        ? '+61' + data.phoneNumber.substring(1)
-        : data.phoneNumber.startsWith('+61') 
-        ? data.phoneNumber 
-        : '+61' + data.phoneNumber;
+      // Format phone number for Firebase (add +61 prefix). Strip whitespace first,
+      // as validatePhoneNumber does, or "0405 724 199" becomes a different account.
+      const phone = data.phoneNumber.replace(/\s/g, '');
+      const formattedPhone = phone.startsWith('0')
+        ? '+61' + phone.substring(1)
+        : phone.startsWith('+61')
+        ? phone
+        : '+61' + phone;
       
       // Create reCAPTCHA verifier for web (skipped when SKIP_CAPTCHA is set,
       // e.g. local testing against the auth emulator).
@@ -163,7 +165,7 @@ export default function LoginScreen() {
         // Create new user
         userData = {
           id: firebaseUser.uid,
-          phoneNumber: phoneNumber,
+          phoneNumber: phoneNumber.replace(/\s/g, ''),
           userType: userType,
           onboardingCompleted: userType === 'customer', // Customers complete onboarding immediately
           createdAt: new Date(),
@@ -187,7 +189,8 @@ export default function LoginScreen() {
             interestedTrades: [],
             rating: 0,
             totalJobs: 0,
-            walletBalance: 10,
+            // The $10 signup bonus is credited server-side by completeOnboarding.
+            walletBalance: 0,
             isApproved: false
           })
         };

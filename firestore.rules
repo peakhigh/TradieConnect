@@ -22,51 +22,97 @@ service cloud.firestore {
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
+    // userType can't be changed by clients (see users rules), so this is safe.
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+    }
+    function changes(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
 
     // --- Users ---
     // Anyone signed in can read profiles (names/ratings are denormalized into
     // many views). A user may create/update only their own doc. Admin-only
     // changes (approval, suspension) run server-side via Cloud Functions.
+    // Role, approval, money and reputation fields are server-only: a client
+    // can't make itself admin, approve itself, or top up its own wallet.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+        request.resource.data.userType in ['customer', 'tradie'] &&
+        request.resource.data.get('walletBalance', 0) == 0 &&
+        request.resource.data.get('isApproved', false) == false &&
+        request.resource.data.get('rating', 0) == 0 &&
+        request.resource.data.get('totalJobs', 0) == 0 &&
+        !request.resource.data.keys().hasAny(['signupBonusGranted', 'status', 'approvedAt', 'approvedBy']);
+      allow update: if isOwner(userId) &&
+        !changes(['id', 'userType', 'phoneNumber', 'walletBalance', 'isApproved', 'approvedAt',
+                  'approvedBy', 'signupBonusGranted', 'rating', 'totalJobs', 'status', 'createdAt']);
       allow delete: if false;
     }
 
     // --- Service requests ---
     // Customers create their own; owner can update (e.g. cancel). Status/lifecycle
     // changes from accept/complete run via Cloud Functions.
+    // Read stays open to signed-in users because the tradie Explorer browses
+    // requests. The owner may edit only the job details, and only before any
+    // tradie has quoted; status changes go through Cloud Functions.
     match /serviceRequests/{requestId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.status == 'new';
+      allow update: if isOwner(resource.data.customerId) &&
+        resource.data.status == 'new' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'trades', 'description', 'postcode', 'urgency', 'photos', 'documents',
+          'voiceMessage', 'searchKeywords', 'notesWords', 'descriptionLower', 'updatedAt']);
       allow delete: if false;
     }
 
     // --- Quotes --- CF-only writes (unlock / submitQuote / accept / decline).
+    // Visible to the quoting tradie and the request's customer (customerId is
+    // denormalized onto the quote), never to competing tradies.
     match /quotes/{quoteId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() &&
+        (resource.data.tradieId == request.auth.uid ||
+         resource.data.get('customerId', '') == request.auth.uid ||
+         isAdmin());
       allow write: if false;
     }
 
     // --- Wallet transactions --- CF-only writes (recharge / unlock / bonus).
     match /walletTransactions/{txId} {
-      allow read: if isSignedIn();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
       allow write: if false;
     }
 
     // --- Chat rooms --- created by CF (submitQuote). Participants may update the
     // room (e.g. reset their unread counter) and post messages.
+    // Only the two participants can see a conversation. Participants may only
+    // reset their own unread counter on the room.
     match /chatRooms/{roomId} {
-      allow read: if isSignedIn();
+      function isParticipant() {
+        let room = get(/databases/$(database)/documents/chatRooms/$(roomId)).data;
+        return isSignedIn() &&
+          (room.customerId == request.auth.uid || room.tradieId == request.auth.uid);
+      }
+      allow read: if isSignedIn() &&
+        (resource.data.customerId == request.auth.uid ||
+         resource.data.tradieId == request.auth.uid ||
+         isAdmin());
       allow create: if false;
       allow update: if isSignedIn() &&
-        (resource.data.customerId == request.auth.uid || resource.data.tradieId == request.auth.uid);
+        ((resource.data.customerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadByCustomer'])) ||
+         (resource.data.tradieId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadByTradie'])));
 
       match /messages/{messageId} {
-        allow read: if isSignedIn();
-        // Sender must be the authenticated user (system messages come from CF).
-        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+        allow read: if isParticipant() || isAdmin();
+        // Sender must be a participant (system messages come from CF).
+        allow create: if isParticipant() && request.resource.data.senderId == request.auth.uid;
         allow update, delete: if false;
       }
     }

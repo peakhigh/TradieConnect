@@ -142,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             persistUser(userData);
             dispatch({ type: 'AUTH_IS_READY', payload: { user: userData, firebaseUser: fbUser } });
           } else {
+            persistUser(null);
             dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
           }
         } catch (error) {
@@ -149,9 +150,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
         }
       } else {
-        // No Firebase user — check localStorage
-        const persisted = loadPersistedUser();
-        dispatch({ type: 'AUTH_IS_READY', payload: { user: persisted, firebaseUser: null } });
+        // No Firebase session: the cached profile is stale (signed out, token
+        // expired, or the account was deleted), so drop it rather than show it.
+        persistUser(null);
+        dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: null } });
       }
     });
 

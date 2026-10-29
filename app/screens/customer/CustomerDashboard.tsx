@@ -21,10 +21,9 @@ import { CompleteJobModal } from '../../components/customer/CompleteJobModal';
 
 export default function CustomerDashboard() {
   const { user, successMessage, clearSuccessMessage } = useAuth();
-  const { serviceRequests, quotes, unreadMessageCount, quotesByRequest, roomsByRequest } = useUser();
+  const { serviceRequests, quotes, unreadMessageCount, quotesByRequest, roomsByRequest, loading } = useUser();
   const navigation = useScreenNavigation();
   const { showAlert } = useAlert();
-  const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -40,21 +39,14 @@ export default function CustomerDashboard() {
 
   
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     if (successMessage) {
       showAlert('Success', successMessage, undefined, { tone: 'success' });
       clearSuccessMessage();
     }
   }, [successMessage, clearSuccessMessage]);
 
-  const activeRequests = serviceRequests.filter(req => req.status === 'new');
+  // Still open for quotes: 'new' (none yet) and 'quoted' (quotes to review).
+  const activeRequests = serviceRequests.filter(req => req.status === 'new' || req.status === 'quoted');
   const assignedRequests = serviceRequests.filter(req => req.status === 'assigned' || (req.status as string) === 'in-progress');
   
   // Pagination for active requests
@@ -150,7 +142,7 @@ export default function CustomerDashboard() {
         {unreadMessageCount > 0 ? (
           <TouchableOpacity
             style={styles.messageNotification}
-            onPress={handleViewMessages}
+            onPress={() => handleViewMessages()}
           >
             <Text style={styles.messageTitle}>
               You have {unreadMessageCount.toString()} new message{unreadMessageCount > 1 ? 's' : ''}
@@ -164,7 +156,7 @@ export default function CustomerDashboard() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            New Requests ({loading ? '...' : activeRequests.length.toString()})
+            Open Requests ({loading ? '...' : activeRequests.length.toString()})
           </Text>
           
           {!loading && totalActiveRequests > 0 ? (
@@ -182,7 +174,7 @@ export default function CustomerDashboard() {
           ) : activeRequests.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                No new requests. Post a new request to get started!
+                No open requests. Post a new request to get started!
               </Text>
             </View>
           ) : (

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Container } from '../../components/UI/Container';
 import { EmptyState } from '../../components/UI/EmptyState';
+import { SimpleButton as Button } from '../../components/UI/SimpleButton';
 import { useAuth } from '../../context/AuthContext';
 import { useFetchDocs } from '../../hooks/useFetchDocs';
 import { theme } from '../../theme/theme';
@@ -22,19 +23,36 @@ interface ServiceRequestDoc {
   completedAt?: any;
 }
 
+const PAGE_SIZE = 30;
+
 export default function CustomerHistoryScreen() {
   const { user } = useAuth();
+  const [page, setPage] = useState(1);
+  const [requests, setRequests] = useState<ServiceRequestDoc[]>([]);
 
-  const { documents: requests, loading } = useFetchDocs<ServiceRequestDoc>({
+  const { documents: pageDocs, loading, totalCount } = useFetchDocs<ServiceRequestDoc>({
     collectionName: 'serviceRequests',
     wheres: [
       ['customerId', '==', user?.id || ''],
       ['status', 'in', ['completed', 'cancelled']],
     ],
     orderBys: [['createdAt', 'desc']],
-    limitCount: 30,
+    limitCount: PAGE_SIZE,
     subscribe: false,
+    page,
   });
+
+  // useFetchDocs returns one page at a time (cursor-based); keep earlier pages.
+  useEffect(() => {
+    if (loading) return;
+    setRequests((prev) => {
+      const base = page === 1 ? [] : prev;
+      const seen = new Set(base.map((r) => r.id));
+      return [...base, ...pageDocs.filter((r) => !seen.has(r.id))];
+    });
+  }, [pageDocs, loading, page]);
+
+  const hasMore = requests.length < totalCount;
 
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
@@ -56,7 +74,7 @@ export default function CustomerHistoryScreen() {
             <Text style={styles.subtitle}>Your completed and cancelled requests</Text>
           </View>
 
-          {loading ? (
+          {loading && requests.length === 0 ? (
             <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
           ) : requests.length === 0 ? (
             <EmptyState
@@ -114,6 +132,18 @@ export default function CustomerHistoryScreen() {
               );
             })
           )}
+
+          {hasMore && requests.length > 0 ? (
+            <View style={styles.loadMore}>
+              <Button
+                title={loading ? 'Loading...' : `Show more (${totalCount - requests.length} left)`}
+                onPress={() => setPage((p) => p + 1)}
+                variant="outline"
+                size="small"
+                disabled={loading}
+              />
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </Container>
@@ -139,6 +169,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: theme.fontSize.md,
     color: theme.colors.text.secondary,
+  },
+  loadMore: {
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
   },
   loader: {
     marginTop: theme.spacing.xl,

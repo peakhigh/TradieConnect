@@ -306,6 +306,7 @@ async function seed() {
 
     const quoteData = {
       tradieId: config.tradie.userId,
+      customerId: config.customer.userId,
       serviceRequestId: request.id,
       status,
       unlockAmount: 0.50,
@@ -410,6 +411,7 @@ async function seed() {
     // The accepted quote behind it.
     await addDoc(collection(db, 'quotes'), {
       tradieId: config.tradie.userId,
+      customerId: config.customer.userId,
       serviceRequestId: reqRef.id,
       status: 'accepted',
       unlockAmount: 0.5,
@@ -613,6 +615,45 @@ async function seed() {
   }
   console.log('  ✅ 5 chat rooms created with messages');
 
+  // Every accepted job (requests 25-29, see step 3) has a conversation with
+  // its tradie, as submitQuote would have created one.
+  for (let i = 25; i < 30; i++) {
+    const request = requests[i];
+    const text = 'Thanks for accepting! I\'ll see you on site as planned.';
+    const sentAt = Timestamp.fromDate(randomDate(3));
+    const roomRef = await addDoc(collection(db, 'chatRooms'), {
+      serviceRequestId: request.id,
+      customerId: config.customer.userId,
+      customerName: `${config.customer.firstName} ${config.customer.lastName}`,
+      tradieId: config.tradie.userId,
+      tradieName: `${config.tradie.firstName} ${config.tradie.lastName}`,
+      trades: request.trades,
+      suburb: request.postcode,
+      quoteStatus: 'accepted',
+      participants: [config.customer.userId, config.tradie.userId],
+      status: 'active',
+      lastMessage: text,
+      lastMessageType: 'text',
+      lastMessageAt: sentAt,
+      unreadByCustomer: 1,
+      unreadByTradie: 0,
+      mock: true,
+      createdAt: sentAt,
+    });
+    await addDoc(collection(db, 'chatRooms', roomRef.id, 'messages'), {
+      type: 'text',
+      text,
+      senderId: config.tradie.userId,
+      senderName: config.tradie.firstName,
+      receiverId: config.customer.userId,
+      receiverName: config.customer.firstName,
+      read: false,
+      mock: true,
+      createdAt: sentAt,
+    });
+  }
+  console.log('  ✅ 5 chat rooms for accepted jobs');
+
   // 6. Create notifications (mix of read/unread + types) for both users
   console.log('\n🔔 Creating notifications...');
   const notifications = [
@@ -646,7 +687,7 @@ async function seed() {
   console.log(`   Quotes: 30 (10 unlocked, 15 quoted, 5 accepted) + 6 completed`);
   console.log(`   Ratings: 6`);
   console.log(`   Wallet Transactions: ${txTypes.length}`);
-  console.log(`   Chat Rooms: 5 (with text/quote/system/image/document messages)`);
+  console.log(`   Chat Rooms: 10 (with text/quote/system/image/document messages)`);
   console.log(`   Notifications: ${notifications.length}`);
   process.exit(0);
 }

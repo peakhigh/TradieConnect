@@ -145,7 +145,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           <Text style={styles.iconLabel}>Messages</Text>
         </TouchableOpacity>
         
-        {request.status === 'new' && onCancel && (
+        {(request.status === 'new' || request.status === 'quoted') && onCancel && (
           <TouchableOpacity 
             onPress={() => onCancel(request.id)}
             style={styles.iconButton}

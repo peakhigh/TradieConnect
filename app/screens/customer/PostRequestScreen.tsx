@@ -308,6 +308,9 @@ export default function PostRequestScreen() {
             uploadedVoiceMessage = await getDownloadURL(storageRef);
           } catch (error) {
             secureError('Error uploading voice message:', error);
+            // Don't silently post without it.
+            showError('Voice Message Failed', 'Could not upload your voice message. Please try again or remove it.');
+            return;
           }
         }
       }
@@ -334,9 +337,12 @@ export default function PostRequestScreen() {
 
       // 5. Save to Firestore
       if (isEditMode && editRequestId) {
+        // Only the job details change on edit; status and ownership are left
+        // alone (the rules reject them, and a tradie may have quoted meanwhile).
+        const { customerId, status, ...details } = serviceRequest;
         const { doc, updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'serviceRequests', editRequestId), {
-          ...serviceRequest,
+          ...details,
           updatedAt: serverTimestamp()
         });
       } else {

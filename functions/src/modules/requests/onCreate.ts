@@ -101,9 +101,10 @@ export const onServiceRequestCreated = firestore
     const trades: string[] = data.trades || [];
     const tradesLower = trades.map((t: string) => t.toLowerCase());
 
-    const updates: Record<string, any> = {
-      tradesLower,
-      status: data.status || 'new',
+    // Defaults only. This trigger runs after creation, and by then a quote
+    // (submitQuote) may already have set status/intel_* — never overwrite them.
+    const defaults: Record<string, any> = {
+      status: 'new',
 
       // Intelligence defaults
       intel_totalQuotes: 0,
@@ -136,7 +137,15 @@ export const onServiceRequestCreated = firestore
     };
 
     try {
-      await db.collection('serviceRequests').doc(requestId).update(updates);
+      const ref = db.collection('serviceRequests').doc(requestId);
+      await db.runTransaction(async (tx) => {
+        const current = (await tx.get(ref)).data() || {};
+        const updates: Record<string, any> = { tradesLower };
+        for (const [key, value] of Object.entries(defaults)) {
+          if (current[key] === undefined) updates[key] = value;
+        }
+        tx.update(ref, updates);
+      });
       console.log(`Initialized intel fields for request ${requestId}`);
 
       // Reporting rollups: a new request adds to request + active counts.

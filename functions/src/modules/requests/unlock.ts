@@ -66,6 +66,9 @@ export const unlockServiceRequest = https.onCall(async (request) => {
   // 2. Create quotes doc with status: 'unlocked'
   const quoteData = {
     tradieId,
+    // Denormalized so the customer can query (and the rules can authorize)
+    // their quotes without a join.
+    customerId: serviceRequestData.customerId,
     serviceRequestId,
     status: 'unlocked',
     unlockAmount: unlockCost,

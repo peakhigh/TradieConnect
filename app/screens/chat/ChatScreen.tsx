@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
+import { useUser } from '../../context/UserContext';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { ArrowLeft, Send, Paperclip, FileText } from 'lucide-react-native';
 import { formatTimeAgo } from '../../utils/helpers';
@@ -56,11 +57,20 @@ export default function ChatScreen({ chatRoomId, otherPartyName }: { chatRoomId?
     });
   }, [chatRoomId, user?.id]);
 
-  // Mark room read when opened.
+  // Mark the room read when opened, and again whenever its unread counter
+  // goes up while it's open (onChatMessageCreated increments it server-side).
+  const { chatRooms } = useUser();
+  const viewerType = user?.userType === 'tradie' ? 'tradie' : 'customer';
+  const room = chatRooms.find((r) => r.id === chatRoomId);
+  const myUnread = room ? (viewerType === 'tradie' ? room.unreadByTradie : room.unreadByCustomer) : 0;
   useEffect(() => {
     if (!chatRoomId || !user) return;
-    markRoomRead(chatRoomId, user.userType === 'tradie' ? 'tradie' : 'customer').catch(() => {});
+    markRoomRead(chatRoomId, viewerType).catch(() => {});
   }, [chatRoomId, user?.id]);
+  useEffect(() => {
+    if (!chatRoomId || !user || myUnread === 0) return;
+    markRoomRead(chatRoomId, viewerType).catch(() => {});
+  }, [myUnread]);
 
   // Subscribe to messages.
   useEffect(() => {

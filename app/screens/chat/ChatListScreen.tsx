@@ -6,7 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { MessageCircle, Search, X } from 'lucide-react-native';
 import { formatTimeAgo } from '../../utils/helpers';
-import { ChatRoom, subscribeToChatRooms } from '../../services/chatService';
+import { ChatRoom } from '../../services/chatService';
+import { useUser } from '../../context/UserContext';
 
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected';
 
@@ -24,31 +25,23 @@ const previewPrefix = (type?: string) => {
   return '';
 };
 
-export default function ChatListScreen() {
+interface ChatListScreenProps {
+  /** When set, show only the conversations about this service request. */
+  requestId?: string;
+}
+
+export default function ChatListScreen({ requestId }: ChatListScreenProps) {
   const { user } = useAuth();
   const { navigate } = useScreenNavigation();
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { chatRooms, chatRoomsLoading: loading } = useUser();
+  const [requestFilter, setRequestFilter] = useState<string | undefined>(requestId);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-    const unsub = subscribeToChatRooms(
-      user.id,
-      user.userType as any,
-      (rooms) => {
-        setChatRooms(rooms);
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-    return unsub;
-  }, [user?.id, user?.userType]);
+    setRequestFilter(requestId);
+  }, [requestId]);
 
   const isTradie = user?.userType === 'tradie';
   const getOtherPartyName = (room: ChatRoom) => (isTradie ? room.customerName : room.tradieName);
@@ -56,6 +49,9 @@ export default function ChatListScreen() {
 
   const filtered = useMemo(() => {
     let rooms = chatRooms;
+    if (requestFilter) {
+      rooms = rooms.filter((r) => r.serviceRequestId === requestFilter);
+    }
     if (statusFilter !== 'all') {
       rooms = rooms.filter((r) => (r.quoteStatus || 'pending') === statusFilter);
     }
@@ -71,11 +67,18 @@ export default function ChatListScreen() {
       );
     }
     return rooms;
-  }, [chatRooms, statusFilter, unreadOnly, search, isTradie]);
+  }, [chatRooms, requestFilter, statusFilter, unreadOnly, search, isTradie]);
 
   const handleOpenChat = (room: ChatRoom) => {
     navigate('Chat', { chatRoomId: room.id, otherPartyName: getOtherPartyName(room) });
   };
+
+  // Opened for a request with a single conversation: go straight into it.
+  useEffect(() => {
+    if (loading || !requestId) return;
+    const forRequest = chatRooms.filter((r) => r.serviceRequestId === requestId);
+    if (forRequest.length === 1) handleOpenChat(forRequest[0]);
+  }, [loading, requestId]);
 
   const renderChatItem = ({ item }: { item: ChatRoom }) => {
     const otherName = getOtherPartyName(item);
@@ -146,6 +149,14 @@ export default function ChatListScreen() {
 
       {/* Filters */}
       <View style={styles.filterRow}>
+        {requestFilter ? (
+          <TouchableOpacity
+            style={[styles.filterChip, styles.filterChipActive]}
+            onPress={() => setRequestFilter(undefined)}
+          >
+            <Text style={[styles.filterChipText, styles.filterChipTextActive]}>This request ✕</Text>
+          </TouchableOpacity>
+        ) : null}
         {STATUS_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}

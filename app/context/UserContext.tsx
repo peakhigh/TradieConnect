@@ -1,9 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
-import { ServiceRequest, Quote } from '../types';
+import { ServiceRequest } from '../types';
 import { secureLog, secureError } from '../utils/logger';
+import { ChatRoom, subscribeToChatRooms } from '../services/chatService';
+
+/** Request statuses the customer still acts on. Completed/cancelled live in History. */
+export const OPEN_REQUEST_STATUSES = ['new', 'quoted', 'assigned'];
+const MAX_OPEN_REQUESTS = 100;
+const MAX_QUOTES = 200;
 
 /**
  * A quote as surfaced to the customer for review. Mapped from the real `quotes`
@@ -29,8 +35,13 @@ export interface CustomerQuote {
 }
 
 interface UserContextType {
+  /** The customer's open requests (new / quoted / assigned), newest first. */
   serviceRequests: ServiceRequest[];
+  /** Quotes on the customer's open requests, newest first. */
   quotes: CustomerQuote[];
+  /** The user's chat rooms (customer or tradie), most recent activity first. */
+  chatRooms: ChatRoom[];
+  chatRoomsLoading: boolean;
   unreadMessageCount: number;
   /** Number of received quotes per serviceRequestId (drives the "Interests" count). */
   quotesByRequest: Record<string, number>;
@@ -58,24 +69,28 @@ const toDate = (value: any): Date | null => {
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
-  const [quotes, setQuotes] = useState<CustomerQuote[]>([]);
-  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [roomsByRequest, setRoomsByRequest] = useState<Record<string, number>>({});
+  const [allQuotes, setAllQuotes] = useState<CustomerQuote[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [chatRoomsLoading, setChatRoomsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // --- Service requests (customer's own postings) ---
   useEffect(() => {
     if (!user || user.userType !== 'customer') {
       setServiceRequests([]);
+      setLoading(false);
       return;
     }
 
     secureLog('Subscribing to service requests for user:', user.id);
+    setLoading(true);
 
     const requestsQuery = query(
       collection(db, 'serviceRequests'),
       where('customerId', '==', user.id),
-      orderBy('createdAt', 'desc')
+      where('status', 'in', OPEN_REQUEST_STATUSES),
+      orderBy('createdAt', 'desc'),
+      limit(MAX_OPEN_REQUESTS)
     );
 
     const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
@@ -106,107 +121,93 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, [user?.id, user?.userType]);
 
-  // --- Quotes to review (real `quotes` collection, scoped to this customer's requests) ---
+  // --- Quotes on this customer's requests ---
+  // One listener keyed on customerId (denormalized onto quotes), so it doesn't
+  // restart every time a request doc changes.
   useEffect(() => {
     if (!user || user.userType !== 'customer') {
-      setQuotes([]);
+      setAllQuotes([]);
       return;
     }
 
-    // serviceRequests subscription gives us the request IDs this customer owns.
-    const requestIds = serviceRequests.map((r) => r.id).filter(Boolean);
-    if (requestIds.length === 0) {
-      setQuotes([]);
-      return;
-    }
-
-    // Firestore `in` supports up to 30 values per query — chunk and merge.
-    const chunks: string[][] = [];
-    for (let i = 0; i < requestIds.length; i += 30) {
-      chunks.push(requestIds.slice(i, i + 30));
-    }
-
-    const merged = new Map<string, CustomerQuote>();
-    const unsubscribers = chunks.map((chunk) => {
-      const quotesQuery = query(
-        collection(db, 'quotes'),
-        where('serviceRequestId', 'in', chunk),
-        where('status', 'in', ['quoted', 'accepted', 'rejected'])
-      );
-
-      return onSnapshot(quotesQuery, (snapshot) => {
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          merged.set(doc.id, {
-            id: doc.id,
-            serviceRequestId: data.serviceRequestId || '',
-            tradieId: data.tradieId || '',
-            tradieName: data.tradieName || 'Tradie',
-            tradieRating: data.tradieRating || 0,
-            totalPrice: data.totalPrice || 0,
-            materialsCost: data.materialsCost || 0,
-            laborCost: data.laborCost || 0,
-            timelineDays: data.timelineDays || 0,
-            estimatedStartDate: toDate(data.estimatedStartDate),
-            estimatedCompletionDate: toDate(data.estimatedCompletionDate),
-            notes: data.notes || '',
-            status: data.status,
-            createdAt: toDate(data.quotedAt) || toDate(data.createdAt) || new Date(),
-          });
-        });
-        // Newest first
-        const all = Array.from(merged.values()).sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
-        setQuotes(all);
-      }, (error) => {
-        secureError('Error loading quotes:', error);
-      });
-    });
-
-    return () => unsubscribers.forEach((u) => u());
-  }, [user?.id, user?.userType, serviceRequests]);
-
-  // --- Unread message count (from real chatRooms) ---
-  useEffect(() => {
-    if (!user) {
-      setUnreadMessageCount(0);
-      return;
-    }
-
-    const isTradie = user.userType === 'tradie';
-    const fieldToQuery = isTradie ? 'tradieId' : 'customerId';
-    const unreadField = isTradie ? 'unreadByTradie' : 'unreadByCustomer';
-
-    if (user.userType === 'admin') {
-      setUnreadMessageCount(0);
-      return;
-    }
-
-    const roomsQuery = query(
-      collection(db, 'chatRooms'),
-      where(fieldToQuery, '==', user.id)
+    const quotesQuery = query(
+      collection(db, 'quotes'),
+      where('customerId', '==', user.id),
+      where('status', 'in', ['quoted', 'accepted', 'rejected']),
+      limit(MAX_QUOTES)
     );
 
-    const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
-      let total = 0;
-      const byRequest: Record<string, number> = {};
-      snapshot.docs.forEach((doc) => {
+    return onSnapshot(quotesQuery, (snapshot) => {
+      const list = snapshot.docs.map((doc) => {
         const data = doc.data();
-        total += data[unreadField] || 0;
-        const reqId = data.serviceRequestId;
-        if (reqId) byRequest[reqId] = (byRequest[reqId] || 0) + 1;
+        return {
+          id: doc.id,
+          serviceRequestId: data.serviceRequestId || '',
+          tradieId: data.tradieId || '',
+          tradieName: data.tradieName || 'Tradie',
+          tradieRating: data.tradieRating || 0,
+          totalPrice: data.totalPrice || 0,
+          materialsCost: data.materialsCost || 0,
+          laborCost: data.laborCost || 0,
+          timelineDays: data.timelineDays || 0,
+          estimatedStartDate: toDate(data.estimatedStartDate),
+          estimatedCompletionDate: toDate(data.estimatedCompletionDate),
+          notes: data.notes || '',
+          status: data.status,
+          createdAt: toDate(data.quotedAt) || toDate(data.createdAt) || new Date(),
+        } as CustomerQuote;
       });
-      setUnreadMessageCount(total);
-      setRoomsByRequest(byRequest);
+      // Newest first
+      list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setAllQuotes(list);
     }, (error) => {
-      secureError('Error loading unread message count:', error);
-      setUnreadMessageCount(0);
-      setRoomsByRequest({});
+      secureError('Error loading quotes:', error);
+      setAllQuotes([]);
     });
-
-    return unsubscribe;
   }, [user?.id, user?.userType]);
+
+  // Only quotes on requests that are still open (the listener also returns
+  // accepted quotes of completed jobs).
+  const quotes = useMemo(() => {
+    const openIds = new Set(serviceRequests.map((r) => r.id));
+    return allQuotes.filter((q) => openIds.has(q.serviceRequestId));
+  }, [allQuotes, serviceRequests]);
+
+  // --- Chat rooms (shared by the Messages screen, badges and request cards) ---
+  useEffect(() => {
+    if (!user || user.userType === 'admin') {
+      setChatRooms([]);
+      setChatRoomsLoading(false);
+      return;
+    }
+    setChatRoomsLoading(true);
+    return subscribeToChatRooms(
+      user.id,
+      user.userType,
+      (rooms) => {
+        setChatRooms(rooms);
+        setChatRoomsLoading(false);
+      },
+      (error) => {
+        secureError('Error loading chat rooms:', error);
+        setChatRooms([]);
+        setChatRoomsLoading(false);
+      }
+    );
+  }, [user?.id, user?.userType]);
+
+  const { unreadMessageCount, roomsByRequest } = useMemo(() => {
+    const isTradie = user?.userType === 'tradie';
+    let total = 0;
+    const byRequest: Record<string, number> = {};
+    chatRooms.forEach((room) => {
+      total += (isTradie ? room.unreadByTradie : room.unreadByCustomer) || 0;
+      if (room.serviceRequestId) {
+        byRequest[room.serviceRequestId] = (byRequest[room.serviceRequestId] || 0) + 1;
+      }
+    });
+    return { unreadMessageCount: total, roomsByRequest: byRequest };
+  }, [chatRooms, user?.userType]);
 
   // Quotes received per request (for the "Interests" count on request cards).
   const quotesByRequest = useMemo(() => {
@@ -220,6 +221,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: UserContextType = {
     serviceRequests,
     quotes,
+    chatRooms,
+    chatRoomsLoading,
     unreadMessageCount,
     quotesByRequest,
     roomsByRequest,

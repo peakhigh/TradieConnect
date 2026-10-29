@@ -31,7 +31,7 @@ function renderScreen(activeRoute: string, routeParams?: any) {
     case 'Dashboard': return <CustomerDashboard />;
     case 'PostRequest': return <PostRequestScreen />;
     case 'History': return <CustomerHistoryScreen />;
-    case 'Messages': return <ChatListScreen />;
+    case 'Messages': return <ChatListScreen requestId={routeParams?.requestId} />;
     case 'Chat': return <ChatScreen chatRoomId={routeParams?.chatRoomId} otherPartyName={routeParams?.otherPartyName} />;
     case 'Profile': return <CustomerProfileScreen />;
     // 'Interests' is a legacy alias — it now renders the live quotes screen.

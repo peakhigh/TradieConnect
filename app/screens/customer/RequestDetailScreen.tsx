@@ -100,8 +100,15 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
 
   // --- Subscribe to this request's quotes ---
   useEffect(() => {
-    if (!requestId) return;
-    const q = query(collection(db, 'quotes'), where('serviceRequestId', '==', requestId));
+    if (!requestId || !user?.id) return;
+    // customerId is required by the rules (quotes are private to the tradie
+    // and the request's customer); the status filter skips 'unlocked' rows.
+    const q = query(
+      collection(db, 'quotes'),
+      where('customerId', '==', user.id),
+      where('serviceRequestId', '==', requestId),
+      where('status', 'in', ['quoted', 'accepted', 'rejected', 'pending'])
+    );
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs
         .map((d) => {
@@ -124,14 +131,14 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
             createdAt: toDate(data.quotedAt) || toDate(data.createdAt) || new Date(),
           } as Quote;
         })
-        // Only show quotes the tradie has actually submitted (skip 'unlocked'
-        // placeholders and 'withdrawn' quotes the tradie retracted).
-        .filter((qt) => qt.status !== 'unlocked' && qt.status !== 'withdrawn')
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setQuotes(list);
+    }, (err) => {
+      console.error('Error loading quotes:', err);
+      setError('Could not load quotes. Please try again.');
     });
     return unsub;
-  }, [requestId]);
+  }, [requestId, user?.id]);
 
   const status = (request?.status || 'new') as ServiceRequestStatus;
   const isOpenForQuotes = status === 'new' || status === 'quoted';
