@@ -48,7 +48,8 @@ Tradie submissions for service requests.
 | id | string | Auto-generated |
 | serviceRequestId | string | Ref to serviceRequests |
 | tradieId | string | Ref to users |
-| customerId | string | Request's customer, denormalized at unlock. Customers query and the rules authorize quotes by it. Backfill: `bin/data/backfillQuoteCustomerId.js` |
+| customerId | string | Request's customer, denormalized at unlock. Customers query and the rules authorize quotes by it. Backfill: `bin/data/backfillQuoteFields.js` |
+| trades / postcode / suburb | string[] / string | Copied from the request at unlock, for tradie-side labels |
 | amount / totalPrice | number | Total quote price |
 | materialsCost | number | Breakdown |
 | laborCost | number | Breakdown |

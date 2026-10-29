@@ -43,6 +43,22 @@ const PAGINATION_CONFIG = {
   LOAD_MORE_THRESHOLD: 30,   // Show "Load More" button after this many items
 };
 
+const DEFAULT_FILTERS: FilterState = {
+  data: {
+    trades: [],
+    location: { postcode: '', radius: 10 },
+    budget: { min: 0, max: 5000 },
+    urgency: [],
+    postedWithin: 24
+  },
+  intelligence: {
+    competitionLevel: 'all',
+    winRateThreshold: 0,
+    opportunityScore: { min: 0, max: 100 },
+    priceGap: 'all'
+  }
+};
+
 export default function ExplorerScreen() {
   const { navigate } = useScreenNavigation();
   const { user } = useAuth();
@@ -61,21 +77,7 @@ export default function ExplorerScreen() {
   const [flatListRef, setFlatListRef] = useState<any>(null);
   const [savedRequests, setSavedRequests] = useState<Set<string>>(new Set());
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
-    data: {
-      trades: [],
-      location: { postcode: '', radius: 10 },
-      budget: { min: 0, max: 5000 },
-      urgency: [],
-      postedWithin: 24
-    },
-    intelligence: {
-      competitionLevel: 'all',
-      winRateThreshold: 0,
-      opportunityScore: { min: 0, max: 100 },
-      priceGap: 'all'
-    }
-  });
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [tempFilters, setTempFilters] = useState<FilterState>(appliedFilters);
   // Search: `searchInput` is the live text box; `searchQuery` is the applied term.
   const [searchInput, setSearchInput] = useState('');
@@ -191,18 +193,19 @@ export default function ExplorerScreen() {
     }
   };
 
-  // When a search is active, client-side filtering can leave the first page(s)
-  // with too few matches to be scrollable (so onEndReached never fires).
-  // Keep pulling more pages until we have a reasonable number of matches or
-  // run out of data. Capped implicitly by hasMore.
+  // When a search or filter is active, client-side filtering can leave the
+  // first page(s) with too few matches to be scrollable (so onEndReached never
+  // fires). Keep pulling more pages until we have a reasonable number of
+  // matches or run out of data. Capped implicitly by hasMore.
+  const filtering = !!searchQuery || JSON.stringify(appliedFilters) !== JSON.stringify(DEFAULT_FILTERS);
   useEffect(() => {
-    if (!searchQuery) return;
+    if (!filtering) return;
     if (loading || loadingMore) return;
     if (!hasMore) return;
     if (requests.length >= PAGINATION_CONFIG.ITEMS_PER_LOAD) return;
     loadRequests(false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, requests.length, loading, loadingMore, hasMore]);
+  }, [filtering, requests.length, loading, loadingMore, hasMore]);
 
   const handleLoadMore = () => {
     secureLog(`🔘 handleLoadMore clicked:`, {
@@ -363,23 +366,8 @@ export default function ExplorerScreen() {
   };
 
   const clearAllFilters = () => {
-    const defaultFilters: FilterState = {
-      data: {
-        trades: [],
-        location: { postcode: '', radius: 10 },
-        budget: { min: 0, max: 5000 },
-        urgency: [],
-        postedWithin: 24
-      },
-      intelligence: {
-        competitionLevel: 'all' as const,
-        winRateThreshold: 0,
-        opportunityScore: { min: 0, max: 100 },
-        priceGap: 'all' as const
-      }
-    };
-    setAppliedFilters(defaultFilters);
-    setTempFilters(defaultFilters);
+    setAppliedFilters(DEFAULT_FILTERS);
+    setTempFilters(DEFAULT_FILTERS);
   };
 
   const applyFilters = () => {

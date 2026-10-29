@@ -22,30 +22,39 @@ export async function creditWallet(
   amount: number,
   opts: CreditOptions
 ): Promise<number> {
-  if (opts.referenceId) {
-    const dupe = await db
-      .collection('walletTransactions')
-      .where('userId', '==', userId)
-      .where('referenceId', '==', opts.referenceId)
-      .limit(1)
-      .get();
-    if (!dupe.empty) {
-      throw new https.HttpsError('already-exists', 'This payment has already been credited.');
+  // The Stripe webhook and confirmCheckoutRecharge both credit the same payment,
+  // usually at the same moment. A fixed doc id per payment, created inside a
+  // transaction, makes the second credit fail instead of doubling the money.
+  const txnRef = opts.referenceId
+    ? db.collection('walletTransactions').doc(`recharge_${opts.referenceId}`)
+    : db.collection('walletTransactions').doc();
+  const userRef = db.collection('users').doc(userId);
+
+  await db.runTransaction(async (tx) => {
+    if (opts.referenceId) {
+      const [existing, legacyDupe] = await Promise.all([
+        tx.get(txnRef),
+        // Credits recorded before fixed ids were used.
+        tx.get(db.collection('walletTransactions')
+          .where('userId', '==', userId)
+          .where('referenceId', '==', opts.referenceId)
+          .limit(1)),
+      ]);
+      if (existing.exists || !legacyDupe.empty) {
+        throw new https.HttpsError('already-exists', 'This payment has already been credited.');
+      }
     }
-  }
 
-  await db.collection('walletTransactions').add({
-    userId,
-    type: 'recharge',
-    amount,
-    description: opts.description,
-    referenceId: opts.referenceId || '',
-    status: 'completed',
-    createdAt: FieldValue.serverTimestamp(),
-  });
-
-  await db.collection('users').doc(userId).update({
-    walletBalance: FieldValue.increment(amount),
+    tx.create(txnRef, {
+      userId,
+      type: 'recharge',
+      amount,
+      description: opts.description,
+      referenceId: opts.referenceId || '',
+      status: 'completed',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.update(userRef, { walletBalance: FieldValue.increment(amount) });
   });
 
   const userDoc = await db.collection('users').doc(userId).get();

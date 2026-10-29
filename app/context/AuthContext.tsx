@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { User } from '../types';
 
@@ -131,12 +131,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Listen to Firebase auth state
+  // Listen to Firebase auth state, then to the signed-in user's own profile so
+  // server-side changes (wallet after unlock/recharge, approval, rating) show
+  // up without a reload.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      unsubscribeProfile?.();
+      unsubscribeProfile = null;
+
+      if (!fbUser) {
+        // No Firebase session: the cached profile is stale (signed out, token
+        // expired, or the account was deleted), so drop it rather than show it.
+        persistUser(null);
+        dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: null } });
+        return;
+      }
+
+      unsubscribeProfile = onSnapshot(
+        doc(db, 'users', fbUser.uid),
+        (userDoc) => {
           if (userDoc.exists()) {
             const userData = { id: fbUser.uid, ...userDoc.data() } as User;
             persistUser(userData);
@@ -145,19 +160,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             persistUser(null);
             dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
           }
-        } catch (error) {
+        },
+        (error) => {
           console.error('Error fetching user data:', error);
           dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: fbUser } });
         }
-      } else {
-        // No Firebase session: the cached profile is stale (signed out, token
-        // expired, or the account was deleted), so drop it rather than show it.
-        persistUser(null);
-        dispatch({ type: 'AUTH_IS_READY', payload: { user: null, firebaseUser: null } });
-      }
+      );
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeProfile?.();
+      unsubscribe();
+    };
   }, []);
 
   const signOut = useCallback(async () => {

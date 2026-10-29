@@ -6,6 +6,12 @@ import { requireActiveTradie } from '../auth/tradieGuard';
 
 const db = admin.firestore();
 
+/** Users docs have no displayName/name; build one from the profile fields. */
+function tradieDisplayName(data: FirebaseFirestore.DocumentData): string {
+  const full = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+  return data.businessName || full || data.displayName || data.name || 'Tradie';
+}
+
 interface UnlockRequestData {
   serviceRequestId: string;
 }
@@ -31,97 +37,104 @@ export const unlockServiceRequest = https.onCall(async (request) => {
   const tradieData = await requireActiveTradie(tradieId);
 
   const unlockCost = 0.50;
-  const walletBalance = tradieData.walletBalance || 0;
-  if (walletBalance < unlockCost) {
-    throw new https.HttpsError('failed-precondition', 'Insufficient wallet balance. Please recharge your wallet.');
-  }
+  const userRef = db.collection('users').doc(tradieId);
+  const requestRef = db.collection('serviceRequests').doc(serviceRequestId);
 
-  // Check if already unlocked
-  const existingUnlock = await db.collection('quotes')
-    .where('tradieId', '==', tradieId)
-    .where('serviceRequestId', '==', serviceRequestId)
-    .limit(1)
-    .get();
+  // Everything that reads or moves money runs in one transaction. Concurrent
+  // unlocks (double tap, two tabs) all write the tradie doc, so Firestore
+  // serializes them: a retry sees the first unlock and the reduced balance.
+  // Without this, 3 parallel calls charged 3x and a $0.50 wallet went negative.
+  const serviceRequestData = await db.runTransaction(async (tx) => {
+    const [userSnap, existingUnlock, requestSnap] = await Promise.all([
+      tx.get(userRef),
+      tx.get(db.collection('quotes')
+        .where('tradieId', '==', tradieId)
+        .where('serviceRequestId', '==', serviceRequestId)
+        .limit(1)),
+      tx.get(requestRef),
+    ]);
 
-  if (!existingUnlock.empty) {
-    throw new https.HttpsError('already-exists', 'You have already unlocked this request');
-  }
+    const walletBalance = userSnap.data()?.walletBalance || 0;
+    if (walletBalance < unlockCost) {
+      throw new https.HttpsError('failed-precondition', 'Insufficient wallet balance. Please recharge your wallet.');
+    }
+    if (!existingUnlock.empty) {
+      throw new https.HttpsError('already-exists', 'You have already unlocked this request');
+    }
+    if (!requestSnap.exists) {
+      throw new https.HttpsError('not-found', 'Service request not found');
+    }
+    const requestData = requestSnap.data()!;
+    if (requestData.status !== 'new' && requestData.status !== 'active' && requestData.status !== 'quoted') {
+      throw new https.HttpsError('failed-precondition', 'Service request is no longer available');
+    }
 
-  // Get service request
-  const serviceRequestDoc = await db.collection('serviceRequests').doc(serviceRequestId).get();
-  if (!serviceRequestDoc.exists) {
-    throw new https.HttpsError('not-found', 'Service request not found');
-  }
+    // 1. Deduct $0.50 from wallet
+    tx.update(userRef, { walletBalance: FieldValue.increment(-unlockCost) });
 
-  const serviceRequestData = serviceRequestDoc.data()!;
-  if (serviceRequestData.status !== 'new' && serviceRequestData.status !== 'active' && serviceRequestData.status !== 'quoted') {
-    throw new https.HttpsError('failed-precondition', 'Service request is no longer available');
-  }
+    // 2. Create quotes doc with status: 'unlocked'
+    tx.set(db.collection('quotes').doc(), {
+      tradieId,
+      // Denormalized so the customer can query (and the rules can authorize)
+      // their quotes without a join, and so the tradie's History/Dashboard can
+      // label the job without reading the request.
+      customerId: requestData.customerId,
+      serviceRequestId,
+      trades: requestData.trades || [],
+      postcode: requestData.postcode || '',
+      suburb: requestData.suburb || '',
+      status: 'unlocked',
+      unlockAmount: unlockCost,
+      unlockedAt: FieldValue.serverTimestamp(),
+      totalPrice: null,
+      materialsCost: null,
+      laborCost: null,
+      timelineDays: null,
+      estimatedStartDate: null,
+      estimatedCompletionDate: null,
+      notes: null,
+      quotedAt: null,
+      acceptedAt: null,
+      tradieName: tradieDisplayName(tradieData),
+      tradieRating: tradieData.rating || 0,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-  // 1. Deduct $0.50 from wallet
-  await db.collection('users').doc(tradieId).update({
-    walletBalance: FieldValue.increment(-unlockCost),
+    // 3. Create walletTransactions record
+    tx.set(db.collection('walletTransactions').doc(), {
+      userId: tradieId,
+      type: 'unlock',
+      amount: -unlockCost,
+      description: `Unlocked service request: ${requestData.trades ? requestData.trades.join(', ') : 'Service'}`,
+      referenceId: serviceRequestId,
+      status: 'completed',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // 4. Update serviceRequest intel fields
+    const currentUnlocks = (requestData.intel_totalUnlocks || 0) + 1;
+    const intelUpdates: Record<string, any> = {
+      intel_totalUnlocks: FieldValue.increment(1),
+      intel_updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    // Update demand level based on new unlock count
+    if (currentUnlocks > 10) {
+      intelUpdates.intel_demandLevel = 'high';
+    } else if (currentUnlocks > 5) {
+      intelUpdates.intel_demandLevel = 'medium';
+    }
+
+    // Boost opportunity if many unlocks but few quotes
+    const currentQuotes = requestData.intel_totalQuotes || 0;
+    if (currentUnlocks > 3 && currentQuotes < 3) {
+      const currentScore = requestData.intel_opportunityScore || 50;
+      intelUpdates.intel_opportunityScore = Math.min(currentScore + 5, 100);
+    }
+
+    tx.update(requestRef, intelUpdates);
+    return requestData;
   });
-
-  // 2. Create quotes doc with status: 'unlocked'
-  const quoteData = {
-    tradieId,
-    // Denormalized so the customer can query (and the rules can authorize)
-    // their quotes without a join.
-    customerId: serviceRequestData.customerId,
-    serviceRequestId,
-    status: 'unlocked',
-    unlockAmount: unlockCost,
-    unlockedAt: FieldValue.serverTimestamp(),
-    totalPrice: null,
-    materialsCost: null,
-    laborCost: null,
-    timelineDays: null,
-    estimatedStartDate: null,
-    estimatedCompletionDate: null,
-    notes: null,
-    quotedAt: null,
-    acceptedAt: null,
-    tradieName: tradieData.displayName || tradieData.name || 'Unknown',
-    tradieRating: tradieData.rating || 0,
-    createdAt: FieldValue.serverTimestamp(),
-  };
-
-  await db.collection('quotes').add(quoteData);
-
-  // 3. Create walletTransactions record
-  await db.collection('walletTransactions').add({
-    userId: tradieId,
-    type: 'unlock',
-    amount: -unlockCost,
-    description: `Unlocked service request: ${serviceRequestData.trades ? serviceRequestData.trades.join(', ') : 'Service'}`,
-    referenceId: serviceRequestId,
-    status: 'completed',
-    createdAt: FieldValue.serverTimestamp(),
-  });
-
-  // 4. Update serviceRequest intel fields
-  const currentUnlocks = (serviceRequestData.intel_totalUnlocks || 0) + 1;
-  const intelUpdates: Record<string, any> = {
-    intel_totalUnlocks: FieldValue.increment(1),
-    intel_updatedAt: FieldValue.serverTimestamp(),
-  };
-
-  // Update demand level based on new unlock count
-  if (currentUnlocks > 10) {
-    intelUpdates.intel_demandLevel = 'high';
-  } else if (currentUnlocks > 5) {
-    intelUpdates.intel_demandLevel = 'medium';
-  }
-
-  // Boost opportunity if many unlocks but few quotes
-  const currentQuotes = serviceRequestData.intel_totalQuotes || 0;
-  if (currentUnlocks > 3 && currentQuotes < 3) {
-    const currentScore = serviceRequestData.intel_opportunityScore || 50;
-    intelUpdates.intel_opportunityScore = Math.min(currentScore + 5, 100);
-  }
-
-  await db.collection('serviceRequests').doc(serviceRequestId).update(intelUpdates);
 
   // Reporting rollups: record the unlock.
   await applyRollupDelta(

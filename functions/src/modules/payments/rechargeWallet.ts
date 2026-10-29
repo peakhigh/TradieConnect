@@ -43,6 +43,12 @@ export const rechargeWallet = https.onCall(async (request) => {
 
   const paymentsLive = isPaymentsLive();
 
+  // Fail safe: a deploy without PAYMENTS_LIVE set must not hand out free
+  // credit, so the unpaid dev credit only exists inside the local emulator.
+  if (!paymentsLive && process.env.FUNCTIONS_EMULATOR !== 'true') {
+    throw new https.HttpsError('failed-precondition', 'Card payments are not available right now.');
+  }
+
   if (paymentsLive) {
     if (!paymentIntentId) {
       throw new https.HttpsError('failed-precondition', 'A payment is required to recharge.');

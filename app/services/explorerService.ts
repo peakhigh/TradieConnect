@@ -87,10 +87,11 @@ export async function fetchServiceRequests(
   });
 
   try {
-    // Primary Firestore query: status + orderBy + pagination
+    // Primary Firestore query: status + orderBy + pagination. 'quoted' requests
+    // still accept quotes (submitQuote flips new → quoted on the first one).
     let q = query(
       collection(db, 'serviceRequests'),
-      where('status', '==', 'new'),
+      where('status', 'in', ['new', 'quoted']),
       orderBy('createdAt', 'desc')
     );
 
@@ -245,9 +246,12 @@ export async function fetchServiceRequests(
 
 export async function checkUnlockedRequests(tradieId: string): Promise<string[]> {
   try {
+    // Only requests still in the Explorer matter; the tradie's accepted /
+    // rejected / withdrawn history would just grow this read forever.
     const q = query(
       collection(db, 'quotes'),
-      where('tradieId', '==', tradieId)
+      where('tradieId', '==', tradieId),
+      where('status', 'in', ['unlocked', 'quoted', 'pending'])
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data().serviceRequestId);
