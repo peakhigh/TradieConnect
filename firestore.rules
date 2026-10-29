@@ -7,8 +7,8 @@ rules_version = '2';
 //  - Money / lifecycle collections (quotes, walletTransactions, notifications,
 //    reporting rollups, ratings) are READ-only for clients; all writes go
 //    through Cloud Functions, which use the Admin SDK and bypass these rules.
-//  - User docs are writable only by their owner; admin changes (approve/suspend)
-//    go through admin Cloud Functions.
+//  - User docs are readable and writable only by their owner (admins can read);
+//    admin changes (approve/suspend) go through admin Cloud Functions.
 //
 // NOTE: Deploy with `npm run deploy:rules` and test the full app afterwards —
 // these rules are stricter than the previous open ruleset.
@@ -37,8 +37,10 @@ service cloud.firestore {
     // changes (approval, suspension) run server-side via Cloud Functions.
     // Role, approval, money and reputation fields are server-only: a client
     // can't make itself admin, approve itself, or top up its own wallet.
+    // Profiles hold phone numbers and emails, so only the owner and admins read
+    // them; names/ratings shown to others are denormalized onto quotes/chats.
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) &&
         request.resource.data.userType in ['customer', 'tradie'] &&
         request.resource.data.get('walletBalance', 0) == 0 &&
@@ -69,6 +71,16 @@ service cloud.firestore {
           'trades', 'description', 'postcode', 'urgency', 'photos', 'documents',
           'voiceMessage', 'searchKeywords', 'notesWords', 'descriptionLower', 'updatedAt']);
       allow delete: if false;
+
+      // Private parts of a request (e.g. 'contact': the job address and phone,
+      // written by acceptQuote). Only the customer and the accepted tradie.
+      match /private/{docId} {
+        allow read: if isSignedIn() &&
+          (resource.data.customerId == request.auth.uid ||
+           resource.data.tradieId == request.auth.uid ||
+           isAdmin());
+        allow write: if false;
+      }
     }
 
     // --- Quotes --- CF-only writes (unlock / submitQuote / accept / decline).

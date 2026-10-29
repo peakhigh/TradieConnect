@@ -148,7 +148,9 @@ export default function RequestDetailScreen({ requestId: requestIdProp }: { requ
   // --- Actions ---
   const openAccept = (quote: Quote) => {
     setError(null);
-    setAddress(request?.customerAddress || '');
+    // Contact details live in serviceRequests/{id}/private/contact once shared;
+    // start from the customer's profile address.
+    setAddress((user as any)?.address || '');
     setPhone(user?.phoneNumber || '');
     setAcceptTarget(quote);
   };

@@ -68,13 +68,27 @@ export const acceptQuote = https.onCall(async (request) => {
   });
   await batch.commit();
 
-  // 3. Update serviceRequest status to 'assigned'
-  await db.collection('serviceRequests').doc(quoteData.serviceRequestId).update({
+  // 3. Update serviceRequest status to 'assigned'. The request doc is readable
+  // by every signed-in user (Explorer), so contact details never go on it.
+  const requestRef = db.collection('serviceRequests').doc(quoteData.serviceRequestId);
+  await requestRef.update({
     status: 'assigned',
     acceptedQuoteId: quoteId,
+    acceptedTradieId: quoteData.tradieId,
+    customerAddress: FieldValue.delete(),
+    customerPhone: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  // 3b. Contact details, readable only by the customer and the accepted
+  // tradie (see firestore.rules: serviceRequests/{id}/private/{doc}).
+  await requestRef.collection('private').doc('contact').set({
+    customerId: serviceRequestData.customerId,
+    tradieId: quoteData.tradieId,
+    quoteId,
     customerAddress: customerAddress || null,
     customerPhone: customerPhone || null,
-    updatedAt: FieldValue.serverTimestamp(),
+    sharedAt: FieldValue.serverTimestamp(),
   });
 
   // Look up the accepted quote's chat room up front so notifications can
@@ -139,7 +153,8 @@ export const acceptQuote = https.onCall(async (request) => {
     // Add system message about acceptance
     await db.collection('chatRooms').doc(chatRoomId).collection('messages').add({
       type: 'system',
-      text: 'Quote accepted! Contact details have been shared.',
+      text: `Quote accepted! Job address: ${customerAddress || 'not provided'}. ` +
+        `Customer phone: ${customerPhone || 'not provided'}.`,
       senderId: 'system',
       senderName: 'System',
       receiverId: quoteData.tradieId,

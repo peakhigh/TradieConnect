@@ -60,6 +60,13 @@ async function deleteMockDocs(collectionName) {
         await deleteDoc(m.ref);
       }
     }
+    // serviceRequests have a private subcollection (contact details).
+    if (collectionName === 'serviceRequests') {
+      const priv = await getDocs(collection(db, 'serviceRequests', docSnap.id, 'private'));
+      for (const p of priv.docs) {
+        await deleteDoc(p.ref);
+      }
+    }
     await deleteDoc(docSnap.ref);
     count++;
   }

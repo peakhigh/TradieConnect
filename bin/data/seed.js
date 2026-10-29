@@ -335,10 +335,19 @@ async function seed() {
       await setDoc(doc(db, 'serviceRequests', request.id), {
         status: 'assigned',
         acceptedQuoteId: 'seed',
-        customerAddress: '12 Test St, Bondi NSW',
-        customerPhone: config.customer.phoneNumber,
+        acceptedTradieId: config.tradie.userId,
         updatedAt: Timestamp.now(),
       }, { merge: true });
+      // Contact details are private to the customer + accepted tradie (as acceptQuote writes them).
+      await setDoc(doc(db, 'serviceRequests', request.id, 'private', 'contact'), {
+        customerId: config.customer.userId,
+        tradieId: config.tradie.userId,
+        quoteId: 'seed',
+        customerAddress: '12 Test St, Bondi NSW',
+        customerPhone: config.customer.phoneNumber,
+        mock: true,
+        sharedAt: Timestamp.now(),
+      });
     } else if (status === 'quoted') {
       await setDoc(doc(db, 'serviceRequests', request.id), {
         status: 'quoted',

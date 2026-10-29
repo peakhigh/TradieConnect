@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFetchDocs } from '../../hooks/useFetchDocs';
 import { useScreenNavigation } from '../../navigation/NavigationContext';
 import { theme } from '../../theme/theme';
-import { Calendar, DollarSign, Trophy, Pencil, XCircle, AlertTriangle } from 'lucide-react-native';
+import { Calendar, DollarSign, Trophy, Pencil, XCircle, AlertTriangle, MapPin, Phone } from 'lucide-react-native';
 import { formatCurrency, timestampToReadable } from '../../utils/helpers';
 import { runCloudFunction } from '../../services/cloudFunctions';
 import { doc, getDoc } from 'firebase/firestore';
@@ -38,6 +38,24 @@ export default function TradieHistoryScreen() {
   const [tab, setTab] = useState<'quotes' | 'completed'>('quotes');
   const [withdrawTarget, setWithdrawTarget] = useState<QuoteDoc | null>(null);
   const [busy, setBusy] = useState(false);
+  // Job contact details per serviceRequestId, loaded on demand for won jobs.
+  const [contacts, setContacts] = useState<Record<string, { address: string; phone: string } | 'loading' | 'missing'>>({});
+
+  const loadContact = async (serviceRequestId: string) => {
+    setContacts((c) => ({ ...c, [serviceRequestId]: 'loading' }));
+    try {
+      const snap = await getDoc(doc(db, 'serviceRequests', serviceRequestId, 'private', 'contact'));
+      const data = snap.exists() ? snap.data() : null;
+      setContacts((c) => ({
+        ...c,
+        [serviceRequestId]: data
+          ? { address: data.customerAddress || 'Not provided', phone: data.customerPhone || 'Not provided' }
+          : 'missing',
+      }));
+    } catch {
+      setContacts((c) => ({ ...c, [serviceRequestId]: 'missing' }));
+    }
+  };
 
   const { documents: quotes, loading, refresh } = useFetchDocs<QuoteDoc>({
     collectionName: 'quotes',
@@ -192,6 +210,34 @@ export default function TradieHistoryScreen() {
                       <Text style={styles.wonText}>Job won!</Text>
                     </View>
                   )}
+
+                  {quote.status === 'accepted' && (() => {
+                    const contact = contacts[quote.serviceRequestId];
+                    if (!contact) {
+                      return (
+                        <TouchableOpacity style={styles.editBtn} onPress={() => loadContact(quote.serviceRequestId)}>
+                          <Phone size={14} color={theme.colors.primary} />
+                          <Text style={styles.editBtnText}>Show contact details</Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                    if (contact === 'loading') return <ActivityIndicator size="small" color={theme.colors.primary} />;
+                    if (contact === 'missing') {
+                      return <Text style={styles.metaText}>Contact details are in your chat with the customer.</Text>;
+                    }
+                    return (
+                      <View style={styles.contactBox}>
+                        <View style={styles.metaItem}>
+                          <MapPin size={14} color={theme.colors.text.secondary} />
+                          <Text style={styles.metaText}>{contact.address}</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Phone size={14} color={theme.colors.text.secondary} />
+                          <Text style={styles.metaText}>{contact.phone}</Text>
+                        </View>
+                      </View>
+                    );
+                  })()}
 
                   {quote.status === 'quoted' && (
                     <View style={styles.actionRow}>
@@ -354,6 +400,10 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
+  },
+  contactBox: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   wonBadge: {
     flexDirection: 'row',
