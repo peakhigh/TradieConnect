@@ -26,6 +26,7 @@ const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'tradie-mate-f8
 if (config.emulator.useEmulator) {
   // Admin SDK auto-detects this and talks to the emulator (rules bypassed).
   process.env.FIRESTORE_EMULATOR_HOST = `${config.emulator.host}:${config.emulator.firestorePort}`;
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${config.emulator.host}:${config.emulator.authPort}`;
   console.log(`🔌 Admin SDK → Firestore emulator at ${process.env.FIRESTORE_EMULATOR_HOST}`);
 } else {
   console.log(`⚠️  Admin SDK → LIVE project "${projectId}" (no emulator)`);

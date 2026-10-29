@@ -23,6 +23,7 @@ npm run seed:reporting # bin/data/backfillReporting.js
 npm run clean          # bin/data/clean.js
 npm run seed:reset     # clean + seed + backfill reporting
 ```
+Seeding also creates Auth emulator accounts with the seeded UIDs, so you can sign in with phone OTP as customer `0405724199`, tradie `0405726599` or admin `0400000000`. The emulator never sends an SMS: read the code from `http://127.0.0.1:9790/emulator/v1/projects/tradie-mate-f852a/verificationCodes` or the emulator log. Auth needs `EXPO_PUBLIC_LOCAL_AUTH=true` and `npm run e2e:emulators` (which includes Auth).
 
 ### E2E / regression
 ```bash

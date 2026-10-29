@@ -6,13 +6,16 @@
  * Usage:
  *   node bin/data/seed.js
  *
+ * Also creates Auth emulator accounts (same UIDs + phones) so the seeded
+ * users can sign in with phone OTP.
+ *
  * Prerequisites:
- *   - Firebase emulators running: firebase emulators:start --only functions,firestore
+ *   - Firebase emulators running, including Auth: npm run e2e:emulators
  *   - .env file with Firebase config (run: cp .env.local .env)
  */
 
 require('dotenv').config();
-const { db, collection, addDoc, doc, setDoc, Timestamp } = require('./fb');
+const { admin, db, collection, addDoc, doc, setDoc, Timestamp } = require('./fb');
 const config = require('./config');
 
 // --- Data generators ---
@@ -47,6 +50,32 @@ function randomNum(min, max) { return Math.floor(Math.random() * (max - min + 1)
 function randomDate(daysBack = 30) {
   const now = Date.now();
   return new Date(now - Math.random() * daysBack * 24 * 60 * 60 * 1000);
+}
+
+// Local 04xxxxxxxx → E.164 (+614xxxxxxxx), matching LoginScreen's formatting.
+function toE164(phone) {
+  return phone.startsWith('0') ? '+61' + phone.substring(1) : phone;
+}
+
+// Creates Auth emulator accounts whose UIDs match the seeded users docs, so
+// phone-OTP login lands on the seeded profile instead of a fresh signup.
+// Emulator only — never touches real Firebase Auth.
+async function seedAuthAccounts(users) {
+  if (!config.emulator.useEmulator) {
+    console.log('  ⏭️  Skipping Auth accounts (not using the emulator)');
+    return;
+  }
+  const auth = admin.auth();
+  for (const u of users) {
+    const props = { phoneNumber: toE164(u.phoneNumber), displayName: u.displayName };
+    try {
+      await auth.updateUser(u.uid, props);
+    } catch (err) {
+      if (err.code !== 'auth/user-not-found') throw err;
+      await auth.createUser({ uid: u.uid, ...props });
+    }
+  }
+  console.log(`  ✅ ${users.length} Auth emulator accounts (phone OTP login)`);
 }
 
 // --- Main seed function ---
@@ -165,6 +194,14 @@ async function seed() {
     ...extraTradies.map((et) => ({ id: et.id, name: `${et.firstName} ${et.lastName}`, firstName: et.firstName, rating: 4.3 })),
   ];
   console.log(`  ✅ ${extraTradies.length} additional active tradies`);
+
+  await seedAuthAccounts([
+    { uid: config.customer.userId, phoneNumber: config.customer.phoneNumber, displayName: `${config.customer.firstName} ${config.customer.lastName}` },
+    { uid: config.tradie.userId, phoneNumber: config.tradie.phoneNumber, displayName: `${config.tradie.firstName} ${config.tradie.lastName}` },
+    { uid: 'admin_test_001', phoneNumber: '0400000000', displayName: 'Ava Admin' },
+    ...[1, 2].map((p) => ({ uid: `tradie_pending_${p}`, phoneNumber: `040000111${p}`, displayName: `${['Jordan', 'Riley'][p - 1]} Newbie` })),
+    ...extraTradies.map((et, t) => ({ uid: et.id, phoneNumber: `04060000${t}${t}`, displayName: `${et.firstName} ${et.lastName}` })),
+  ]);
 
   // 2. Create 100 service requests with flat intel_* fields
   console.log('\n📋 Creating 100 service requests...');

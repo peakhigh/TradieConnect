@@ -36,6 +36,7 @@ module.exports = {
   emulator: {
     host: process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || 'localhost',
     firestorePort: parseInt(process.env.EXPO_PUBLIC_EMULATOR_FIRESTORE_PORT || '8480', 10),
+    authPort: parseInt(process.env.EXPO_PUBLIC_EMULATOR_AUTH_PORT || '9790', 10),
     useEmulator: true, // Set to false to seed production (careful!)
   },
 
